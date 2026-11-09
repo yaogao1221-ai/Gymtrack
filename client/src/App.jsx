@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { get, onAuthRequired, flushOutbox, outboxCount, store } from './lib/api.js';
+import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE } from './lib/api.js';
 import { Icon, Loading, useToast } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import Onboarding from './pages/Onboarding.jsx';
@@ -73,7 +73,7 @@ export default function App() {
         </aside>
       )}
       <main className="main">
-        {(!online || pending > 0) && (
+        {!STANDALONE && (!online || pending > 0) && (
           <div className="banner warn"><Icon name="wifiOff" size={16} />{!online ? 'Hors ligne : tes séances seront synchronisées au retour du réseau.' : `${pending} séance(s) en attente de synchronisation.`}
             {online && pending > 0 && <button className="link" onClick={sync}>Synchroniser</button>}</div>
         )}

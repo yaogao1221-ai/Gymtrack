@@ -12,7 +12,8 @@
     "build": "vite build --config client/vite.config.js",
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "build:standalone": "VITE_STANDALONE=1 vite build --config client/vite.config.js"
+    "build:standalone": "VITE_STANDALONE=1 vite build --config client/vite.config.js",
+    "build:pages": "VITE_PAGES=1 vite build --config client/vite.config.js"
   },
   "dependencies": {
     "express": "^5.1.0"

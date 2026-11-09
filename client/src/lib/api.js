@@ -16,7 +16,9 @@ export class ApiError extends Error { constructor(status, message) { super(messa
 const listeners = new Set();
 export const onAuthRequired = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 
-export const STANDALONE = !!import.meta.env.VITE_STANDALONE;
+// PAGES : version GitHub Pages (données dans le téléphone, sans Claude ni serveur)
+export const PAGES = !!import.meta.env.VITE_PAGES;
+export const STANDALONE = !!import.meta.env.VITE_STANDALONE || PAGES;
 let local;
 async function localApi(path, method, body, raw) {
   local ||= await import('../local/server.js');
@@ -82,7 +84,16 @@ export async function downloadFile(path, filename) {
     if (!res.ok) throw new ApiError(res.status, 'Téléchargement impossible');
     blob = await res.blob();
   }
-  if (STANDALONE) {
+  if (PAGES) {
+    // iPhone : la feuille de partage permet « Enregistrer dans Fichiers », AirDrop, mail…
+    const f = new File([blob], filename, { type: blob.type });
+    if (navigator.canShare?.({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: filename }); }
+      catch (e) { if (e?.name === 'AbortError') return; throw new ApiError(0, 'Partage impossible'); }
+      try { localStorage.setItem('gt_last_export', JSON.stringify(today())); } catch { /* */ }
+      return;
+    }
+  } else if (STANDALONE) {
     // Dans Claude, un téléchargement passe par la capacité « downloads » (confirmation de l'utilisateur)
     const dl = await window.claude?.use?.('downloads');
     if (!dl) throw new ApiError(0, 'Téléchargement indisponible dans cette vue');

@@ -67,6 +67,14 @@ L'app a besoin d'un serveur Node.js **avec un disque persistant** (sinon la base
 
 **Fly.io** : `fly launch` (Dockerfile détecté), puis `fly volumes create data --size 1` et monte-le sur `/data` dans `fly.toml`, et `fly secrets set APP_PASSWORD=…`.
 
+## Version iPhone gratuite (GitHub Pages)
+
+`npm run build:pages` produit `dist-pages/` : la même app, mais tout tourne dans le téléphone (base SQLite dans le navigateur via sql.js, stockée dans IndexedDB). Pas de serveur, pas de compte : chaque personne qui l'installe a ses propres données. Fonctionne hors ligne (service worker).
+
+Le workflow `.github/workflows/pages.yml` lance les tests, construit et publie sur GitHub Pages à chaque push sur `main` (dépôt public, *Settings → Pages → Source : GitHub Actions*).
+
+Les données vivent dans Safari : si l'app ou les données du site sont supprimées, elles sont perdues. *Plus → Données → Export complet* les sauvegarde (feuille de partage iPhone : Fichiers, iCloud Drive, mail) et *Restaurer* les réimporte.
+
 ## Installer sur iPhone
 
 1. Ouvre l'adresse HTTPS de ton app dans **Safari**.

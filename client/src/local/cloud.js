@@ -4,6 +4,7 @@ const CHUNK = 180000;
 let ctxPromise;
 
 export function cloud() {
+  if (import.meta.env.VITE_PAGES) return Promise.resolve(null);
   ctxPromise ||= (async () => {
     try {
       for (let i = 0; i < 30 && !window.claude?.use; i++) await new Promise((r) => setTimeout(r, 100));

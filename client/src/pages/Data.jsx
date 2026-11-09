@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useApi, Page, Card, Icon, Confirm, useToast } from '../components/ui.jsx';
-import { post, downloadFile, today, STANDALONE } from '../lib/api.js';
+import { post, downloadFile, today, STANDALONE, PAGES, store } from '../lib/api.js';
 import { useEffect } from 'react';
 
 export default function Data() {
@@ -38,7 +38,12 @@ export default function Data() {
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={onFile} />
         <button className="btn sm" onClick={() => file.current.click()}><Icon name="upload" size={14} />Choisir un fichier d’export</button>
       </Card>
-      {STANDALONE && <Card title="Sauvegarde automatique" icon="database">
+      {PAGES && <Card title="Où sont mes données ?" icon="database">
+        <p className="small">Tout est enregistré sur ce téléphone, dans l’app : rien n’est envoyé sur internet. Chaque personne qui installe GymTrack a ses propres données.</p>
+        <p className="small warn-text">Si tu supprimes l’app ou les données de Safari, elles sont perdues. Fais un export complet de temps en temps (Fichiers, iCloud Drive ou mail) : il se réimporte ici en un geste.</p>
+        <p className="muted small">{store.get('gt_last_export') ? `Dernier export : ${new Date(store.get('gt_last_export')).toLocaleDateString('fr-FR')}.` : 'Aucun export pour l’instant.'}</p>
+      </Card>}
+      {STANDALONE && !PAGES && <Card title="Sauvegarde automatique" icon="database">
         {!sync ? <p className="muted small">Vérification…</p> : sync.mode === 'cloud'
           ? <p className="small">Tes données sont enregistrées sur cet appareil et sauvegardées automatiquement dans ton compte Claude (privé), quelques secondes après chaque modification. {sync.lastSync ? `Dernière sauvegarde : ${new Date(sync.lastSync).toLocaleString('fr-FR')}.` : ''}</p>
           : <p className="small warn-text">Sauvegarde en ligne indisponible dans cette vue : tes données sont seulement sur cet appareil. Fais un export régulier.</p>}

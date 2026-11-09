@@ -7,17 +7,19 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 const precache = () => ({
   name: 'precache-manifest',
   generateBundle(_, bundle) {
-    this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify(Object.keys(bundle).filter((f) => f.startsWith('assets/')).map((f) => '/' + f)) });
+    this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify(Object.keys(bundle).filter((f) => f.startsWith('assets/')).map((f) => './' + f)) });
   },
 });
 const standalone = !!process.env.VITE_STANDALONE;
+const pages = !!process.env.VITE_PAGES; // GitHub Pages : app servie depuis un sous-dossier (/gymtrack/)
 // Version autonome : un seul fichier HTML, sans manifeste ni icônes externes
 const stripPwa = () => ({ name: 'strip-pwa', transformIndexHtml: (html) => html.replace(/\s*<link rel="(manifest|apple-touch-icon|icon)"[^>]*>/g, '') });
 
 export default defineConfig({
   root: path.resolve(import.meta.dirname),
+  base: pages ? './' : '/',
   plugins: standalone ? [react(), stripPwa(), viteSingleFile()] : [react(), precache()],
   resolve: { alias: { express: path.resolve(import.meta.dirname, 'src/local/expressShim.js') } },
-  build: { assetsInlineLimit: standalone ? 100000000 : 4096, copyPublicDir: !standalone, outDir: path.resolve(import.meta.dirname, standalone ? '../dist-standalone' : '../dist'), emptyOutDir: true, chunkSizeWarningLimit: 900 },
+  build: { assetsInlineLimit: standalone ? 100000000 : 4096, copyPublicDir: !standalone, outDir: path.resolve(import.meta.dirname, standalone ? '../dist-standalone' : pages ? '../dist-pages' : '../dist'), emptyOutDir: true, chunkSizeWarningLimit: 900 },
   server: { proxy: { '/api': 'http://localhost:3001' } },
 });
