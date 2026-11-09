@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
-  ranking, CATEGORIES, POINTS, personalKey, LEAGUE_URL, LEAGUE_KEY,
+  ranking, CATEGORIES, POINTS, personalKey, LEAGUE_URL,
 } from '../lib/league.js';
 
 const APP_URL = 'https://yaogao1221-ai.github.io/Gymtrack/';
@@ -41,7 +41,7 @@ function Join({ onJoined }) {
         {mode === 'create' && <Field label="Nom de la ligue"><input value={f.name} onChange={set('name')} placeholder="Les monstres du lundi" maxLength={40} /></Field>}
         {mode === 'join' && <Field label="Code de la ligue" hint="6 caractères, donné par la personne qui a créé la ligue"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })} placeholder="ABC234" maxLength={6} autoCapitalize="characters" className="mono" /></Field>}
         {mode !== 'restore' && <Field label="Ton pseudo"><input value={f.pseudo} onChange={set('pseudo')} placeholder="Anis" maxLength={20} /></Field>}
-        {mode === 'restore' && <Field label="Ta clé personnelle" hint="Elle s’affiche dans la ligue, rubrique « Mes pas ». Utile après un changement de téléphone."><input value={f.key} onChange={set('key')} className="mono" placeholder="xxxxxxxx-….xxxx" /></Field>}
+        {mode === 'restore' && <Field label="Ta clé personnelle" hint="Elle est dans ton lien « Mes pas → Automatique » (le texte entre k= et &n=). Utile après un changement de téléphone."><input value={f.key} onChange={set('key')} className="mono" placeholder="xxxxxxxx-….xxxx" /></Field>}
         <button className="btn primary block" disabled={!ok || busy} onClick={go}>{busy ? '…' : mode === 'create' ? 'Créer la ligue' : mode === 'join' ? 'Rejoindre' : 'Récupérer mon accès'}</button>
       </Card>
     </Page>
@@ -126,8 +126,8 @@ function Board({ m, onLeft }) {
         {stake && prevGeneral.length > 1 && <p className="small">{kind === 'week' ? 'Semaine dernière' : 'Mois dernier'} : <b>{prevGeneral.at(-1).pseudo}</b> doit honorer l’enjeu.</p>}
       </Card>
 
-      <Card title="Mes pas" icon="heart" action={<button className="btn xs" onClick={() => setShortcut(true)}>Raccourci iPhone</button>}>
-        <p className="muted small">L’iPhone compte tes pas dans l’app Santé. Le raccourci les envoie à la ligue en un geste, ou automatiquement chaque soir. Tu peux aussi les saisir ici.</p>
+      <Card title="Mes pas" icon="heart" action={<button className="btn xs" onClick={() => setShortcut(true)}>Automatique</button>}>
+        <p className="muted small">L’iPhone compte tes pas dans l’app Santé. Touche « Automatique » pour les envoyer tout seuls chaque soir, ou saisis-les ici.</p>
         <div className="row gap-s">
           <NumInput value={steps} onChange={setSteps} placeholder="Pas aujourd’hui" />
           <button className="btn sm" disabled={!steps} onClick={saveSteps}>Envoyer</button>
@@ -182,21 +182,22 @@ function Podium({ rows, me, unit, fmt }) {
 function ShortcutSheet({ open, onClose, m }) {
   const toast = useToast();
   const key = personalKey(m);
+  // Une seule adresse à coller : la clé perso est dedans, il ne reste qu'à ajouter le nombre de pas à la fin
+  const link = `${LEAGUE_URL}/functions/v1/pas?k=${key}&n=`;
   const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`${what} copié`); } catch { toast('Copie impossible : sélectionne le texte', 'err'); } };
-  const url = `${LEAGUE_URL}/rest/v1/rpc/ligue_pas`;
   return (
-    <Sheet open={open} onClose={onClose} title="Raccourci « Mes pas »">
+    <Sheet open={open} onClose={onClose} title="Envoyer mes pas automatiquement">
+      <p className="small">Apple ne laisse pas une appli web créer un raccourci toute seule. Ça se fait une seule fois, en 3 actions, en 2 minutes.</p>
+      <button className="btn primary block mb" onClick={() => copy(link, 'Ton lien')}><Icon name="check" size={16} />Copier mon lien</button>
       <ol className="howto">
-        <li>Ouvre l’app <b>Raccourcis</b>, touche <b>+</b> et nomme le raccourci « GymTrack pas ».</li>
-        <li>Ajoute l’action <b>Rechercher des échantillons de santé</b> : type <b>Nombre de pas</b>, date de début <b>aujourd’hui</b>.</li>
-        <li>Ajoute <b>Calculer les statistiques</b> : <b>Somme</b> des échantillons.</li>
-        <li>Ajoute <b>Obtenir le contenu de l’URL</b> avec l’adresse ci-dessous, puis touche la flèche : méthode <b>POST</b>, un en-tête <b>apikey</b>, et un corps <b>JSON</b> avec deux champs : <b>p_key</b> (texte : ta clé) et <b>p_steps</b> (nombre : le résultat des statistiques).</li>
-        <li>Pour l’envoi automatique : onglet <b>Automatisation</b> → <b>Heure de la journée</b> (par exemple 22 h, tous les jours) → <b>Exécuter immédiatement</b> → choisis ce raccourci.</li>
+        <li>Dans l’app <b>Raccourcis</b>, touche <b>+</b>, puis ajoute l’action <b>Rechercher des échantillons de santé</b>. Choisis <b>Nombre de pas</b> et <b>Date de début : aujourd’hui</b>.</li>
+        <li>Ajoute l’action <b>Calculer les statistiques</b> et choisis <b>Somme</b>.</li>
+        <li>Ajoute l’action <b>Obtenir le contenu de l’URL</b>. Dans le champ URL, <b>colle ton lien</b>, puis juste à la fin touche la variable <b>Statistiques</b> (au-dessus du clavier). C’est tout.</li>
       </ol>
-      <Field label="Adresse (URL)"><div className="copy-row"><code>{url}</code><button className="btn xs" onClick={() => copy(url, 'Adresse')}>Copier</button></div></Field>
-      <Field label="En-tête apikey"><div className="copy-row"><code>{LEAGUE_KEY}</code><button className="btn xs" onClick={() => copy(LEAGUE_KEY, 'Clé de l’API')}>Copier</button></div></Field>
-      <Field label="Ta clé personnelle (p_key)" hint="Garde-la pour toi : elle permet aussi de récupérer ta place dans la ligue sur un nouveau téléphone."><div className="copy-row"><code>{key}</code><button className="btn xs" onClick={() => copy(key, 'Clé personnelle')}>Copier</button></div></Field>
-      <p className="muted small">Chaque envoi remplace le total du jour, tu peux donc le lancer plusieurs fois sans compter en double.</p>
+      <p className="small">Touche ▶︎ pour tester : « … pas envoyés à ta ligue GymTrack » s’affiche.</p>
+      <p className="small"><b>Tous les soirs, tout seul :</b> onglet <b>Automatisation</b> → <b>+</b> → <b>Heure de la journée</b> (22 h, chaque jour) → <b>Exécuter immédiatement</b> → choisis ce raccourci.</p>
+      <Field label="Ton lien" hint="Il contient ta clé perso : ne le partage pas. Chaque ami copie le sien depuis son appli."><div className="copy-row"><code>{link}</code></div></Field>
+      <p className="muted small">Chaque envoi remplace le total du jour : le lancer plusieurs fois ne compte pas en double.</p>
     </Sheet>
   );
 }
