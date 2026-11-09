@@ -14,7 +14,7 @@ export default function Dashboard() {
   return (
     <div className="page fade-in">
       <header className="page-head">
-        <div><p className="eyebrow">{fmtDay(d.today)}</p><h1>{hello}{d.name && d.name !== 'Athlète' ? `, ${d.name}` : ''} 👋</h1></div>
+        <div><p className="eyebrow">{fmtDay(d.today)}</p><h1>{hello}{d.name && d.name !== 'Athlète' ? `, ${d.name}` : ''}</h1></div>
         <Link to="/coach" className={`pill recovery ${d.recovery.score >= 75 ? 'good' : d.recovery.score >= 55 ? 'mid' : 'low'}`} title="Récupération estimée"><Icon name="bolt" size={14} />Récup. {d.recovery.score}</Link>
       </header>
 
@@ -50,7 +50,7 @@ export default function Dashboard() {
               <div className="kv"><span>{dur(d.last_workout.duration_sec)}</span><span>{d.last_workout.sets_done} séries</span><span>{n0(d.last_workout.volume_lbs)} lbs</span>{d.last_workout.rpe && <span>RPE {d.last_workout.rpe}</span>}</div>
             </div>
           ) : <Empty icon="dumbbell" title="Aucune séance pour l’instant">Lance ta première séance, elle apparaîtra ici.</Empty>}
-          {d.last_cardio && <p className="muted small mt">{CARDIO_ICON[d.last_cardio.activity]} Dernier cardio : {d.last_cardio.custom_name || CARDIO[d.last_cardio.activity]}, {mins(d.last_cardio.duration_min)} · {fmtDate(d.last_cardio.date)}</p>}
+          {d.last_cardio && <p className="muted small mt">Dernier cardio : {d.last_cardio.custom_name || CARDIO[d.last_cardio.activity]}, {mins(d.last_cardio.duration_min)} · {fmtDate(d.last_cardio.date)}</p>}
         </Card>
 
         <Card title="Calendrier" icon="calendar" action={<Link className="link" to="/calendrier">Ouvrir</Link>}>

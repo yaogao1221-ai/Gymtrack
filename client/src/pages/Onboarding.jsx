@@ -30,7 +30,7 @@ export default function Onboarding({ onDone }) {
       <div className="card">
         <p className="eyebrow">Étape {step + 1} / {STEPS.length} · {STEPS[step]}</p>
         {step === 0 && (<>
-          <h1 className="hero-title">Bienvenue sur GymTrack <span className="accent">AI</span></h1>
+          <h1 className="hero-title">Bienvenue sur GymTrack</h1>
           <p className="muted">Ton programme 5 jours est déjà chargé. Quelques questions pour personnaliser l’analyse, le cardio et le calendrier (2 minutes, tout reste modifiable dans ton profil).</p>
           <Field label="Ton prénom"><input value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder="Prénom" autoFocus /></Field>
         </>)}

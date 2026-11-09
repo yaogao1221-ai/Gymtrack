@@ -13,7 +13,7 @@ export default function Login({ onDone }) {
     <div className="login">
       <form className="card login-card fade-in" onSubmit={submit}>
         <img src={iconUrl} alt="" width="64" height="64" />
-        <h1>GymTrack <span className="accent">AI</span></h1>
+        <h1>GymTrack</h1>
         <p className="muted">Ton espace d’entraînement est protégé.</p>
         <input type="password" autoComplete="current-password" placeholder="Mot de passe" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
         {err && <p className="error">{err}</p>}

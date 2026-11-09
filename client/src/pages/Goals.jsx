@@ -28,11 +28,11 @@ export default function Goals() {
             <div className="row gap-s"><button className="icon-btn sm" aria-label="Modifier" onClick={() => setForm({ ...g })}><Icon name="edit" size={16} /></button><button className="icon-btn sm danger" aria-label="Supprimer" onClick={() => setConfirm(g)}><Icon name="trash" size={16} /></button></div></div>
           <div className="bar lg"><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
           <div className="row-between small"><span>Actuel : <b>{g.current_value ?? '—'}</b> {g.unit || ''}</span><span>Cible : <b>{g.target_value}</b> {g.unit || ''} · {Math.round((g.progress || 0) * 100)} %</span></div>
-          <div className="row gap-s mt-s"><button className="btn xs" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'atteint' }), 'Bravo ! 🎉')}><Icon name="trophy" size={14} />Atteint</button>
+          <div className="row gap-s mt-s"><button className="btn xs" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'atteint' }), 'Objectif atteint')}><Icon name="trophy" size={14} />Atteint</button>
             <button className="btn xs ghost" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'abandonne' }), 'Objectif archivé')}>Archiver</button></div>
         </Card>
       )) : <Empty icon="target" title="Aucun objectif actif">Crée un objectif de charge, de régularité, de cardio ou de poids.</Empty>}
-      {others.length > 0 && <Card title="Terminés / archivés">{others.map((g) => <div key={g.id} className="row-between small hist-goal"><span>{g.status === 'atteint' ? '🏆' : '📦'} {g.title}</span><button className="btn xs ghost" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'actif' }), 'Objectif réactivé')}>Réactiver</button></div>)}</Card>}
+      {others.length > 0 && <Card title="Terminés / archivés">{others.map((g) => <div key={g.id} className="row-between small hist-goal"><span>{g.status === 'atteint' ? 'Atteint · ' : 'Archivé · '}{g.title}</span><button className="btn xs ghost" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'actif' }), 'Objectif réactivé')}>Réactiver</button></div>)}</Card>}
 
       <Sheet open={!!form} onClose={() => setForm(null)} title={form?.id ? 'Modifier l’objectif' : 'Nouvel objectif'} footer={<button className="btn primary" disabled={!form?.target_value && form?.type !== 'libre'} onClick={save}>Enregistrer</button>}>
         {form && (<>

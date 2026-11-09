@@ -21,7 +21,7 @@ import More from './pages/More.jsx';
 const NAV = [
   ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/progres', 'chart', 'Progrès'], ['/plus', 'menu', 'Plus'],
 ];
-const SIDE = [...NAV.slice(0, 4), ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Coach IA'], ['/objectifs', 'target', 'Objectifs'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
+const SIDE = [...NAV.slice(0, 4), ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ['/objectifs', 'target', 'Objectifs'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
 
 export default function App() {
   const [auth, setAuth] = useState(null); // null = vérification, false = connexion requise
@@ -68,7 +68,7 @@ export default function App() {
     <div className={`shell ${inWorkout ? 'focus' : ''}`}>
       {!inWorkout && (
         <aside className="sidebar">
-          <div className="brand"><img src={iconUrl} alt="" /><span>GymTrack <b>AI</b></span></div>
+          <div className="brand"><img src={iconUrl} alt="" /><span>GymTrack</span></div>
           <nav>{SIDE.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} />{label}</NavLink>)}</nav>
         </aside>
       )}

@@ -33,7 +33,7 @@ export default function Cardio() {
             <ul className="plan-list">{plan.data.this_week.map((s, i) => (
               <li key={i}><span className="plan-ic">{CARDIO_ICON[s.activity]}</span><div><b>{DAY_LONG[s.day]} · {CARDIO[s.activity]} {s.minutes} min</b><span className="muted small">{s.intensity} — {s.note}</span></div></li>
             ))}</ul>
-          ) : <p className="muted small">{plan.data.done_this_week.sessions ? `Objectif de la semaine atteint (${plan.data.done_this_week.minutes} min) 👏` : 'Plus de créneau disponible cette semaine.'}</p>}
+          ) : <p className="muted small">{plan.data.done_this_week.sessions ? `Objectif de la semaine atteint (${plan.data.done_this_week.minutes} min)` : 'Plus de créneau disponible cette semaine.'}</p>}
           <div className="weeks scroll-x">{plan.data.weeks.map((w) => (
             <div key={w.week} className={`week-pill ${w.week === 1 ? 'on' : ''}`}><span className="muted small">Sem. {w.week}</span><b>{w.sessions} × {w.minutes}′</b><span className="small">{w.total} min</span></div>
           ))}</div>
@@ -91,7 +91,7 @@ function CardioForm({ value, onClose, onSaved, onDelete }) {
   return (
     <Sheet open onClose={onClose} title={f.id ? 'Modifier la séance' : 'Nouvelle séance cardio'}
       footer={<>{f.id && <button className="btn ghost danger-text" onClick={() => onDelete(f)}><Icon name="trash" size={16} /></button>}<button className="btn primary" disabled={busy || !f.duration_min} onClick={save}>{busy ? '…' : 'Enregistrer'}</button></>}>
-      <Field label="Activité"><Chips single value={f.activity} onChange={(v) => set({ activity: v })} options={Object.entries(CARDIO).map(([k, l]) => [k, `${CARDIO_ICON[k]} ${l}`])} /></Field>
+      <Field label="Activité"><Chips single value={f.activity} onChange={(v) => set({ activity: v })} options={Object.entries(CARDIO).map(([k, l]) => [k, l])} /></Field>
       {f.activity === 'autre' && <Field label="Nom de l’activité"><input value={f.custom_name || ''} onChange={(e) => set({ custom_name: e.target.value })} placeholder="Natation, corde à sauter…" /></Field>}
       <div className="grid2">
         <Field label="Date"><input type="date" value={f.date} onChange={(e) => set({ date: e.target.value })} /></Field>

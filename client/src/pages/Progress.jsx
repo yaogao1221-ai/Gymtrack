@@ -127,9 +127,9 @@ function History() {
     <Segmented value={filter} onChange={setFilter} options={[['all', 'Tout'], ['muscu', 'Muscu'], ['cardio', 'Cardio']]} />
     <p className="muted small mt-s">{w.data.length} séance(s) de muscu · {c.data.length} séance(s) de cardio</p>
     {items.length ? <ul className="history full">{items.map((x) => x.t === 'w' ? (
-      <li key={`w${x.id}`}><Link to={`/historique/${x.id}`}><span>🏋️ <b>{x.name}</b> <span className="muted">{x.focus}</span></span><span className="muted small">{fmtDate(x.date)} · {dur(x.duration_sec)} · {x.sets_done} séries · {n0(x.volume_lbs)} lbs</span></Link></li>
+      <li key={`w${x.id}`}><Link to={`/historique/${x.id}`}><span><i className="act">MU</i><b>{x.name}</b> <span className="muted">{x.focus}</span></span><span className="muted small">{fmtDate(x.date)} · {dur(x.duration_sec)} · {x.sets_done} séries · {n0(x.volume_lbs)} lbs</span></Link></li>
     ) : (
-      <li key={`c${x.id}`}><Link to="/cardio"><span>{CARDIO_ICON[x.activity]} <b>{x.custom_name || CARDIO[x.activity]}</b></span><span className="muted small">{fmtDate(x.date)} · {mins(x.duration_min)}{x.distance_km ? ` · ${n1(x.distance_km)} km` : ''} · {n0(x.calories)} kcal</span></Link></li>
+      <li key={`c${x.id}`}><Link to="/cardio"><span><i className="act">{CARDIO_ICON[x.activity]}</i><b>{x.custom_name || CARDIO[x.activity]}</b></span><span className="muted small">{fmtDate(x.date)} · {mins(x.duration_min)}{x.distance_km ? ` · ${n1(x.distance_km)} km` : ''} · {n0(x.calories)} kcal</span></Link></li>
     ))}</ul> : <Empty icon="chart" title="Historique vide" />}
   </>);
 }

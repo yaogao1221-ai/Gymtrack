@@ -16,7 +16,7 @@ export default function Data() {
   const onFile = async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try { const json = JSON.parse(await f.text()); if (json.app !== 'gymtrack-ai') throw new Error(); setPending({ name: f.name, json }); }
-    catch { toast('Fichier non reconnu : choisis un export GymTrack AI (.json)', 'err'); }
+    catch { toast('Fichier non reconnu : choisis un export GymTrack (.json)', 'err'); }
   };
   const restore = async () => {
     try { const r = await post('/data/import', pending.json); toast(`Données restaurées (sauvegarde préalable : ${r.backup_before_import})`); setTimeout(() => (STANDALONE ? window.dispatchEvent(new Event('gt-data-replaced')) : window.location.assign('/')), 800); }

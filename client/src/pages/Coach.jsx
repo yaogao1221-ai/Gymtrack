@@ -20,16 +20,16 @@ export default function Coach() {
   const maxSets = Math.max(...a.volume.muscles.map((m) => Math.max(m.sets, m.opt_high)), 1);
   const activePains = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
-    <Page title="Coach IA" subtitle="Analyse de ton programme, de ta récupération et de ta progression">
+    <Page title="Analyse" subtitle="Analyse de ton programme, de ta récupération et de ta progression">
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
           <div className="row gap">
-            <Ring value={a.recovery.score / 100} size={84} stroke={9} label={a.recovery.score} color={a.recovery.score >= 75 ? 'var(--accent)' : a.recovery.score >= 55 ? 'var(--warn)' : 'var(--danger)'} />
+            <Ring value={a.recovery.score / 100} size={84} stroke={9} label={a.recovery.score} color={a.recovery.score >= 75 ? 'var(--accent2)' : a.recovery.score >= 55 ? 'var(--warn)' : 'var(--danger)'} />
             <div><b className="big">{a.recovery.label}</b><ul className="factors">{a.recovery.factors.map((f, i) => <li key={i} className={f.impact < 0 ? 'neg' : ''}>{f.text}{f.impact ? ` (${f.impact})` : ''}</li>)}</ul></div>
           </div>
           <div className="pains">
             {activePains.map((p) => (
-              <div key={p.id} className="pain-row"><span>🩹 <b>{pains.data.areas[p.area]}</b> {p.intensity}/10 · {fmtDate(p.date)}</span>
+              <div key={p.id} className="pain-row"><span><b>{pains.data.areas[p.area]}</b> {p.intensity}/10 · {fmtDate(p.date)}</span>
                 <button className="btn xs ghost" onClick={() => act(() => patch(`/pains/${p.id}`, { resolved: true }), 'Douleur marquée comme résolue', `p${p.id}`)}>Résolue</button></div>
             ))}
             <button className="btn sm" onClick={() => setPain({ area: 'epaule', intensity: 3, date: today(), notes: '' })}><Icon name="plus" size={14} />Signaler une douleur</button>

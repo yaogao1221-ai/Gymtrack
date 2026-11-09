@@ -123,7 +123,7 @@ export default function Workout() {
     try {
       const r = await postOrQueue('/workouts', body);
       store.del(KEY);
-      toast(r.queued ? 'Hors ligne : séance gardée, elle sera synchronisée automatiquement' : 'Séance enregistrée 💪', r.queued ? 'warn' : 'ok');
+      toast(r.queued ? 'Hors ligne : séance gardée, elle sera synchronisée automatiquement' : 'Séance enregistrée', r.queued ? 'warn' : 'ok');
       nav(r.queued ? '/' : `/historique/${r.data.id}`, { replace: true });
     } catch (e) { toast(e.message, 'err'); setSaving(false); }
   };
@@ -209,7 +209,7 @@ export default function Workout() {
           <input type="range" min="1" max="10" value={s.rpe ?? 7} onChange={(e) => update((y) => { y.rpe = Number(e.target.value); })} />
         </Field>
         <Field label="Notes (sensations, douleurs, technique…)"><textarea rows={3} value={s.notes} onChange={(e) => update((y) => { y.notes = e.target.value; })} /></Field>
-        <p className="muted small">Les charges de ton programme ne changent pas automatiquement : le Coach te proposera une progression que tu pourras valider.</p>
+        <p className="muted small">Les charges de ton programme ne changent pas automatiquement : l’onglet Analyse te proposera une progression que tu pourras valider.</p>
       </Sheet>
       <Confirm open={cancel} onClose={() => setCancel(false)} danger title="Abandonner la séance ?" confirmLabel="Abandonner" text="Les séries saisies seront perdues."
         onConfirm={() => { store.del(KEY); nav('/'); }} />

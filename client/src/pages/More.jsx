@@ -4,7 +4,7 @@ import { getToken, setToken } from '../lib/api.js';
 
 const ITEMS = [
   ['/calendrier', 'calendar', 'Calendrier', 'Planifier, déplacer, consulter'],
-  ['/coach', 'brain', 'Coach IA', 'Analyse, progression, récupération'],
+  ['/coach', 'brain', 'Analyse', 'Analyse, progression, récupération'],
   ['/objectifs', 'target', 'Objectifs', 'Charges, régularité, cardio, poids'],
   ['/profil', 'user', 'Profil', 'Objectifs, disponibilités, préférences'],
   ['/donnees', 'database', 'Données & sauvegarde', 'Export, import, sauvegardes'],
@@ -19,7 +19,7 @@ export default function More() {
         ))}
       </ul>
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack AI · v1.0</p>
+      <p className="muted small center mt">GymTrack · v1.1</p>
     </Page>
   );
 }

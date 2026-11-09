@@ -2,19 +2,19 @@ import { Chart as C, CategoryScale, LinearScale, PointElement, LineElement, BarE
 import { Line, Bar } from 'react-chartjs-2';
 
 C.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend);
-C.defaults.color = '#8a93a6';
-C.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif';
+C.defaults.color = '#959a9f';
+C.defaults.font.family = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
 C.defaults.font.size = 11;
 C.defaults.borderColor = 'rgba(255,255,255,0.06)';
 
-export const COLORS = { lime: '#c6ff3d', mint: '#3dffb5', blue: '#6ea8ff', orange: '#ffb547', pink: '#ff7ab6', violet: '#a98bff' };
+export const COLORS = { lime: '#f2994a', mint: '#5fb3a1', blue: '#7aa2e3', orange: '#c9a35b', pink: '#d97e9a', violet: '#9d8fd6' };
 
 const base = (yTitle, legend) => ({
   responsive: true, maintainAspectRatio: false, animation: { duration: 500 },
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { display: !!legend, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
-    tooltip: { backgroundColor: '#1b2030', borderColor: '#2c3346', borderWidth: 1, padding: 10, titleColor: '#e9ecf3', bodyColor: '#c9cfdc', displayColors: true },
+    tooltip: { backgroundColor: '#23272c', borderColor: '#383e45', borderWidth: 1, padding: 10, titleColor: '#ecebe7', bodyColor: '#c8c9c5', displayColors: true },
   },
   scales: {
     x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } },
@@ -37,7 +37,7 @@ export function LineChart({ labels, series, yTitle, height = 220, beginAtZero = 
 }
 
 export function BarChart({ labels, series, yTitle, height = 220, stacked }) {
-  const data = { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 6, maxBarThickness: 28 })) };
+  const data = { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 3, maxBarThickness: 24 })) };
   const o = base(yTitle, series.length > 1);
   o.scales.y.beginAtZero = true;
   if (stacked) { o.scales.x.stacked = true; o.scales.y.stacked = true; }

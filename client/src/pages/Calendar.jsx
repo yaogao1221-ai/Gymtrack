@@ -65,10 +65,10 @@ export default function Calendar() {
       <Sheet open={!!selected} onClose={() => setSelected(null)} title={selected ? fmtDay(selected) : ''}>
         {sel && (<>
           {sel.workouts.map((w) => <Link key={w.id} className="cal-row done" to={`/historique/${w.id}`}><Icon name="check" size={16} /><span><b>{w.name}</b> {w.focus}</span><span className="muted small">{mins(Math.round(w.duration_sec / 60))}</span></Link>)}
-          {sel.cardio.map((c) => <Link key={c.id} className="cal-row done" to="/cardio"><span>{CARDIO_ICON[c.activity]}</span><span><b>{c.custom_name || CARDIO[c.activity]}</b></span><span className="muted small">{mins(c.duration_min)}</span></Link>)}
+          {sel.cardio.map((c) => <Link key={c.id} className="cal-row done" to="/cardio"><i className="act">{CARDIO_ICON[c.activity]}</i><span><b>{c.custom_name || CARDIO[c.activity]}</b></span><span className="muted small">{mins(c.duration_min)}</span></Link>)}
           {sel.events.filter((e) => e.status !== 'done').map((e) => (
             <div key={e.id} className={`cal-row ${e.status}`}>
-              <span>{e.type === 'workout' ? '🏋️' : e.type === 'cardio' ? CARDIO_ICON[e.cardio_activity] || '❤️' : '😴'}</span>
+              <i className="act">{e.type === 'workout' ? 'MU' : e.type === 'cardio' ? CARDIO_ICON[e.cardio_activity] || 'CA' : 'RE'}</i>
               <span className="grow"><b>{e.type === 'workout' ? `${e.day_name} — ${e.focus}` : e.type === 'cardio' ? `Cardio ${CARDIO[e.cardio_activity] || ''} ${e.planned_minutes ? `${e.planned_minutes} min` : ''}` : 'Repos'}</b>
                 {e.status === 'skipped' && <span className="muted small"> (sautée)</span>}{e.notes && <span className="muted small block">{e.notes}</span>}</span>
               <div className="cal-actions">
@@ -94,9 +94,9 @@ export default function Calendar() {
                 <button className="btn primary" disabled={adding.type === 'workout' && !adding.program_day_id} onClick={() => run(async () => { await post('/calendar', { ...adding, date: selected }); setAdding(null); }, 'Ajouté au calendrier')}>Ajouter</button></div>
             </div>
           ) : <div className="row gap-s wrap">
-            <button className="btn sm" onClick={() => setAdding({ type: 'workout' })}>🏋️ Séance muscu</button>
-            <button className="btn sm" onClick={() => setAdding({ type: 'cardio', cardio_activity: 'marche_inclinee', planned_minutes: 20 })}>❤️ Cardio</button>
-            <button className="btn sm" onClick={() => run(() => post('/calendar', { type: 'rest', date: selected, title: 'Repos' }), 'Jour de repos ajouté')}>😴 Repos</button>
+            <button className="btn sm" onClick={() => setAdding({ type: 'workout' })}>Séance muscu</button>
+            <button className="btn sm" onClick={() => setAdding({ type: 'cardio', cardio_activity: 'marche_inclinee', planned_minutes: 20 })}>Cardio</button>
+            <button className="btn sm" onClick={() => run(() => post('/calendar', { type: 'rest', date: selected, title: 'Repos' }), 'Jour de repos ajouté')}>Repos</button>
           </div>}
         </>)}
       </Sheet>
