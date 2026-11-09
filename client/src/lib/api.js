@@ -1,0 +1,65 @@
+// Client API : jeton, date locale, file d'attente hors ligne pour les séances (synchro automatique)
+const TOKEN_KEY = 'gt_token';
+const OUTBOX_KEY = 'gt_outbox';
+const store = {
+  get(k, d = null) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  del(k) { try { localStorage.removeItem(k); } catch { /* */ } },
+};
+export { store };
+
+export const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+export const getToken = () => store.get(TOKEN_KEY);
+export const setToken = (t) => (t ? store.set(TOKEN_KEY, t) : store.del(TOKEN_KEY));
+
+export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
+const listeners = new Set();
+export const onAuthRequired = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+
+export async function api(path, { method = 'GET', body, raw } = {}) {
+  const headers = { 'X-Local-Date': today() };
+  const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  let res;
+  try { res = await fetch(`/api${path}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined }); }
+  catch { throw new ApiError(0, 'Pas de connexion au serveur'); }
+  if (res.status === 401 && !path.startsWith('/auth')) listeners.forEach((fn) => fn());
+  if (raw) return res;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data.error || `Erreur ${res.status}`);
+  return data;
+}
+export const get = (p) => api(p);
+export const post = (p, body = {}) => api(p, { method: 'POST', body });
+export const put = (p, body = {}) => api(p, { method: 'PUT', body });
+export const patch = (p, body = {}) => api(p, { method: 'PATCH', body });
+export const del = (p) => api(p, { method: 'DELETE' });
+
+// Envoi « sûr » : si le réseau tombe (salle de sport en sous-sol…), on met en file et on resynchronise plus tard.
+export async function postOrQueue(path, body) {
+  try { return { data: await post(path, body), queued: false }; }
+  catch (e) {
+    if (e.status !== 0 && e.status < 500) throw e;
+    const box = store.get(OUTBOX_KEY, []);
+    if (!box.some((x) => x.body.client_id === body.client_id)) box.push({ path, body, at: Date.now() });
+    store.set(OUTBOX_KEY, box);
+    return { data: null, queued: true };
+  }
+}
+export const outboxCount = () => store.get(OUTBOX_KEY, []).length;
+export async function flushOutbox() {
+  const box = store.get(OUTBOX_KEY, []); if (!box.length) return 0;
+  const left = []; let sent = 0;
+  for (const item of box) {
+    try { await post(item.path, item.body); sent++; }
+    catch (e) { if (e.status === 0 || e.status >= 500 || e.status === 401) left.push(item); }
+  }
+  store.set(OUTBOX_KEY, left);
+  return sent;
+}
+export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+export function downloadUrl(path) {
+  const t = getToken(); const sep = path.includes('?') ? '&' : '?';
+  return `/api${path}${sep}today=${today()}${t ? `&token=${t}` : ''}`;
+}

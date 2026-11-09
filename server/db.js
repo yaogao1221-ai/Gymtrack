@@ -1,0 +1,246 @@
+// Couche base de données : SQLite natif de Node (node:sqlite), aucune dépendance native à compiler.
+import { DatabaseSync } from 'node:sqlite';
+import fs from 'node:fs';
+import path from 'node:path';
+import { seed } from './seed.js';
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT 'Athlète',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Profil : objectifs, niveau, disponibilités, préférences, historique sportif, objectifs cardio
+CREATE TABLE IF NOT EXISTS profiles (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  onboarded INTEGER NOT NULL DEFAULT 0,
+  goal TEXT,                    -- hypertrophie | force | perte_de_gras | recomposition | sante
+  goals_text TEXT,
+  level TEXT,                   -- debutant | intermediaire | avance
+  sessions_per_week INTEGER DEFAULT 5,
+  session_minutes INTEGER DEFAULT 60,
+  available_days TEXT,          -- JSON ['mon','tue',...]
+  schedule TEXT,                -- JSON {mon:'D1',...,sun:'rest'} (code du jour de programme ou 'rest')
+  weight_unit TEXT NOT NULL DEFAULT 'lbs',
+  default_rest_seconds INTEGER NOT NULL DEFAULT 90,
+  preferences TEXT,
+  sport_history TEXT,
+  birth_year INTEGER,
+  sex TEXT,
+  height_cm REAL,
+  body_weight_kg REAL,
+  sleep_hours REAL,
+  cardio_goal TEXT,             -- perte_de_poids | endurance | sante_cardio | recuperation
+  cardio_level TEXT,            -- debutant | intermediaire | avance
+  cardio_sessions_target INTEGER DEFAULT 3,
+  cardio_minutes_target INTEGER DEFAULT 30,
+  cardio_preferred TEXT,        -- JSON ['marche_inclinee', ...]
+  limitations TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS exercises (
+  id INTEGER PRIMARY KEY,
+  slug TEXT UNIQUE,
+  name TEXT NOT NULL,
+  pattern TEXT,                 -- schéma moteur (détection de redondances)
+  muscles TEXT NOT NULL DEFAULT '{}', -- JSON {groupe: coefficient}
+  equipment TEXT,
+  kind TEXT NOT NULL DEFAULT 'weighted', -- weighted | bodyweight | assisted
+  default_unit TEXT NOT NULL DEFAULT 'lbs',
+  technique TEXT,
+  in_library_only INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS programs (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS program_days (
+  id INTEGER PRIMARY KEY,
+  program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,           -- D1..D5 (référencé par le planning)
+  position INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  focus TEXT,
+  archived INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS program_exercises (
+  id INTEGER PRIMARY KEY,
+  day_id INTEGER NOT NULL REFERENCES program_days(id) ON DELETE CASCADE,
+  exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+  position INTEGER NOT NULL,
+  sets INTEGER NOT NULL DEFAULT 2,
+  reps INTEGER,                 -- NULL = à définir
+  reps_note TEXT,               -- ex. « par bras »
+  target_weight REAL,           -- NULL = charge inconnue (modifiable)
+  target_weight_max REAL,       -- fourchette ex. 50–55
+  weight_unit TEXT NOT NULL DEFAULT 'lbs',
+  weight_note TEXT,             -- ex. « de chaque côté », « assistance »
+  rest_seconds INTEGER,
+  superset_group TEXT,
+  notes TEXT
+);
+
+-- Séances de musculation
+CREATE TABLE IF NOT EXISTS workouts (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT UNIQUE,        -- idempotence de la synchro hors ligne
+  program_day_id INTEGER REFERENCES program_days(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  date TEXT NOT NULL,           -- YYYY-MM-DD
+  started_at TEXT,
+  ended_at TEXT,
+  duration_sec INTEGER NOT NULL DEFAULT 0,
+  rpe REAL,                     -- effort ressenti global 1-10
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Séries (charges + répétitions)
+CREATE TABLE IF NOT EXISTS workout_sets (
+  id INTEGER PRIMARY KEY,
+  workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+  exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+  program_exercise_id INTEGER REFERENCES program_exercises(id) ON DELETE SET NULL,
+  position INTEGER NOT NULL DEFAULT 0,
+  set_index INTEGER NOT NULL,
+  weight REAL,
+  weight_unit TEXT NOT NULL DEFAULT 'lbs',
+  reps INTEGER,
+  target_reps INTEGER,
+  completed INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS cardio_sessions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT UNIQUE,
+  activity TEXT NOT NULL,       -- marche | marche_inclinee | course | velo | elliptique | rameur | autre
+  custom_name TEXT,
+  date TEXT NOT NULL,
+  duration_min REAL NOT NULL,
+  distance_km REAL,
+  speed_kmh REAL,
+  incline_pct REAL,
+  calories REAL,
+  calories_estimated INTEGER NOT NULL DEFAULT 1,
+  avg_hr INTEGER,
+  max_hr INTEGER,
+  rpe REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS goals (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,           -- charge | seances_semaine | cardio_minutes_semaine | poids_corporel | libre
+  title TEXT NOT NULL,
+  exercise_id INTEGER REFERENCES exercises(id) ON DELETE SET NULL,
+  start_value REAL,
+  target_value REAL,
+  current_value REAL,           -- pour les objectifs libres
+  unit TEXT,
+  deadline TEXT,
+  status TEXT NOT NULL DEFAULT 'actif', -- actif | atteint | abandonne
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  type TEXT NOT NULL,           -- workout | rest | cardio
+  program_day_id INTEGER REFERENCES program_days(id) ON DELETE CASCADE,
+  cardio_activity TEXT,
+  planned_minutes INTEGER,
+  title TEXT,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'planned', -- planned | done | skipped
+  workout_id INTEGER REFERENCES workouts(id) ON DELETE SET NULL,
+  cardio_id INTEGER REFERENCES cardio_sessions(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS body_metrics (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  weight_kg REAL,
+  body_fat_pct REAL,
+  waist_cm REAL,
+  notes TEXT
+);
+
+-- Douleurs / gênes : prises en compte par le coach
+CREATE TABLE IF NOT EXISTS pain_reports (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  area TEXT NOT NULL,
+  intensity INTEGER NOT NULL,   -- 1..10
+  notes TEXT,
+  resolved INTEGER NOT NULL DEFAULT 0
+);
+
+-- Historique des recommandations validées / ignorées (aucune modification sans validation)
+CREATE TABLE IF NOT EXISTS recommendation_log (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rec_key TEXT NOT NULL,
+  status TEXT NOT NULL,         -- applied | dismissed
+  details TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sets_workout ON workout_sets(workout_id);
+CREATE INDEX IF NOT EXISTS idx_sets_exercise ON workout_sets(exercise_id);
+CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_cardio_date ON cardio_sessions(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_events_date ON calendar_events(user_id, date);
+
+-- Statistiques : vue par série avec volume (tonnage) normalisé en lbs
+CREATE VIEW IF NOT EXISTS v_set_volume AS
+SELECT s.*, w.date, w.user_id,
+  CASE WHEN e.kind = 'assisted' OR s.weight IS NULL OR s.completed = 0 THEN 0
+       ELSE s.weight * COALESCE(s.reps, 0) * (CASE WHEN s.weight_unit = 'kg' THEN 2.20462 ELSE 1 END) END AS volume_lbs
+FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id;
+`;
+
+export function openDb(file) {
+  if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+  db.exec(SCHEMA);
+  db.tx = (fn) => {
+    db.exec('BEGIN');
+    try { const r = fn(); db.exec('COMMIT'); return r; }
+    catch (e) { db.exec('ROLLBACK'); throw e; }
+  };
+  db.one = (sql, ...p) => db.prepare(sql).get(...p);
+  db.all = (sql, ...p) => db.prepare(sql).all(...p);
+  db.run = (sql, ...p) => db.prepare(sql).run(...p);
+  if (!db.one('SELECT id FROM users LIMIT 1')) db.tx(() => seed(db));
+  return db;
+}
+
+// Sauvegarde à chaud du fichier SQLite (VACUUM INTO), rotation des 14 dernières.
+export function backupDb(db, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const file = path.join(dir, `gymtrack-${stamp}.sqlite`);
+  db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sqlite')).sort();
+  for (const f of files.slice(0, Math.max(0, files.length - 14))) fs.unlinkSync(path.join(dir, f));
+  return path.basename(file);
+}
+
+export const toJSON = (v, d = null) => { try { return v == null ? d : JSON.parse(v); } catch { return d; } };

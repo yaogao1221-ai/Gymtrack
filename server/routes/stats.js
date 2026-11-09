@@ -1,0 +1,56 @@
+import { Router } from 'express';
+import { USER_ID, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile } from '../services.js';
+import { recoveryScore } from '../analysis.js';
+import { date, notFound, addDays, weekStart, diffDays } from '../util.js';
+
+export default function statsRoutes(db) {
+  const r = Router();
+  r.get('/dashboard', (req, res) => {
+    const today = req.today; const ws = weekStart(today);
+    const profile = getProfile(db);
+    const last = db.one('SELECT w.*, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? ORDER BY w.date DESC, w.id DESC LIMIT 1', USER_ID);
+    const lastCardio = db.one('SELECT * FROM cardio_sessions WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 1', USER_ID);
+    const week = periodStats(db, ws, addDays(ws, 6));
+    const all = periodStats(db, '0000-01-01', today);
+    // Progression des charges : exercices les plus pratiqués, 1re vs dernière charge
+    const top = db.all(`SELECT s.exercise_id, e.name, e.kind, COUNT(DISTINCT s.workout_id) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+      WHERE w.user_id = ? AND s.weight IS NOT NULL GROUP BY s.exercise_id ORDER BY n DESC, e.name LIMIT 6`, USER_ID);
+    const progression = top.map((t) => {
+      const pts = exerciseSeries(db, t.exercise_id).points.filter((p) => p.top_weight != null);
+      return { exercise_id: t.exercise_id, name: t.name, assisted: t.kind === 'assisted', unit: pts[0]?.unit, first: pts[0]?.top_weight, last: pts.at(-1)?.top_weight, points: pts.slice(-10).map((p) => ({ date: p.date, value: p.top_weight })) };
+    });
+    const events = db.all(`SELECT ce.*, pd.name day_name, pd.focus FROM calendar_events ce LEFT JOIN program_days pd ON pd.id = ce.program_day_id WHERE ce.user_id = ? AND ce.date BETWEEN ? AND ? ORDER BY ce.date, ce.id`, USER_ID, ws, addDays(ws, 13));
+    const doneDates = db.all(`SELECT date, 'workout' t FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ? UNION ALL SELECT date, 'cardio' FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?`, USER_ID, ws, addDays(ws, 13), USER_ID, ws, addDays(ws, 13));
+    res.json({
+      today, name: profile.name, onboarded: profile.onboarded,
+      next: nextSession(db, today),
+      last_workout: last ? { ...workoutSummary(db, last), days_ago: diffDays(last.date, today) } : null,
+      last_cardio: lastCardio,
+      week: { ...week, target: profile.sessions_per_week },
+      totals: { workouts: all.workouts, training_minutes: all.training_minutes, cardio_minutes: all.cardio_minutes, volume_lbs: all.volume_lbs },
+      recent_workouts: db.all('SELECT w.*, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? ORDER BY w.date DESC, w.id DESC LIMIT 5', USER_ID).map((w) => workoutSummary(db, w)),
+      records: recentRecords(db, 5),
+      progression,
+      weekly: weeklySeries(db, today, 8),
+      calendar: { from: ws, events, done: doneDates },
+      goals: goalsWithProgress(db, today).filter((g) => g.status === 'actif').slice(0, 4),
+      recovery: (({ score, label }) => ({ score, label }))(recoveryScore(db, profile, today)),
+    });
+  });
+
+  r.get('/stats/overview', (req, res) => {
+    const weeks = Math.min(52, Number(req.query.weeks) || 12);
+    res.json({ weekly: weeklySeries(db, req.today, weeks), monthly: monthlySeries(db, req.today, Math.min(24, Number(req.query.months) || 6)), records: recentRecords(db, 10),
+      exercises: db.all(`SELECT e.id, e.name, e.kind, COUNT(DISTINCT s.workout_id) sessions FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id WHERE w.user_id = ? GROUP BY e.id ORDER BY sessions DESC, e.name`, USER_ID) });
+  });
+  r.get('/stats/exercise/:id', (req, res) => { const s = exerciseSeries(db, Number(req.params.id)); if (!s) throw notFound('Exercice introuvable'); res.json(s); });
+  r.get('/stats/compare', (req, res) => {
+    const a = [date(req.query.aFrom, 'aFrom'), date(req.query.aTo, 'aTo')], b = [date(req.query.bFrom, 'bFrom'), date(req.query.bTo, 'bTo')];
+    const A = periodStats(db, ...a), B = periodStats(db, ...b);
+    const ea = exercisePeriodBest(db, ...a), eb = exercisePeriodBest(db, ...b);
+    const ids = [...new Set([...ea, ...eb].map((x) => x.exercise_id))];
+    const exercises = ids.map((id) => ({ exercise_id: id, name: (ea.find((x) => x.exercise_id === id) || eb.find((x) => x.exercise_id === id)).name, a: ea.find((x) => x.exercise_id === id) || null, b: eb.find((x) => x.exercise_id === id) || null })).sort((x, y) => x.name.localeCompare(y.name));
+    res.json({ a: A, b: B, exercises });
+  });
+  return r;
+}
