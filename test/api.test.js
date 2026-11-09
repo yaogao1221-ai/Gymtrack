@@ -102,3 +102,16 @@ test('mot de passe', async () => {
   assert.equal((await fetch(u + '/program', { headers: { Authorization: `Bearer ${token}` } })).status, 200);
   s.close();
 });
+
+test('ligue : bilan des périodes (totaux seulement), badges, semaines ISO', async () => {
+  const c = await call('POST', '/cardio', { activity: 'course', date: '2026-11-09', duration_min: 30, distance_km: 5.5 }); assert.equal(c.status, 201, JSON.stringify(c.body));
+  const { status, body } = await call('GET', '/league/summary');
+  assert.equal(status, 200);
+  assert.deepEqual(body.periods.map((p) => p.key), ['W2026-46', 'W2026-45', 'M2026-11', 'M2026-10']);
+  const w = body.periods[0];
+  assert.deepEqual([w.from, w.to], ['2026-11-09', '2026-11-15']);
+  assert.ok(w.stats.km >= 5.5); assert.ok(w.stats.workouts >= 1);
+  assert.deepEqual(Object.keys(w.stats).sort(), ['cardio_min', 'cardio_n', 'km', 'prs', 'sets', 'workouts']);
+  assert.ok(body.badges.find((b) => b.id === 'first').got);
+  assert.equal(body.periods[3].to, '2026-10-31');
+});

@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Page, Icon } from '../components/ui.jsx';
-import { getToken, setToken } from '../lib/api.js';
+import { getToken, setToken, LEAGUE_ON } from '../lib/api.js';
 
 const ITEMS = [
+  ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue entre amis', 'Podiums, runner of the week, enjeux']] : []),
   ['/calendrier', 'calendar', 'Calendrier', 'Planifier, déplacer, consulter'],
+  ...(LEAGUE_ON ? [['/rappels', 'timer', 'Rappels de séance', 'Notifications avant chaque séance']] : []),
   ['/coach', 'brain', 'Analyse', 'Analyse, progression, récupération'],
   ['/objectifs', 'target', 'Objectifs', 'Charges, régularité, cardio, poids'],
   ['/profil', 'user', 'Profil', 'Objectifs, disponibilités, préférences'],
@@ -19,7 +21,7 @@ export default function More() {
         ))}
       </ul>
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack · v1.1</p>
+      <p className="muted small center mt">GymTrack · v1.2</p>
     </Page>
   );
 }

@@ -167,7 +167,10 @@ export function exerciseSeries(db, exerciseId) {
 }
 
 // Records personnels récents (meilleure charge battue)
-export function recentRecords(db, limit = 6) {
+export function recentRecords(db, limit = 6) { return allRecords(db).reverse().slice(0, limit); }
+
+// Tous les records battus (charge max, ou assistance plus faible), dans l'ordre chronologique
+export function allRecords(db) {
   const rows = db.all(`SELECT s.exercise_id, e.name, e.kind, w.date, w.id wid, MAX(s.weight) w, MIN(s.weight) wmin, s.weight_unit unit
     FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
     WHERE w.user_id = ? AND s.completed = 1 AND s.weight IS NOT NULL GROUP BY s.exercise_id, w.id ORDER BY w.date, w.id`, USER_ID);
@@ -179,7 +182,7 @@ export function recentRecords(db, limit = 6) {
     if (better) records.push({ exercise_id: r.exercise_id, name: r.name, date: r.date, weight: val, previous: prev, unit: r.unit, assisted: r.kind === 'assisted' });
     if (prev == null || better) best.set(r.exercise_id, val);
   }
-  return records.reverse().slice(0, limit);
+  return records;
 }
 
 export function goalsWithProgress(db, today) {

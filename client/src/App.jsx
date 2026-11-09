@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE } from './lib/api.js';
+import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE, LEAGUE_ON } from './lib/api.js';
 import { Icon, Loading, useToast } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import Onboarding from './pages/Onboarding.jsx';
@@ -17,11 +17,13 @@ import Goals from './pages/Goals.jsx';
 import Profile from './pages/Profile.jsx';
 import Data from './pages/Data.jsx';
 import More from './pages/More.jsx';
+import League from './pages/League.jsx';
+import Reminders from './pages/Reminders.jsx';
 
 const NAV = [
   ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/progres', 'chart', 'Progrès'], ['/plus', 'menu', 'Plus'],
 ];
-const SIDE = [...NAV.slice(0, 4), ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ['/objectifs', 'target', 'Objectifs'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
+const SIDE = [...NAV.slice(0, 4), ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue']] : []), ['/objectifs', 'target', 'Objectifs'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
 
 export default function App() {
   const [auth, setAuth] = useState(null); // null = vérification, false = connexion requise
@@ -94,6 +96,8 @@ export default function App() {
           <Route path="/profil" element={<Profile onSaved={setProfile} />} />
           <Route path="/donnees" element={<Data />} />
           <Route path="/plus" element={<More />} />
+          <Route path="/rappels" element={<Reminders />} />
+          {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

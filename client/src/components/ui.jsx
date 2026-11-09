@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { get } from '../lib/api.js';
 
 const P = {
@@ -116,7 +117,8 @@ export function Sheet({ open, onClose, title, children, footer }) {
     return () => { document.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll'); };
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Rendu dans <body> : sinon la barre d'onglets (fixe) peut passer devant le bas de la feuille
+  return createPortal(
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" ref={ref} role="dialog" aria-modal="true" aria-label={title}>
         <div className="sheet-grip" />
@@ -124,7 +126,8 @@ export function Sheet({ open, onClose, title, children, footer }) {
         <div className="sheet-body">{children}</div>
         {footer && <div className="sheet-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

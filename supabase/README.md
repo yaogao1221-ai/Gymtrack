@@ -1,0 +1,15 @@
+# Ligue GymTrack (Supabase)
+
+Projet Supabase gratuit `gymtrack-ligue` (réf. `osrhhlqtstbxzecmfobm`, région ca-central-1).
+
+- Les tables sont dans le schéma privé `ligue` (non exposé par l'API, RLS activée sans politique) : `leagues`, `members`, `stats`, `steps`.
+- L'appli n'y accède que par des fonctions RPC `public.ligue_*` (SECURITY DEFINER, `search_path` vide) qui vérifient le jeton du membre (stocké haché en SHA-256) :
+  - `ligue_create(p_name, p_pseudo)` / `ligue_join(p_code, p_pseudo)` → `{member_id, token, code, league, pseudo}`
+  - `ligue_push(p_member, p_token, p_periods)` : totaux par période (`W2026-46`, `M2026-11`), bornés, champs inconnus ignorés
+  - `ligue_board(p_member, p_token, p_periods)` : membres actifs + totaux + pas sur chaque période
+  - `ligue_steps(...)`, `ligue_pas(p_key, p_steps)` (raccourci iPhone, clé `membre.jeton`, jour selon le fuseau du membre), `ligue_tz`, `ligue_stake`, `ligue_leave`
+- La clé `sb_publishable_…` dans `client/src/lib/league.js` est publique par nature : tous les droits sont dans les fonctions.
+
+Seuls des totaux sont envoyés (km, minutes et nombre de séances cardio, séances muscu, séries, records, pas). Le détail des séances reste sur le téléphone.
+
+Le projet gratuit est mis en pause après 7 jours sans aucune requête ; il se réactive depuis le tableau de bord Supabase.

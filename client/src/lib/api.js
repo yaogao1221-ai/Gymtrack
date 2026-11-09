@@ -19,6 +19,8 @@ export const onAuthRequired = (fn) => { listeners.add(fn); return () => listener
 // PAGES : version GitHub Pages (données dans le téléphone, sans Claude ni serveur)
 export const PAGES = !!import.meta.env.VITE_PAGES;
 export const STANDALONE = !!import.meta.env.VITE_STANDALONE || PAGES;
+// La ligue a besoin d'internet vers Supabase : pas dans la vue Claude (réseau externe bloqué)
+export const LEAGUE_ON = !STANDALONE || PAGES;
 let local;
 async function localApi(path, method, body, raw) {
   local ||= await import('../local/server.js');
