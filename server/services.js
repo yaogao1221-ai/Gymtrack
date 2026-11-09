@@ -1,4 +1,4 @@
-import { toJSON } from './db.js';
+import { toJSON } from './schema.js';
 import { addDays, weekStart, monthStart, diffDays } from './util.js';
 import { DEFAULT_SCHEDULE } from './seed.js';
 

@@ -1,3 +1,4 @@
+import iconUrl from '../icon.svg';
 import { useState } from 'react';
 import { post, setToken } from '../lib/api.js';
 
@@ -11,7 +12,7 @@ export default function Login({ onDone }) {
   return (
     <div className="login">
       <form className="card login-card fade-in" onSubmit={submit}>
-        <img src="/icons/icon.svg" alt="" width="64" height="64" />
+        <img src={iconUrl} alt="" width="64" height="64" />
         <h1>GymTrack <span className="accent">AI</span></h1>
         <p className="muted">Ton espace d’entraînement est protégé.</p>
         <input type="password" autoComplete="current-password" placeholder="Mot de passe" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />

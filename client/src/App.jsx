@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { get, onAuthRequired, flushOutbox, outboxCount, store } from './lib/api.js';
 import { Icon, Loading, useToast } from './components/ui.jsx';
@@ -67,7 +68,7 @@ export default function App() {
     <div className={`shell ${inWorkout ? 'focus' : ''}`}>
       {!inWorkout && (
         <aside className="sidebar">
-          <div className="brand"><img src="/icons/icon.svg" alt="" /><span>GymTrack <b>AI</b></span></div>
+          <div className="brand"><img src={iconUrl} alt="" /><span>GymTrack <b>AI</b></span></div>
           <nav>{SIDE.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} />{label}</NavLink>)}</nav>
         </aside>
       )}

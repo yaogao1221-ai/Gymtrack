@@ -16,7 +16,18 @@ export class ApiError extends Error { constructor(status, message) { super(messa
 const listeners = new Set();
 export const onAuthRequired = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 
+export const STANDALONE = !!import.meta.env.VITE_STANDALONE;
+let local;
+async function localApi(path, method, body, raw) {
+  local ||= await import('../local/server.js');
+  const r = await local.handle(path, { method, body, today: today() });
+  if (raw) return r;
+  if (r.status >= 400) throw new ApiError(r.status, r.data?.error || `Erreur ${r.status}`);
+  return r.data;
+}
+
 export async function api(path, { method = 'GET', body, raw } = {}) {
+  if (STANDALONE) return localApi(path, method, body, raw);
   const headers = { 'X-Local-Date': today() };
   const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -58,6 +69,33 @@ export async function flushOutbox() {
   return sent;
 }
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+// Téléchargement d'un export (fonctionne avec ou sans serveur)
+export async function downloadFile(path, filename) {
+  let blob;
+  if (STANDALONE) {
+    const r = await localApi(path, 'GET', undefined, true);
+    if (r.status >= 400) throw new ApiError(r.status, r.data?.error || 'Erreur');
+    blob = r.text != null ? new Blob([r.text], { type: 'text/csv;charset=utf-8' }) : new Blob([JSON.stringify(r.data, null, 1)], { type: 'application/json' });
+  } else {
+    const res = await fetch(downloadUrl(path));
+    if (!res.ok) throw new ApiError(res.status, 'Téléchargement impossible');
+    blob = await res.blob();
+  }
+  if (STANDALONE) {
+    // Dans Claude, un téléchargement passe par la capacité « downloads » (confirmation de l'utilisateur)
+    const dl = await window.claude?.use?.('downloads');
+    if (!dl) throw new ApiError(0, 'Téléchargement indisponible dans cette vue');
+    try { await dl.save({ filename, data: blob }); }
+    catch (e) { if (e?.code === 'declined') return; throw new ApiError(0, e?.message || 'Téléchargement impossible'); }
+    try { localStorage.setItem('gt_last_export', JSON.stringify(today())); } catch { /* */ }
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  try { localStorage.setItem('gt_last_export', JSON.stringify(today())); } catch { /* */ }
+}
 
 export function downloadUrl(path) {
   const t = getToken(); const sep = path.includes('?') ? '&' : '?';

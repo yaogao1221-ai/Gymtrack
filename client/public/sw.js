@@ -1,9 +1,12 @@
 // Service worker GymTrack AI : coquille de l'app en cache + lectures API en « réseau d'abord, cache sinon »
-const VERSION = 'gymtrack-v1';
+const VERSION = 'gymtrack-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(async (c) => {
+    await c.addAll(SHELL);
+    try { const list = await (await fetch('/precache.json', { cache: 'no-store' })).json(); await c.addAll(list); } catch { /* pas de manifeste */ }
+  }).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== 'gymtrack-api').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
