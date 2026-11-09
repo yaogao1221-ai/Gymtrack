@@ -1,20 +1,28 @@
-import { Chart as C, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend } from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+import { Chart as C, CategoryScale, LinearScale, RadialLinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend } from 'chart.js';
+import { Line, Bar, Radar } from 'react-chartjs-2';
 
-C.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend);
-C.defaults.color = '#959a9f';
+C.register(CategoryScale, LinearScale, RadialLinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend);
+C.defaults.color = '#9a98b8';
 C.defaults.font.family = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
 C.defaults.font.size = 11;
-C.defaults.borderColor = 'rgba(255,255,255,0.06)';
+C.defaults.borderColor = 'rgba(160,150,255,0.08)';
 
-export const COLORS = { lime: '#f2994a', mint: '#5fb3a1', blue: '#7aa2e3', orange: '#c9a35b', pink: '#d97e9a', violet: '#9d8fd6' };
+export const COLORS = { lime: '#ff7a3d', mint: '#2ee6c5', blue: '#3b82f6', orange: '#ffb03a', pink: '#e14bd0', violet: '#a78bfa' };
+// Paires de dégradé associées à chaque couleur
+const PAIR = { '#ff7a3d': ['#ffb03a', '#ff4d8d'], '#2ee6c5': ['#2ee6c5', '#3b82f6'], '#3b82f6': ['#60a5fa', '#8b5cf6'], '#ffb03a': ['#ffd166', '#ff7a3d'], '#e14bd0': ['#f472b6', '#8b5cf6'], '#a78bfa': ['#a78bfa', '#e14bd0'] };
+const vgrad = (color, alphaTop = 'ff', alphaBottom = 'ff') => (ctx) => {
+  const { chart } = ctx; const area = chart.chartArea; if (!area) return color;
+  const p = PAIR[color] || [color, color];
+  const g = chart.ctx.createLinearGradient(0, area.bottom, 0, area.top);
+  g.addColorStop(0, p[1] + alphaBottom); g.addColorStop(1, p[0] + alphaTop); return g;
+};
 
 const base = (yTitle, legend) => ({
   responsive: true, maintainAspectRatio: false, animation: { duration: 500 },
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { display: !!legend, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
-    tooltip: { backgroundColor: '#23272c', borderColor: '#383e45', borderWidth: 1, padding: 10, titleColor: '#ecebe7', bodyColor: '#c8c9c5', displayColors: true },
+    tooltip: { backgroundColor: '#22223d', borderColor: '#3a3a62', borderWidth: 1, padding: 10, titleColor: '#f1f0fa', bodyColor: '#cfcde6', cornerRadius: 10, displayColors: true },
   },
   scales: {
     x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } },
@@ -26,7 +34,7 @@ export function LineChart({ labels, series, yTitle, height = 220, beginAtZero = 
   const data = {
     labels,
     datasets: series.map((s) => ({
-      label: s.label, data: s.data, borderColor: s.color, backgroundColor: s.fill ? `${s.color}22` : s.color, fill: !!s.fill, tension: 0.35,
+      label: s.label, data: s.data, borderColor: vgrad(s.color), backgroundColor: s.fill ? vgrad(s.color, '55', '00') : s.color, pointBackgroundColor: s.color, fill: !!s.fill, tension: 0.35,
       pointRadius: labels.length > 20 ? 0 : 3, pointHoverRadius: 5, borderWidth: 2.5, spanGaps: true, yAxisID: s.axis || 'y',
     })),
   };
@@ -37,11 +45,22 @@ export function LineChart({ labels, series, yTitle, height = 220, beginAtZero = 
 }
 
 export function BarChart({ labels, series, yTitle, height = 220, stacked }) {
-  const data = { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 3, maxBarThickness: 24 })) };
+  const data = { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: vgrad(s.color), borderRadius: 8, borderSkipped: false, maxBarThickness: 22 })) };
   const o = base(yTitle, series.length > 1);
   o.scales.y.beginAtZero = true;
   if (stacked) { o.scales.x.stacked = true; o.scales.y.stacked = true; }
   return <div style={{ height }}><Bar data={data} options={o} /></div>;
+}
+
+// Radar (volume par groupe musculaire)
+export function RadarChart({ labels, series, height = 300, max }) {
+  const data = { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, borderColor: s.color, backgroundColor: `${s.color}33`, pointBackgroundColor: s.color, pointRadius: 2.5, borderWidth: 2, borderDash: s.dash || [] })) };
+  const o = {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 700 },
+    plugins: { legend: { display: series.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } }, tooltip: base().plugins.tooltip },
+    scales: { r: { min: 0, max, ticks: { display: false, maxTicksLimit: 4 }, grid: { color: 'rgba(160,150,255,0.12)' }, angleLines: { color: 'rgba(160,150,255,0.12)' }, pointLabels: { color: '#cfcde6', font: { size: 10.5 } } } },
+  };
+  return <div style={{ height }}><Radar data={data} options={o} /></div>;
 }
 
 // Mini courbe sans axes (tableau de bord)

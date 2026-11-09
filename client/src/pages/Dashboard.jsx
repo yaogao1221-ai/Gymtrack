@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useApi, Card, Stat, Icon, Ring, Loading, ErrorBox, Empty } from '../components/ui.jsx';
+import { useApi, Card, Stat, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty } from '../components/ui.jsx';
 import { Spark, BarChart, COLORS } from '../components/charts.jsx';
 import { fmtDate, fmtDay, relDay, dur, mins, n0, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
 
@@ -11,6 +11,12 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const hello = hour < 6 ? 'Bonne nuit' : hour < 18 ? 'Bonjour' : 'Bonsoir';
   const days = Array.from({ length: 14 }, (_, i) => addDays(d.calendar.from, i));
+  const target = d.week.target || 5;
+  const rings = [
+    { label: 'Séances muscu', grad: 'fire', value: d.week.workouts / target, text: `${d.week.workouts} / ${target}` },
+    { label: 'Minutes de cardio', grad: 'aqua', value: d.week.cardio_target ? d.week.cardio_minutes / d.week.cardio_target : 0, text: `${d.week.cardio_minutes} / ${d.week.cardio_target || '—'} min` },
+    { label: 'Séries validées', grad: 'violet', value: d.week.sets_target ? d.week.sets / d.week.sets_target : 0, text: `${d.week.sets} / ${d.week.sets_target}` },
+  ];
   return (
     <div className="page fade-in">
       <header className="page-head">
@@ -31,14 +37,25 @@ export default function Dashboard() {
         </>) : <p>Aucune séance au programme.</p>}
       </section>
 
+      <section className="card week-rings">
+        <ActivityRings size={156} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))}
+          center={<><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)}%</b><small>semaine</small></>} />
+        <ul className="ring-legend">
+          {rings.map((r) => (
+            <li key={r.label}>
+              <i style={{ background: `linear-gradient(135deg, ${GRADS[r.grad][0]}, ${GRADS[r.grad][1]})` }} />
+              <span>{r.label}</span>
+              <b>{r.text}</b>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="stats-grid">
-        <div className="stat ring-stat">
-          <Ring value={d.week.workouts / (d.week.target || 5)} label={`${d.week.workouts}/${d.week.target || 5}`} />
-          <div><div className="stat-label">Séances cette semaine</div><div className="stat-hint">{d.week.cardio_sessions} cardio en plus</div></div>
-        </div>
         <Stat icon="timer" label="Temps d’entraînement" value={dur(d.week.training_minutes * 60)} hint={`${dur(d.totals.training_minutes * 60)} au total`} />
         <Stat icon="heart" label="Cardio cette semaine" value={mins(d.week.cardio_minutes)} hint={`${mins(d.totals.cardio_minutes)} au total`} tone="mint" />
         <Stat icon="flame" label="Volume semaine" value={n0(d.week.volume_lbs)} unit="lbs" hint={`${d.week.sets} séries validées`} tone="orange" />
+        <Stat icon="trophy" label="Séances au total" value={n0(d.totals.workouts)} hint={`${d.week.cardio_sessions} cardio cette semaine`} tone="violet" />
       </div>
 
       <div className="grid-2col">

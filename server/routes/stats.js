@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { USER_ID, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile } from '../services.js';
+import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile } from '../services.js';
 import { recoveryScore } from '../analysis.js';
 import { date, notFound, addDays, weekStart, diffDays } from '../util.js';
 
@@ -26,7 +26,9 @@ export default function statsRoutes(db) {
       next: nextSession(db, today),
       last_workout: last ? { ...workoutSummary(db, last), days_ago: diffDays(last.date, today) } : null,
       last_cardio: lastCardio,
-      week: { ...week, target: profile.sessions_per_week },
+      week: { ...week, target: profile.sessions_per_week,
+        cardio_target: (profile.cardio_sessions_target || 0) * (profile.cardio_minutes_target || 0),
+        sets_target: getProgram(db, { withLast: false }).days.reduce((a, d) => a + d.exercises.reduce((b, e) => b + e.sets, 0), 0) },
       totals: { workouts: all.workouts, training_minutes: all.training_minutes, cardio_minutes: all.cardio_minutes, volume_lbs: all.volume_lbs },
       recent_workouts: db.all('SELECT w.*, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? ORDER BY w.date DESC, w.id DESC LIMIT 5', USER_ID).map((w) => workoutSummary(db, w)),
       records: recentRecords(db, 5),

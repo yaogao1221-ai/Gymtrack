@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
 import { post, patch, put, today } from '../lib/api.js';
 import { DAYS, fmtDate } from '../lib/format.js';
+import { RadarChart, COLORS } from '../components/charts.jsx';
 
 const SEV = { important: ['Important', 'danger'], attention: ['À revoir', 'warn'], info: ['Info', 'info'], ok: ['OK', 'ok'] };
 const CAT = { volume: 'Volume', redondance: 'Redondance', desequilibre: 'Équilibre', repartition: 'Répartition', douleur: 'Douleur', recuperation: 'Récupération', historique: 'Historique' };
@@ -24,7 +25,7 @@ export default function Coach() {
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
           <div className="row gap">
-            <Ring value={a.recovery.score / 100} size={84} stroke={9} label={a.recovery.score} color={a.recovery.score >= 75 ? 'var(--accent2)' : a.recovery.score >= 55 ? 'var(--warn)' : 'var(--danger)'} />
+            <Ring value={a.recovery.score / 100} size={88} stroke={10} label={a.recovery.score} grad={a.recovery.score >= 75 ? 'aqua' : a.recovery.score >= 55 ? 'fire' : 'violet'} />
             <div><b className="big">{a.recovery.label}</b><ul className="factors">{a.recovery.factors.map((f, i) => <li key={i} className={f.impact < 0 ? 'neg' : ''}>{f.text}{f.impact ? ` (${f.impact})` : ''}</li>)}</ul></div>
           </div>
           <div className="pains">
@@ -61,7 +62,9 @@ export default function Coach() {
 
       <div className="grid-2col">
         <Card title="Volume hebdomadaire par muscle" icon="chart">
-          <p className="muted small">Séries effectives / semaine (exercice principal = 1, muscle secondaire = 0,5). Zone verte : volume conseillé pour ton niveau ({a.level}).</p>
+          <p className="muted small">Séries effectives / semaine (exercice principal = 1, muscle secondaire = 0,5), comparées au minimum conseillé pour ton niveau ({a.level}).</p>
+          <RadarChart height={290} labels={a.volume.muscles.map((m) => m.label.replace(/ \(.*\)/, (x) => x.includes('avant') ? ' av.' : x.includes('latéral') ? ' lat.' : x.includes('arrière') ? ' arr.' : x.includes('grand') ? ' larg.' : x.includes('milieu') ? ' mil.' : '').replace(' / gainage', ''))}
+            series={[{ label: 'Ton programme', data: a.volume.muscles.map((m) => m.sets), color: COLORS.lime }, { label: 'Minimum conseillé', data: a.volume.muscles.map((m) => m.opt_low), color: COLORS.mint, dash: [4, 4] }]} />
           <ul className="vol-list">{a.volume.muscles.map((m) => (
             <li key={m.key}>
               <span className="vol-name">{m.label}</span>
