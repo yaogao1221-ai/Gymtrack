@@ -17,3 +17,8 @@ Projet Supabase gratuit `gymtrack-ligue` (réf. `osrhhlqtstbxzecmfobm`, région 
 Seuls des totaux sont envoyés (km, minutes et nombre de séances cardio, séances muscu, séries, records, pas). Le détail des séances reste sur le téléphone.
 
 Le projet gratuit est mis en pause après 7 jours sans aucune requête ; il se réactive depuis le tableau de bord Supabase.
+
+## Défis et notifications
+- Défis : `ligue_challenge_create`, `ligue_challenges(p_member, p_token, p_periods)`, `ligue_challenge_hide` (créateur seulement), table `ligue.challenges`.
+- Notifications Web Push : `ligue_push_sub` / `ligue_push_off`, table `ligue.push_subs`. Des déclencheurs sur `ligue.dms`, `ligue.posts` (message visant quelqu'un) et `ligue.challenges` appellent `ligue.notify`, qui envoie via `pg_net` à la fonction `notify` (`supabase/functions/notify`).
+- Les clés VAPID privées et le secret partagé ne sont pas dans ce dépôt : ils sont dans la fonction déployée et dans `ligue.config` (non exposée). Pour les changer : variables `VAPID_PUBLIC`, `VAPID_PRIVATE`, `NOTIFY_SECRET` de la fonction, la ligne `notify_secret` de `ligue.config` et la clé publique dans `client/src/lib/league.js`.

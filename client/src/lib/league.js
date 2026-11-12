@@ -193,3 +193,30 @@ export const dmHide = (w) => rpc('ligue_dm_hide', { ...auth(), p_with: w });
 export const getChallenges = (periods) => rpc('ligue_challenges', { ...auth(), p_periods: periods });
 export const createChallenge = (title, metric, target, kind, period) => rpc('ligue_challenge_create', { ...auth(), p_title: title, p_metric: metric, p_target: target, p_kind: kind, p_period: period });
 export const hideChallenge = (id) => rpc('ligue_challenge_hide', { ...auth(), p_id: id });
+
+// Notifications push (Web Push) : l'iPhone les autorise seulement si l'appli est ajoutée à l'écran d'accueil (iOS 16.4+)
+const VAPID_PUBLIC = 'BFnYJCjnHaKA0Bel7vtLNQoa4rNmiwXJrPPpn1xJXU02JUr185-BEVMEezqnrKa6mRS4KS2cp7LVe5TW7hdwol8';
+const PUSH = 'gt_league_push';
+const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const raw = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, (c) => c.charCodeAt(0)); };
+export function pushSupport() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return { ok: false, reason: ios && !standalone ? 'install' : 'unsupported' };
+  if (Notification.permission === 'denied') return { ok: false, reason: 'denied' };
+  return { ok: true, ios, standalone };
+}
+export const pushPrefs = () => store.get(PUSH);
+export async function enablePush(prefs = { dm: true, post: true, challenge: true }) {
+  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications refusées');
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID_PUBLIC) });
+  const j = sub.toJSON();
+  await rpc('ligue_push_sub', { ...auth(), p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_prefs: prefs });
+  store.set(PUSH, prefs);
+}
+export async function disablePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if (sub) { await rpc('ligue_push_off', { ...auth(), p_endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
+  } finally { store.del(PUSH); }
+}

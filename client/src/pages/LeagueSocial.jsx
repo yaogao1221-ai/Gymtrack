@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Card, Icon, Field, Sheet, useToast } from '../components/ui.jsx';
 import { ShareToggle } from './LeagueChat.jsx';
+import { NotifToggle } from './LeagueNotif.jsx';
 import { setPhoto, resizePhoto, postMessage, hidePost, TONES, quickLines, ago, totalPoints } from '../lib/league.js';
 
 const HUES = [18, 168, 262, 330, 42, 205, 290];
@@ -51,6 +52,7 @@ export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOp
           </div>
         </div>
         <ShareToggle onChanged={onReload} />
+        <NotifToggle />
       </Card>
       <Card title="Participants" icon="user">
         <ul className="lobby-list">

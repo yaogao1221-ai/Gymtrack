@@ -1,5 +1,5 @@
 // Service worker GymTrack AI : coquille de l'app en cache + lectures API en « réseau d'abord, cache sinon »
-const VERSION = 'gymtrack-v3';
+const VERSION = 'gymtrack-v4';
 // Chemins relatifs au service worker : marche à la racine (serveur) comme dans un sous-dossier (GitHub Pages)
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
@@ -31,4 +31,21 @@ self.addEventListener('fetch', (e) => {
     if (res.ok && (url.pathname.includes('/assets/') || url.pathname.includes('/icons/'))) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return res;
   })));
+});
+
+// Notifications push de la ligue (messages, chambrages, défis)
+self.addEventListener('push', (e) => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'GymTrack', body: e.data?.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'GymTrack', {
+    body: d.body || '', tag: d.tag, renotify: !!d.tag, icon: './icons/icon-192.png', badge: './icons/icon-192.png', data: { url: d.url || './#/ligue' },
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || './#/ligue', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const w = list.find((c) => c.url.startsWith(self.registration.scope));
+    if (w) { w.focus(); return w.navigate ? w.navigate(url) : null; }
+    return self.clients.openWindow(url);
+  }));
 });
