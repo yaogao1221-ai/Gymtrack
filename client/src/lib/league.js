@@ -82,3 +82,31 @@ export function ranking(board, periodKey, cat) {
     .map((m) => { const p = m.periods?.[periodKey] || {}; return { id: m.id, pseudo: m.pseudo, value: cat.value(p.stats, p.steps), stats: p.stats, steps: p.steps || 0 }; })
     .sort((a, b) => b.value - a.value || a.pseudo.localeCompare(b.pseudo));
 }
+
+// Données Santé envoyées par le raccourci iPhone
+export const healthLink = (m) => `${LEAGUE_URL}/functions/v1/sante?k=${personalKey(m)}`;
+export const SANTE_BASE = `${LEAGUE_URL}/functions/v1/sante?k=`;
+export async function getHealth(days = 30) {
+  const m = getMembership(); if (!m) return null;
+  const from = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  return rpc('ligue_health', { p_member: m.member_id, p_token: m.token, p_from: from });
+}
+export const setShortcutUrl = (url) => { const m = getMembership(); return rpc('ligue_shortcut', { p_member: m.member_id, p_token: m.token, p_url: url }); };
+
+// Conseils de récupération à partir du sommeil et du pouls au repos (jamais d'ordre, juste un signal)
+export function healthAdvice(rows) {
+  if (!rows?.length) return null;
+  const last7 = rows.slice(-7);
+  const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+  const sleep = last7.map((r) => Number(r.sleep_h)).filter((x) => x > 0);
+  const rhrAll = rows.map((r) => r.rhr).filter((x) => x > 0);
+  const lastNight = rows.at(-1)?.sleep_h != null ? Number(rows.at(-1).sleep_h) : null;
+  const baseline = rhrAll.length >= 5 ? avg(rhrAll.slice(0, -1)) : null;
+  const todayRhr = rows.at(-1)?.rhr ?? null;
+  const tips = [];
+  if (lastNight != null && lastNight < 6) tips.push({ level: 'warn', text: `Nuit courte (${lastNight.toLocaleString('fr-FR')} h) : garde tes charges, vise la technique et évite d’ajouter du volume aujourd’hui.` });
+  if (baseline && todayRhr && todayRhr >= baseline + 5) tips.push({ level: 'warn', text: `Pouls au repos à ${todayRhr} (ta moyenne : ${Math.round(baseline)}) : signe de fatigue ou de début de rhume. Séance légère ou cardio doux.` });
+  if (sleep.length >= 4 && avg(sleep) < 7) tips.push({ level: 'info', text: `Moyenne de sommeil sur 7 jours : ${avg(sleep).toFixed(1).replace('.', ',')} h. Viser 7 à 9 h aide la récupération et la progression.` });
+  if (!tips.length && (lastNight != null || todayRhr)) tips.push({ level: 'ok', text: 'Sommeil et pouls au repos dans ta normale : feu vert pour ta séance prévue.' });
+  return { avgSleep: avg(sleep), baseline, todayRhr, lastNight, tips };
+}

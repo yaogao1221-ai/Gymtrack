@@ -164,6 +164,32 @@ function progressionFor(db, pe, painPatterns, recovery) {
   return null;
 }
 
+// Progression d'un bloc cardio du programme : +5 min, puis +1 % d'inclinaison ou +0,3 km/h. Jamais appliquée sans validation.
+function cardioProgressionFor(db, c, recovery, today) {
+  const sessions = db.all('SELECT * FROM cardio_sessions WHERE program_cardio_id = ? AND date >= ? ORDER BY date DESC, id DESC LIMIT 2', c.id, addDays(today, -28));
+  if (sessions.length < 2) return null;
+  const base = { cardio_id: c.id, exercise: c.label, day_id: c.day_id };
+  const allDone = sessions.every((s) => s.duration_min >= c.duration_min - 0.5);
+  const hard = sessions.some((s) => s.rpe != null && s.rpe >= 9);
+  if (!allDone || hard) return null;
+  if (recovery.score < 55) return { ...base, key: `cardio:${c.id}:recovery`, type: 'hold', title: `${c.label} : on garde ${c.duration_min} min`, reason: `Les deux dernières séances sont réussies, mais ta récupération est « ${recovery.label.toLowerCase()} » (${recovery.score}/100). On consolide.` };
+  const dates = sessions.map((s) => s.date).reverse().join(' et ');
+  const cap = c.activity === 'marche' || c.activity === 'marche_inclinee' ? 45 : 40;
+  if (c.duration_min < cap) {
+    const proposed = Math.min(cap, c.duration_min + 5);
+    return { ...base, key: `cardio:${c.id}:min:${proposed}`, type: 'increase', title: `${c.label} : passer à ${proposed} min`, current: `${c.duration_min} min`, proposed_label: `${proposed} min`, patch: { duration_min: proposed }, reason: `${c.duration_min} min tenues le ${dates}. +5 min, à une intensité qui te laisse parler, pour ne pas gêner la récupération musculaire.` };
+  }
+  if (c.activity === 'marche_inclinee' && (c.incline_pct ?? 0) < 12) {
+    const proposed = (c.incline_pct ?? 0) + 1;
+    return { ...base, key: `cardio:${c.id}:inc:${proposed}`, type: 'increase', title: `${c.label} : inclinaison ${proposed} %`, current: `${c.incline_pct ?? 0} %`, proposed_label: `${proposed} % d’inclinaison`, patch: { incline_pct: proposed }, reason: `Durée maximale atteinte (${c.duration_min} min, le ${dates}). On progresse maintenant par l’inclinaison.` };
+  }
+  if (c.speed_kmh) {
+    const proposed = Math.round((c.speed_kmh + 0.3) * 10) / 10;
+    return { ...base, key: `cardio:${c.id}:speed:${proposed}`, type: 'increase', title: `${c.label} : ${proposed} km/h`, current: `${c.speed_kmh} km/h`, proposed_label: `${proposed} km/h`, patch: { speed_kmh: proposed }, reason: `Durée maximale atteinte (${c.duration_min} min, le ${dates}). Légère hausse de vitesse.` };
+  }
+  return null;
+}
+
 export function analyse(db, today) {
   const profile = getProfile(db);
   const { days } = getProgram(db, { withLast: false });
@@ -276,6 +302,7 @@ export function analyse(db, today) {
   // 8. Progression (validation obligatoire)
   const progression = [];
   for (const d of days) for (const pe of d.exercises) { const p = progressionFor(db, pe, painPatterns, recovery); if (p) progression.push({ ...p, day_name: d.name }); }
+  for (const d of days) for (const c of d.cardio || []) { const p = cardioProgressionFor(db, c, recovery, today); if (p) progression.push({ ...p, day_name: d.name }); }
 
   // Filtrer ce qui a déjà été validé ou ignoré récemment
   const log = db.all('SELECT rec_key, status, created_at FROM recommendation_log WHERE user_id = ? AND created_at >= ?', USER_ID, addDays(today, -21));

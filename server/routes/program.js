@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { USER_ID, getProgram, activeProgram, exerciseRow } from '../services.js';
+import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES } from '../services.js';
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
 
@@ -16,6 +16,16 @@ const peFields = {
   superset_group: (v) => str(v, 'superset', { max: 8 }),
   notes: (v) => str(v, 'notes', { max: 500 }),
   exercise_id: (v) => num(v, 'exercice', { int: true }),
+};
+
+const pcFields = {
+  activity: (v) => oneOf(v, 'activité', Object.keys(CARDIO_TYPES), { required: true }),
+  custom_name: (v) => str(v, 'nom', { max: 60 }),
+  duration_min: (v) => { const n = num(v, 'durée', { min: 1, max: 300 }); if (n == null) throw bad('Durée requise'); return n; },
+  speed_kmh: (v) => num(v, 'vitesse', { min: 0, max: 40 }),
+  incline_pct: (v) => num(v, 'inclinaison', { min: -5, max: 30 }),
+  placement: (v) => oneOf(v, 'moment', ['debut', 'fin'], { required: true }),
+  notes: (v) => str(v, 'notes', { max: 300 }),
 };
 
 export default function programRoutes(db) {
@@ -90,6 +100,28 @@ export default function programRoutes(db) {
   r.delete('/program/exercises/:id', (req, res) => {
     const pe = peOf(req.params.id);
     db.run('DELETE FROM program_exercises WHERE id = ?', pe.id);
+    res.json({ ok: true });
+  });
+  // Blocs cardio d'un jour de programme
+  const pcOf = (id) => {
+    const pc = db.one('SELECT pc.* FROM program_cardio pc JOIN program_days pd ON pd.id = pc.day_id JOIN programs p ON p.id = pd.program_id WHERE pc.id = ? AND p.user_id = ?', id, USER_ID);
+    if (!pc) throw notFound('Bloc cardio introuvable'); return pc;
+  };
+  r.post('/program/days/:id/cardio', (req, res) => {
+    const d = dayOf(req.params.id);
+    const b = { placement: 'fin', ...req.body };
+    const info = db.run('INSERT INTO program_cardio (day_id, activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes) VALUES (?,?,?,?,?,?,?,?)',
+      d.id, pcFields.activity(b.activity), pcFields.custom_name(b.custom_name), pcFields.duration_min(b.duration_min), pcFields.speed_kmh(b.speed_kmh), pcFields.incline_pct(b.incline_pct), pcFields.placement(b.placement), pcFields.notes(b.notes));
+    res.status(201).json(db.one('SELECT * FROM program_cardio WHERE id = ?', info.lastInsertRowid));
+  });
+  r.patch('/program/cardio/:id', (req, res) => {
+    const pc = pcOf(req.params.id);
+    patchRow(db, 'program_cardio', pc.id, req.body, pcFields);
+    res.json(db.one('SELECT * FROM program_cardio WHERE id = ?', pc.id));
+  });
+  r.delete('/program/cardio/:id', (req, res) => {
+    const pc = pcOf(req.params.id);
+    db.run('DELETE FROM program_cardio WHERE id = ?', pc.id);
     res.json({ ok: true });
   });
   return r;

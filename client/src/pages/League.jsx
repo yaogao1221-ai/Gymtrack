@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
-  ranking, CATEGORIES, POINTS, personalKey, LEAGUE_URL,
+  ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl,
 } from '../lib/league.js';
 
 const APP_URL = 'https://yaogao1221-ai.github.io/Gymtrack/';
@@ -126,8 +126,8 @@ function Board({ m, onLeft }) {
         {stake && prevGeneral.length > 1 && <p className="small">{kind === 'week' ? 'Semaine dernière' : 'Mois dernier'} : <b>{prevGeneral.at(-1).pseudo}</b> doit honorer l’enjeu.</p>}
       </Card>
 
-      <Card title="Mes pas" icon="heart" action={<button className="btn xs" onClick={() => setShortcut(true)}>Automatique</button>}>
-        <p className="muted small">L’iPhone compte tes pas dans l’app Santé. Touche « Automatique » pour les envoyer tout seuls chaque soir, ou saisis-les ici.</p>
+      <HealthCard onOpen={() => setShortcut(true)} />
+      <Card title="Saisir mes pas" icon="heart">
         <div className="row gap-s">
           <NumInput value={steps} onChange={setSteps} placeholder="Pas aujourd’hui" />
           <button className="btn sm" disabled={!steps} onClick={saveSteps}>Envoyer</button>
@@ -153,7 +153,7 @@ function Board({ m, onLeft }) {
           <input value={stakeEdit || ''} onChange={(e) => setStakeEdit(e.target.value)} maxLength={120} placeholder="Paie le café à tout le monde" />
         </Field>
       </Sheet>
-      <ShortcutSheet open={shortcut} onClose={() => setShortcut(false)} m={m} />
+      <ShortcutSheet open={shortcut} onClose={() => setShortcut(false)} m={m} url={board.league.shortcut_url} onSaved={load} />
       <Confirm open={leave} onClose={() => setLeave(false)} danger title="Quitter la ligue ?" confirmLabel="Quitter"
         text="Tu disparais du classement. Tes données d’entraînement restent sur ton téléphone." onConfirm={async () => { try { await leaveLeague(); onLeft(); } catch (e) { toast(e.message, 'err'); } }} />
     </Page>
@@ -179,25 +179,66 @@ function Podium({ rows, me, unit, fmt }) {
   );
 }
 
-function ShortcutSheet({ open, onClose, m }) {
+function HealthCard({ onOpen }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { getHealth(7).then(setRows).catch(() => setRows([])); }, []);
+  const last = rows?.at(-1);
+  const today = new Date(); const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const nf = (v, d = 0) => Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d });
+  return (
+    <Card title="Mes données Santé" icon="heart" action={<button className="btn xs primary" onClick={onOpen}>{last ? 'Raccourci' : 'Connecter'}</button>}>
+      {!rows ? <p className="muted small">Chargement…</p> : !last
+        ? <p className="small">Relie l’app Santé de ton iPhone : pas, distance, calories actives, pouls au repos et sommeil arrivent tout seuls chaque soir. Touche <b>Connecter</b>.</p>
+        : <>
+          <div className="health-grid">
+            {last.steps != null && <div><b className="mono">{nf(last.steps)}</b><span className="muted small">pas</span></div>}
+            {last.km != null && <div><b className="mono">{nf(last.km, 1)}</b><span className="muted small">km</span></div>}
+            {last.kcal != null && <div><b className="mono">{nf(last.kcal)}</b><span className="muted small">kcal actives</span></div>}
+            {last.rhr != null && <div><b className="mono">{last.rhr}</b><span className="muted small">pouls repos</span></div>}
+            {last.sleep_h != null && <div><b className="mono">{nf(last.sleep_h, 1)} h</b><span className="muted small">sommeil</span></div>}
+          </div>
+          <p className="muted small">{last.day === iso ? 'Reçu aujourd’hui' : `Dernier envoi : ${new Date(last.day + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`} à {new Date(last.updated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.</p>
+        </>}
+    </Card>
+  );
+}
+
+function ShortcutSheet({ open, onClose, m, url, onSaved }) {
   const toast = useToast();
   const key = personalKey(m);
-  // Une seule adresse à coller : la clé perso est dedans, il ne reste qu'à ajouter le nombre de pas à la fin
-  const link = `${LEAGUE_URL}/functions/v1/pas?k=${key}&n=`;
-  const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`${what} copié`); } catch { toast('Copie impossible : sélectionne le texte', 'err'); } };
+  const [guide, setGuide] = useState(false); const [link, setLink] = useState('');
+  const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(`Copié : ${what.toLowerCase()}`); } catch { toast('Copie impossible : sélectionne le texte', 'err'); } };
+  const template = `${SANTE_BASE}[Texte]&pas=[Statistiques]&km=[Statistiques 2]&kcal=[Statistiques 3]&fc=[Échantillons de santé 4]&sommeil=[Statistiques 5]`;
+  const saveLink = async () => { try { await setShortcutUrl(link); toast('Lien enregistré : tes amis peuvent installer le raccourci'); setLink(''); onSaved(); } catch (e) { toast(e.message, 'err'); } };
   return (
-    <Sheet open={open} onClose={onClose} title="Envoyer mes pas automatiquement">
-      <p className="small">Apple ne laisse pas une appli web créer un raccourci toute seule. Ça se fait une seule fois, en 3 actions, en 2 minutes.</p>
-      <button className="btn primary block mb" onClick={() => copy(link, 'Ton lien')}><Icon name="check" size={16} />Copier mon lien</button>
-      <ol className="howto">
-        <li>Dans l’app <b>Raccourcis</b>, touche <b>+</b>, puis ajoute l’action <b>Rechercher des échantillons de santé</b>. Choisis <b>Nombre de pas</b> et <b>Date de début : aujourd’hui</b>.</li>
-        <li>Ajoute l’action <b>Calculer les statistiques</b> et choisis <b>Somme</b>.</li>
-        <li>Ajoute l’action <b>Obtenir le contenu de l’URL</b>. Dans le champ URL, <b>colle ton lien</b>, puis juste à la fin touche la variable <b>Statistiques</b> (au-dessus du clavier). C’est tout.</li>
-      </ol>
-      <p className="small">Touche ▶︎ pour tester : « … pas envoyés à ta ligue GymTrack » s’affiche.</p>
-      <p className="small"><b>Tous les soirs, tout seul :</b> onglet <b>Automatisation</b> → <b>+</b> → <b>Heure de la journée</b> (22 h, chaque jour) → <b>Exécuter immédiatement</b> → choisis ce raccourci.</p>
-      <Field label="Ton lien" hint="Il contient ta clé perso : ne le partage pas. Chaque ami copie le sien depuis son appli."><div className="copy-row"><code>{link}</code></div></Field>
-      <p className="muted small">Chaque envoi remplace le total du jour : le lancer plusieurs fois ne compte pas en double.</p>
+    <Sheet open={open} onClose={onClose} title="Relier l’app Santé">
+      {url ? <>
+        <ol className="howto big">
+          <li><button className="btn primary block" onClick={() => copy(key, 'Ta clé')}>1. Copier ma clé</button></li>
+          <li><a className="btn primary block" href={url} target="_blank" rel="noreferrer">2. Installer le raccourci</a><span className="muted small">Touche <b>Configurer le raccourci</b>, colle ta clé quand elle est demandée, puis <b>Ajouter</b>. Autorise l’accès à Santé au premier lancement.</span></li>
+          <li><b>3. Tous les soirs, tout seul</b><span className="muted small">App Raccourcis → onglet <b>Automatisation</b> → <b>+</b> → <b>Heure de la journée</b> (22 h, chaque jour) → <b>Exécuter immédiatement</b> → « GymTrack Santé ».</span></li>
+        </ol>
+        <p className="muted small">Chaque envoi remplace les chiffres du jour : le lancer plusieurs fois ne compte pas en double.</p>
+      </> : <p className="small">Le raccourci de la ligue n’existe pas encore. Une seule personne le crée (2 minutes de plus que le précédent), puis colle son lien ici : tous les autres l’installeront en un geste.</p>}
+
+      <button className="btn sm ghost block mt" onClick={() => setGuide(!guide)}>{guide ? 'Masquer le guide' : url ? 'Recréer le raccourci (guide)' : 'Je le crée : afficher le guide'}</button>
+      {guide && <>
+        <ol className="howto mt">
+          <li>App <b>Raccourcis</b> → <b>+</b>. Nomme-le <b>GymTrack Santé</b>.</li>
+          <li>Action <b>Texte</b> : colle ta clé <button className="btn xs" onClick={() => copy(key, 'Ta clé')}>Copier ma clé</button></li>
+          <li><b>Rechercher des échantillons de santé</b> : <b>Nombre de pas</b>, date de début <b>Aujourd’hui</b>. Puis <b>Calculer les statistiques</b> : <b>Somme</b>.</li>
+          <li>Pareil avec <b>Distance (marche et course)</b> → Somme, puis <b>Énergie active</b> → Somme.</li>
+          <li><b>Rechercher des échantillons de santé</b> : <b>Fréquence cardiaque au repos</b>, trier par <b>Date de début</b>, <b>Plus récent en premier</b>, limite <b>1</b>.</li>
+          <li><i>Facultatif</i> : <b>Analyse du sommeil</b> sur les dernières 24 h → <b>Calculer les statistiques</b> : Somme.</li>
+          <li><b>Obtenir le contenu de l’URL</b> : écris l’adresse ci-dessous en remplaçant chaque [crochet] par la variable du même nom (touche-la au-dessus du clavier). Tu peux enlever les morceaux que tu n’as pas faits.</li>
+          <li><b>Afficher le résultat</b> (facultatif), puis ▶︎ pour tester : « GymTrack ✓ … pas · … km » doit s’afficher.</li>
+          <li><b>Pour le partager sans ta clé</b> : appui long sur le raccourci → <b>Dupliquer</b>. Dans la copie, remplace ta clé par <b>COLLE-TA-CLÉ</b>, ouvre ses réglages (ⓘ) → <b>Configuration</b> / questions d’importation → ajoute une question sur l’action <b>Texte</b> : « Colle ta clé GymTrack ». Puis <b>Partager</b> → <b>Copier le lien iCloud</b>, et colle-le ci-dessous.</li>
+        </ol>
+        <Field label="Adresse à mettre dans « Obtenir le contenu de l’URL »"><div className="copy-row"><code>{template}</code><button className="btn xs" onClick={() => copy(SANTE_BASE, 'Début de l’adresse')}>Copier</button></div></Field>
+        <Field label="Lien iCloud du raccourci partagé" hint="Visible par toute la ligue. Il ne contient pas ta clé si tu as suivi l’étape 9.">
+          <div className="row gap-s"><input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.icloud.com/shortcuts/…" /><button className="btn sm" disabled={!link} onClick={saveLink}>Enregistrer</button></div>
+        </Field>
+      </>}
     </Sheet>
   );
 }

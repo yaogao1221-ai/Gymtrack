@@ -17,7 +17,8 @@ export default function analysisRoutes(db) {
       if (prog) {
         if (!prog.patch) throw bad('Cette recommandation est informative');
         const cols = Object.keys(prog.patch);
-        db.run(`UPDATE program_exercises SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, ...cols.map((c) => prog.patch[c]), prog.program_exercise_id);
+        if (prog.cardio_id) db.run(`UPDATE program_cardio SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, ...cols.map((c) => prog.patch[c]), prog.cardio_id);
+        else db.run(`UPDATE program_exercises SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, ...cols.map((c) => prog.patch[c]), prog.program_exercise_id);
       } else if (sug) {
         const pos = (db.one('SELECT MAX(position) m FROM program_exercises WHERE day_id = ?', sug.day_id).m || 0) + 1;
         const ex = db.one('SELECT default_unit FROM exercises WHERE id = ?', sug.exercise_id);

@@ -38,6 +38,10 @@ export function getProgram(db, { withLast = true, includeArchived = false } = {}
       ...pe, muscles: toJSON(pe.muscles, {}),
       last: withLast ? lastPerformance(db, pe.exercise_id) : undefined,
     }));
+    d.cardio = db.all('SELECT * FROM program_cardio WHERE day_id = ? ORDER BY placement, id', d.id).map((c) => ({
+      ...c, label: c.custom_name || CARDIO_TYPES[c.activity]?.label || c.activity,
+      last: withLast ? db.one('SELECT date, duration_min, speed_kmh, incline_pct, distance_km FROM cardio_sessions WHERE program_cardio_id = ? ORDER BY date DESC, id DESC LIMIT 1', c.id) || null : undefined,
+    }));
   }
   return { program, days };
 }

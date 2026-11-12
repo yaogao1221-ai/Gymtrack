@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
 import { post, patch, put, today } from '../lib/api.js';
 import { DAYS, fmtDate } from '../lib/format.js';
 import { RadarChart, COLORS } from '../components/charts.jsx';
+import { getMembership, getHealth, healthAdvice } from '../lib/league.js';
+import { LEAGUE_ON } from '../lib/api.js';
 
 const SEV = { important: ['Important', 'danger'], attention: ['À revoir', 'warn'], info: ['Info', 'info'], ok: ['OK', 'ok'] };
 const CAT = { volume: 'Volume', redondance: 'Redondance', desequilibre: 'Équilibre', repartition: 'Répartition', douleur: 'Douleur', recuperation: 'Récupération', historique: 'Historique' };
@@ -28,6 +30,7 @@ export default function Coach() {
             <Ring value={a.recovery.score / 100} size={88} stroke={10} label={a.recovery.score} grad={a.recovery.score >= 75 ? 'aqua' : a.recovery.score >= 55 ? 'fire' : 'violet'} />
             <div><b className="big">{a.recovery.label}</b><ul className="factors">{a.recovery.factors.map((f, i) => <li key={i} className={f.impact < 0 ? 'neg' : ''}>{f.text}{f.impact ? ` (${f.impact})` : ''}</li>)}</ul></div>
           </div>
+          <HealthTips />
           <div className="pains">
             {activePains.map((p) => (
               <div key={p.id} className="pain-row"><span><b>{pains.data.areas[p.area]}</b> {p.intensity}/10 · {fmtDate(p.date)}</span>
@@ -113,5 +116,19 @@ export default function Coach() {
         </>)}
       </Sheet>
     </Page>
+  );
+}
+
+// Sommeil et pouls au repos venant de l'app Santé (raccourci iPhone) : un signal de plus, jamais un ordre
+function HealthTips() {
+  const [adv, setAdv] = useState(null);
+  const on = LEAGUE_ON && !!getMembership();
+  useEffect(() => { if (on) getHealth(30).then((r) => setAdv(healthAdvice(r))).catch(() => {}); }, [on]);
+  if (!on) return null;
+  if (!adv) return <p className="muted small mt"><Link to="/ligue">Relie l’app Santé</Link> pour tenir compte de ton sommeil et de ton pouls au repos.</p>;
+  return (
+    <ul className="factors health-tips">
+      {adv.tips.map((t, i) => <li key={i} className={t.level === 'warn' ? 'neg' : ''}>{t.text}</li>)}
+    </ul>
   );
 }

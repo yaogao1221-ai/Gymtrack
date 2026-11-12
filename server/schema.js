@@ -86,6 +86,19 @@ CREATE TABLE IF NOT EXISTS program_exercises (
   notes TEXT
 );
 
+-- Blocs cardio prévus dans un jour de programme (ex. 15 min de marche inclinée en fin de séance)
+CREATE TABLE IF NOT EXISTS program_cardio (
+  id INTEGER PRIMARY KEY,
+  day_id INTEGER NOT NULL REFERENCES program_days(id) ON DELETE CASCADE,
+  activity TEXT NOT NULL,
+  custom_name TEXT,
+  duration_min REAL NOT NULL,
+  speed_kmh REAL,
+  incline_pct REAL,
+  placement TEXT NOT NULL DEFAULT 'fin',   -- debut | fin
+  notes TEXT
+);
+
 -- Séances de musculation
 CREATE TABLE IF NOT EXISTS workouts (
   id INTEGER PRIMARY KEY,
@@ -202,6 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_sets_workout ON workout_sets(workout_id);
 CREATE INDEX IF NOT EXISTS idx_sets_exercise ON workout_sets(exercise_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_cardio_date ON cardio_sessions(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_program_cardio_day ON program_cardio(day_id);
 CREATE INDEX IF NOT EXISTS idx_events_date ON calendar_events(user_id, date);
 
 -- Statistiques : vue par série avec volume (tonnage) normalisé en lbs
@@ -215,6 +229,9 @@ FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e
 // Ajoute des raccourcis à une connexion compatible (prepare().get/all/run + exec) et initialise si vide
 export function setupDb(db) {
   db.exec(SCHEMA);
+  // Migrations légères pour les bases existantes
+  const cols = (t) => new Set(db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name));
+  if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   db.tx = (fn) => {
     db.exec('BEGIN');
     try { const r = fn(); db.exec('COMMIT'); return r; }

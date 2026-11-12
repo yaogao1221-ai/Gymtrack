@@ -45,6 +45,9 @@ export default function cardioRoutes(db) {
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, USER_ID, req.body.client_id ? String(req.body.client_id).slice(0, 64) : null, x.activity, x.custom_name, x.date, x.duration_min, x.distance_km, x.speed_kmh, x.incline_pct, x.calories, x.calories_estimated, x.avg_hr, x.max_hr, x.rpe, x.notes).lastInsertRowid);
       const ev = db.one("SELECT id FROM calendar_events WHERE user_id = ? AND type = 'cardio' AND status = 'planned' AND date = ? LIMIT 1", USER_ID, x.date);
       if (ev) db.run("UPDATE calendar_events SET status = 'done', cardio_id = ? WHERE id = ?", cid, ev.id);
+      // Cardio fait depuis un bloc du programme : on garde le lien pour suivre sa progression
+      const pcId = req.body.program_cardio_id != null ? Number(req.body.program_cardio_id) : null;
+      if (pcId && db.one('SELECT id FROM program_cardio WHERE id = ?', pcId)) db.run('UPDATE cardio_sessions SET program_cardio_id = ? WHERE id = ?', pcId, cid);
       return cid;
     });
     res.status(201).json(get(id));

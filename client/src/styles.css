@@ -428,3 +428,15 @@ details summary { cursor: pointer; }
 .remind-list li.rest { opacity: .55; }
 .remind-list label span { display: flex; flex-direction: column; }
 .time-in { width: 120px; flex: none; padding: 8px 10px; font-family: var(--mono); }
+.health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.health-grid div { display: flex; flex-direction: column; padding: 10px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--line); }
+.health-grid b { font-size: 18px; }
+.howto.big { list-style: none; padding: 0; gap: 14px; }
+.howto.big li { display: flex; flex-direction: column; gap: 6px; }
+a.btn { text-decoration: none; }
+.cardio-blocks { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--line2); display: grid; gap: 8px; }
+.sub-h { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-family: var(--font); }
+.cardio-block { display: flex; align-items: flex-start; gap: 6px; padding: 10px; border-radius: 12px; background: linear-gradient(160deg, rgba(46,230,197,.10), rgba(59,130,246,.05)); border: 1px solid rgba(46,230,197,.25); }
+.cardio-block .act { margin-top: 2px; }
+.cardio-wk { border-color: rgba(46,230,197,.3); background: linear-gradient(160deg, rgba(46,230,197,.08), rgba(59,130,246,.04)), var(--surface); }
+.wk-ex-head.static { display: flex; align-items: center; gap: 6px; width: 100%; }

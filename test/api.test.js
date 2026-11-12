@@ -115,3 +115,26 @@ test('ligue : bilan des périodes (totaux seulement), badges, semaines ISO', asy
   assert.ok(body.badges.find((b) => b.id === 'first').got);
   assert.equal(body.periods[3].to, '2026-10-31');
 });
+
+test('cardio dans le programme : bloc, lien avec la séance, progression validée', async () => {
+  const { body: prog } = await call('GET', '/program');
+  const day = prog.days[0];
+  const b = await call('POST', `/program/days/${day.id}/cardio`, { activity: 'marche_inclinee', duration_min: 15, speed_kmh: 5, incline_pct: 8 });
+  assert.equal(b.status, 201);
+  let p2 = (await call('GET', '/program')).body;
+  assert.equal(p2.days[0].cardio[0].label, 'Marche inclinée (tapis)');
+  for (const d of ['2026-11-03', '2026-11-06']) {
+    const c = await call('POST', '/cardio', { activity: 'marche_inclinee', date: d, duration_min: 15, speed_kmh: 5, incline_pct: 8, program_cardio_id: b.body.id });
+    assert.equal(c.status, 201);
+  }
+  p2 = (await call('GET', '/program')).body; assert.equal(p2.days[0].cardio[0].last.date, '2026-11-06');
+  const a = (await call('GET', '/analysis')).body;
+  const rec = a.progression.find((x) => x.cardio_id === b.body.id);
+  assert.ok(rec, 'progression cardio proposée');
+  if (rec.type === 'increase') {
+    assert.equal((await call('POST', '/analysis/apply', { key: rec.key })).status, 200);
+    p2 = (await call('GET', '/program')).body; assert.equal(p2.days[0].cardio[0].duration_min, 20);
+  }
+  assert.equal((await call('PATCH', `/program/cardio/${b.body.id}`, { placement: 'debut' })).body.placement, 'debut');
+  const exp = (await call('GET', '/data/export')).body; assert.equal(exp.data.program_cardio.length, 1);
+});

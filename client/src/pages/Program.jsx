@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Segmented, Loading, ErrorBox, Confirm, useToast } from '../components/ui.jsx';
 import { post, patch, del } from '../lib/api.js';
-import { repsLabel, weightLabel, fmtDate } from '../lib/format.js';
+import { repsLabel, weightLabel, fmtDate, CARDIO, CARDIO_ICON } from '../lib/format.js';
+import { Chips } from '../components/ui.jsx';
 
 export default function Program() {
   const { data, error, reload } = useApi('/program');
   const lib = useApi('/exercises');
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
-  const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null);
+  const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
   const nav = useNavigate(); const toast = useToast();
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
@@ -49,6 +50,22 @@ export default function Program() {
             ))}
           </ol>
           {edit && <button className="btn block dashed" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Ajouter un exercice</button>}
+          {(day.cardio.length > 0 || edit) && <div className="cardio-blocks">
+            <h3 className="sub-h">Cardio de la séance</h3>
+            {day.cardio.map((c) => (
+              <div key={c.id} className="cardio-block" onClick={() => edit && setPc({ ...c })}>
+                <i className="act">{CARDIO_ICON[c.activity] || '··'}</i>
+                <div className="grow">
+                  <b>{c.label}</b> <span className="muted small">{c.placement === 'debut' ? 'en échauffement' : 'en fin de séance'}</span>
+                  <div className="ex-meta"><span className="strong">{c.duration_min} min</span>{c.speed_kmh != null && <span>{c.speed_kmh} km/h</span>}{c.incline_pct != null && <span>{c.incline_pct} %</span>}</div>
+                  {c.last && <div className="ex-last">Dernière fois ({fmtDate(c.last.date, { day: 'numeric', month: 'short' })}) : {c.last.duration_min} min{c.last.speed_kmh ? ` · ${c.last.speed_kmh} km/h` : ''}{c.last.incline_pct != null ? ` · ${c.last.incline_pct} %` : ''}</div>}
+                </div>
+                {edit && <Icon name="edit" size={16} />}
+              </div>
+            ))}
+            {edit && <button className="btn block dashed" onClick={() => setPc({ activity: 'marche_inclinee', duration_min: 15, speed_kmh: 5, incline_pct: 8, placement: 'fin' })}><Icon name="plus" size={16} />Ajouter un cardio à ce jour</button>}
+            {!edit && <p className="muted small">Répété chaque fois que ce jour revient. L’Analyse propose d’augmenter la durée quand c’est acquis.</p>}
+          </div>}
           {!edit && <p className="muted small mt">Touche « Modifier » pour changer les exercices, séries, répétitions, charges ou l’ordre.</p>}
         </Card>
       )}
@@ -56,6 +73,9 @@ export default function Program() {
       <ExerciseSheet pe={pe} onClose={() => setPe(null)} lib={lib.data?.exercises || []}
         onSave={(body) => run(async () => { await patch(`/program/exercises/${pe.id}`, body); setPe(null); }, 'Exercice mis à jour')}
         onDelete={() => run(async () => { await del(`/program/exercises/${pe.id}`); setPe(null); }, 'Exercice retiré')} />
+      <CardioBlockSheet key={pc ? pc.id ?? 'new' : 'none'} pc={pc} onClose={() => setPc(null)}
+        onSave={(body) => run(async () => { if (pc.id) await patch(`/program/cardio/${pc.id}`, body); else await post(`/program/days/${day.id}/cardio`, body); setPc(null); }, pc?.id ? 'Cardio mis à jour' : 'Cardio ajouté au jour')}
+        onDelete={() => run(async () => { await del(`/program/cardio/${pc.id}`); setPc(null); }, 'Cardio retiré')} />
       <AddSheet open={adding} onClose={() => setAdding(false)} lib={lib.data?.exercises || []} reloadLib={lib.reload}
         onAdd={(body) => run(async () => { await post(`/program/days/${day.id}/exercises`, body); setAdding(false); }, 'Exercice ajouté')} />
       <Sheet open={!!dayEdit} onClose={() => setDayEdit(null)} title="Renommer le jour"
@@ -138,3 +158,24 @@ function AddSheet({ open, onClose, onAdd, lib, reloadLib }) {
 }
 
 const MUSCLE_LABELS = { pectoraux: 'Pectoraux', epaules_ant: 'Épaules (avant)', epaules_lat: 'Épaules (latéral)', epaules_post: 'Épaules (arrière)', triceps: 'Triceps', biceps: 'Biceps', avant_bras: 'Avant-bras', dos_largeur: 'Dos (grand dorsal)', dos_epaisseur: 'Dos (milieu)', trapezes: 'Trapèzes', lombaires: 'Lombaires', abdominaux: 'Abdominaux', quadriceps: 'Quadriceps', ischios: 'Ischio-jambiers', fessiers: 'Fessiers', adducteurs: 'Adducteurs', abducteurs: 'Abducteurs', mollets: 'Mollets' };
+
+function CardioBlockSheet({ pc, onClose, onSave, onDelete }) {
+  const [f, setF] = useState(pc);
+  if (!pc || !f) return null;
+  const set = (x) => setF({ ...f, ...x });
+  const body = { activity: f.activity, custom_name: f.activity === 'autre' ? f.custom_name : null, duration_min: f.duration_min, speed_kmh: f.speed_kmh, incline_pct: f.incline_pct, placement: f.placement, notes: f.notes };
+  return (
+    <Sheet open onClose={onClose} title={pc.id ? 'Bloc cardio' : 'Ajouter un cardio'}
+      footer={<>{pc.id && <button className="btn ghost danger-text" onClick={onDelete}><Icon name="trash" size={16} />Retirer</button>}<button className="btn primary" disabled={!f.duration_min || (f.activity === 'autre' && !f.custom_name)} onClick={() => onSave(body)}>Enregistrer</button></>}>
+      <Field label="Activité"><Chips single value={f.activity} onChange={(v) => set({ activity: v })} options={Object.entries(CARDIO)} /></Field>
+      {f.activity === 'autre' && <Field label="Nom"><input value={f.custom_name || ''} onChange={(e) => set({ custom_name: e.target.value })} placeholder="Corde à sauter" /></Field>}
+      <div className="grid3">
+        <Field label="Durée (min)"><NumInput value={f.duration_min} onChange={(v) => set({ duration_min: v })} /></Field>
+        <Field label="Vitesse (km/h)"><NumInput value={f.speed_kmh} onChange={(v) => set({ speed_kmh: v })} placeholder="—" /></Field>
+        <Field label="Inclinaison (%)"><NumInput value={f.incline_pct} onChange={(v) => set({ incline_pct: v })} placeholder="—" /></Field>
+      </div>
+      <Field label="Moment"><Segmented value={f.placement} onChange={(v) => set({ placement: v })} options={[['debut', 'Échauffement'], ['fin', 'Fin de séance']]} /></Field>
+      <p className="tip"><Icon name="info" size={14} />En fin de séance de jambes, garde une intensité où tu peux parler : le cardio ne doit pas voler la récupération musculaire.</p>
+    </Sheet>
+  );
+}
