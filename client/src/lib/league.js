@@ -188,3 +188,8 @@ export const dmInbox = () => rpc('ligue_dm_inbox', auth());
 export const dmThread = (w) => rpc('ligue_dm_thread', { ...auth(), p_with: w });
 export const dmSend = (to, body, about) => rpc('ligue_dm_send', { ...auth(), p_to: to, p_body: body, p_about: about || null });
 export const dmHide = (w) => rpc('ligue_dm_hide', { ...auth(), p_with: w });
+
+// Défis de la ligue (semaine ou mois en cours)
+export const getChallenges = (periods) => rpc('ligue_challenges', { ...auth(), p_periods: periods });
+export const createChallenge = (title, metric, target, kind, period) => rpc('ligue_challenge_create', { ...auth(), p_title: title, p_metric: metric, p_target: target, p_kind: kind, p_period: period });
+export const hideChallenge = (id) => rpc('ligue_challenge_hide', { ...auth(), p_id: id });

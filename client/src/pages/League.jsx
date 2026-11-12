@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
-  ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen,
+  ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen, getChallenges,
 } from '../lib/league.js';
 import { Lobby, Feed, ComposeSheet, MemberSheet } from './LeagueSocial.jsx';
 import { ProgramSheet, ChatSheet, Inbox } from './LeagueChat.jsx';
+import { Challenges } from './LeagueChallenges.jsx';
 
 const APP_URL = 'https://yaogao1221-ai.github.io/Gymtrack/';
 
@@ -60,6 +61,10 @@ function Board({ m, onLeft }) {
   const [draft, setDraft] = useState(null); const [member, setMember] = useState(null);
   const [prog, setProg] = useState(null); const [chat, setChat] = useState(null); const [inboxV, setInboxV] = useState(0); const [unread, setUnread] = useState(0);
   useEffect(() => { setUnread(data?.board?.unread || 0); }, [data]);
+  const [challenges, setChallenges] = useState([]);
+  const chKeys = data ? Object.fromEntries([['week', 'week', true], ['prevWeek', 'week', false], ['month', 'month', true], ['prevMonth', 'month', false]].map(([k, kind, c]) => [k, data.summary.periods.find((p) => p.kind === kind && p.current === c)?.key])) : null;
+  const loadChallenges = useCallback(() => { if (chKeys) getChallenges(Object.values(chKeys)).then((l) => setChallenges(l || [])).catch(() => {}); }, [chKeys?.week, chKeys?.month]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadChallenges(); }, [loadChallenges]);
   const openChat = useCallback((member, about) => { setProg(null); setChat({ member, about, n: Date.now() }); }, []);
   const onRead = useCallback(() => setInboxV((v) => v + 1), []);
   const loadFeed = useCallback(() => getFeed().then((f) => setFeed(f || [])).catch(() => {}), []);
@@ -116,6 +121,7 @@ function Board({ m, onLeft }) {
         <Icon name="trophy" size={18} />
         <span className="grow">{dayLeader?.value > 0 ? <span>Gagnant du jour : <b>{dayLeader.pseudo}</b> <span className="mono small">{dayLeader.value} pts</span></span> : 'Personne n’a encore marqué aujourd’hui'}{dayWinner?.value > 0 && <span className="muted small">Hier : {dayWinner.pseudo} ({dayWinner.value} pts)</span>}</span>
       </div>}
+      {view === 'lobby' && <Challenges board={board} me={m.member_id} list={challenges} keys={chKeys} onChanged={loadChallenges} compact />}
       {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} onProgram={setProg} onChat={openChat} />}
       {view === 'msgs' && <Inbox board={board} me={m.member_id} onOpen={(x) => openChat(x)} version={inboxV} onCount={setUnread} />}
       {view === 'feed' && <Feed board={board} feed={feed} me={m.member_id} onCompose={compose} onHidden={loadFeed} />}
@@ -134,6 +140,7 @@ function Board({ m, onLeft }) {
         </div>
       </Card>
 
+      <Challenges board={board} me={m.member_id} list={challenges} keys={chKeys} onChanged={loadChallenges} />
       <Card title={`Classement de la ${label}`} icon="chart">
         <div className="chips mb">
           {CATEGORIES.map((c) => <button key={c.id} className={`chip ${cat === c.id ? 'on' : ''}`} onClick={() => setCat(c.id)}>{c.label}</button>)}

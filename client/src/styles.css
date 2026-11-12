@@ -552,3 +552,15 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .recap-link { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 14px 16px; color: inherit; }
 .recap-link .grow { display: flex; flex-direction: column; }
 .recap-link > svg:first-child { color: var(--accent); }
+
+/* Défis */
+.challenge { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.challenge-head { display: flex; align-items: flex-start; gap: 8px; }
+.challenge-head .grow { display: flex; flex-direction: column; }
+.challenge-rows { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.challenge-rows li { display: grid; grid-template-columns: 26px 72px 1fr 44px; gap: 8px; align-items: center; }
+.challenge-rows li.me .name { color: var(--accent); font-weight: 600; }
+.challenge-rows .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.challenge-rows .bar { margin-top: 0; }
+.challenge-rows .bar span.done { background: var(--grad-aqua); }
+.challenge-rows .val { text-align: right; color: var(--muted); display: flex; justify-content: flex-end; }
