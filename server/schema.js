@@ -190,6 +190,24 @@ CREATE TABLE IF NOT EXISTS body_metrics (
   notes TEXT
 );
 
+-- Cures nutritionnelles : sèche, prise de masse, recomposition
+CREATE TABLE IF NOT EXISTS nutrition_plans (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,            -- seche | masse | recompo
+  start_date TEXT NOT NULL,
+  weeks INTEGER NOT NULL,
+  rate_pct REAL NOT NULL,        -- vitesse visée en % du poids par semaine
+  start_weight_kg REAL NOT NULL,
+  start_tdee REAL,
+  kcal_base REAL,
+  kcal_adjust REAL NOT NULL DEFAULT 0,
+  last_adjust TEXT,
+  status TEXT NOT NULL DEFAULT 'active',  -- active | stopped | done
+  ended_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Douleurs / gênes : prises en compte par le coach
 CREATE TABLE IF NOT EXISTS pain_reports (
   id INTEGER PRIMARY KEY,
@@ -232,6 +250,8 @@ export function setupDb(db) {
   // Migrations légères pour les bases existantes
   const cols = (t) => new Set(db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name));
   if (!cols('calendar_events').has('deload')) db.exec('ALTER TABLE calendar_events ADD COLUMN deload INTEGER NOT NULL DEFAULT 0');
+  for (const c of ['neck_cm', 'hip_cm']) if (!cols('body_metrics').has(c)) db.exec(`ALTER TABLE body_metrics ADD COLUMN ${c} REAL`);
+  if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   db.tx = (fn) => {
     db.exec('BEGIN');

@@ -11,6 +11,7 @@ import calendarRoutes from './routes/calendar.js';
 import profileRoutes from './routes/profile.js';
 import statsRoutes from './routes/stats.js';
 import leagueRoutes from './routes/league.js';
+import nutritionRoutes from './routes/nutrition.js';
 import analysisRoutes from './routes/analysis.js';
 import dataRoutes from './routes/data.js';
 
@@ -47,7 +48,7 @@ export function createApp({ dbFile, backupDir, password = '', staticDir } = {}) 
     next();
   });
   app.get('/api/health', (req, res) => res.json({ ok: true }));
-  for (const routes of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes]) app.use('/api', routes(db));
+  for (const routes of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes, nutritionRoutes]) app.use('/api', routes(db));
   app.use('/api', dataRoutes(db, { backupDir }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Route inconnue' }));
 

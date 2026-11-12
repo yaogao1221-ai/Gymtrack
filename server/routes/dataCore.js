@@ -2,7 +2,7 @@
 import { USER_ID } from '../services.js';
 import { bad } from '../util.js';
 
-export const TABLES = ['users', 'profiles', 'exercises', 'programs', 'program_days', 'program_exercises', 'program_cardio', 'workouts', 'workout_sets', 'cardio_sessions', 'goals', 'calendar_events', 'body_metrics', 'pain_reports', 'recommendation_log'];
+export const TABLES = ['users', 'profiles', 'exercises', 'programs', 'program_days', 'program_exercises', 'program_cardio', 'workouts', 'workout_sets', 'cardio_sessions', 'goals', 'calendar_events', 'body_metrics', 'nutrition_plans', 'pain_reports', 'recommendation_log'];
 
 const csv = (rows) => {
   if (!rows.length) return '';

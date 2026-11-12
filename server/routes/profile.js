@@ -50,9 +50,9 @@ export default function profileRoutes(db) {
   r.get('/body-metrics', (req, res) => res.json(db.all('SELECT * FROM body_metrics WHERE user_id = ? ORDER BY date DESC, id DESC', USER_ID)));
   r.post('/body-metrics', (req, res) => {
     const b = req.body;
-    const w = num(b.weight_kg, 'poids', { min: 30, max: 300 }), bf = num(b.body_fat_pct, 'masse grasse', { min: 2, max: 70 }), wc = num(b.waist_cm, 'tour de taille', { min: 40, max: 250 });
-    if (w == null && bf == null && wc == null) throw bad('Renseigne au moins une mesure');
-    const info = db.run('INSERT INTO body_metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, notes) VALUES (?,?,?,?,?,?)', USER_ID, date(b.date), w, bf, wc, str(b.notes, 'notes', { max: 300 }));
+    const w = num(b.weight_kg, 'poids', { min: 30, max: 300 }), bf = num(b.body_fat_pct, 'masse grasse', { min: 2, max: 70 }), wc = num(b.waist_cm, 'tour de taille', { min: 40, max: 250 }); const nk = num(b.neck_cm, 'tour de cou', { min: 20, max: 80 }), hp = num(b.hip_cm, 'tour de hanches', { min: 50, max: 250 });
+    if (w == null && bf == null && wc == null && nk == null && hp == null) throw bad('Renseigne au moins une mesure');
+    const info = db.run('INSERT INTO body_metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, neck_cm, hip_cm, notes) VALUES (?,?,?,?,?,?,?,?)', USER_ID, date(b.date), w, bf, wc, nk, hp, str(b.notes, 'notes', { max: 300 }));
     res.status(201).json(db.one('SELECT * FROM body_metrics WHERE id = ?', info.lastInsertRowid));
   });
   r.delete('/body-metrics/:id', (req, res) => {

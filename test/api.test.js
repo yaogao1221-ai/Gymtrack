@@ -158,3 +158,24 @@ test('calendrier : reprise par un jour choisi, repos conservés, deload', async 
   await call('DELETE', '/deload?start=2026-11-16');
   assert.ok((await call('GET', '/calendar?from=2026-11-16&to=2026-11-22')).body.events.every((e) => e.deload === 0));
 });
+
+test('corps & nutrition : IMC, % de gras US Navy, maintien, cure de sèche et contrôle hebdo', async () => {
+  await call('PUT', '/profile', { sex: 'homme', height_cm: 178, birth_year: 1998 });
+  for (const [d, kg] of [['2026-10-27', 82.4], ['2026-10-29', 82.2], ['2026-11-02', 81.9], ['2026-11-04', 81.7], ['2026-11-09', 81.2]]) {
+    const r = await call('POST', '/body-metrics', { date: d, weight_kg: kg }); assert.equal(r.status, 201, JSON.stringify(r.body));
+  }
+  await call('POST', '/body-metrics', { date: '2026-11-09', waist_cm: 86, neck_cm: 39 });
+  const { body: s } = await call('GET', '/nutrition');
+  assert.deepEqual(s.missing, []);
+  assert.equal(s.bmi.value, 25.6);
+  assert.ok(s.body_fat.value > 14 && s.body_fat.value < 19, String(s.body_fat.value));
+  assert.ok(s.tdee > 2000 && s.tdee < 3200, String(s.tdee));
+  assert.ok(s.types.seche.preview.kcal < s.tdee && s.types.masse.preview.kcal > s.tdee);
+  assert.ok(s.types.seche.preview.protein_g >= 2.2 * 81);
+  const p = await call('POST', '/nutrition/plan', { type: 'seche', start_date: '2026-10-27', weeks: 12 });
+  assert.equal(p.status, 201, JSON.stringify(p.body));
+  assert.equal(p.body.plan.week, 2);
+  assert.ok(['ok', 'slow', 'fast'].includes(p.body.plan.check.status));
+  const a = await call('POST', `/nutrition/plan/${p.body.plan.id}/adjust`, { delta: -150 });
+  assert.equal(a.body.plan.kcal, p.body.plan.kcal - 150);
+});

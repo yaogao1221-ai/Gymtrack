@@ -4,7 +4,9 @@ import { getToken, setToken, LEAGUE_ON } from '../lib/api.js';
 
 const ITEMS = [
   ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue entre amis', 'Podiums, runner of the week, enjeux']] : []),
+  ['/corps', 'flame', 'Corps & nutrition', 'Poids, IMC, % de gras, calories, cures'],
   ['/bilan', 'chart', 'Bilan de la semaine', 'Résumé à partager en image'],
+  ['/outils', 'target', 'Calculateurs', '1RM, zones cardio, disques'],
   ['/calendrier', 'calendar', 'Calendrier', 'Planifier, déplacer, consulter'],
   ...(LEAGUE_ON ? [['/rappels', 'timer', 'Rappels de séance', 'Notifications avant chaque séance']] : []),
   ['/coach', 'brain', 'Analyse', 'Analyse, progression, récupération'],
