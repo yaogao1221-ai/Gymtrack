@@ -43,6 +43,7 @@ async function afterJoin(m) { const z = tz(); if (z) await rpc('ligue_tz', { p_m
 export async function restoreFromKey(key) {
   const [member_id, token] = String(key || '').trim().split('.');
   if (!member_id || !token) throw new Error('Clé incomplète');
+  await pushShare();
   const board = await rpc('ligue_board', { p_member: member_id, p_token: token, p_periods: [] });
   const me = board.members.find((x) => x.id === member_id);
   const m = { member_id, token, code: board.league.code, league: board.league.name, pseudo: me?.pseudo };
@@ -173,3 +174,17 @@ export function ago(iso) {
   if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
   const d = Math.floor(s / 86400); return d === 1 ? 'hier' : d < 7 ? `il y a ${d} j` : new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
+
+// Programme partagé (volontaire) et messages privés
+const SHARE = 'gt_league_share';
+export const shareEnabled = () => store.get(SHARE) === true;
+export async function setShareEnabled(on) {
+  if (on) { await rpc('ligue_share', { ...auth(), p_data: await get('/league/share') }); store.set(SHARE, true); }
+  else { await rpc('ligue_share', { ...auth(), p_data: null }); store.del(SHARE); }
+}
+export async function pushShare() { if (!shareEnabled()) return; try { await rpc('ligue_share', { ...auth(), p_data: await get('/league/share') }); } catch { /* réessayé à la prochaine synchro */ } }
+export const getShared = (of) => rpc('ligue_shared', { ...auth(), p_of: of });
+export const dmInbox = () => rpc('ligue_dm_inbox', auth());
+export const dmThread = (w) => rpc('ligue_dm_thread', { ...auth(), p_with: w });
+export const dmSend = (to, body, about) => rpc('ligue_dm_send', { ...auth(), p_to: to, p_body: body, p_about: about || null });
+export const dmHide = (w) => rpc('ligue_dm_hide', { ...auth(), p_with: w });

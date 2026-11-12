@@ -5,6 +5,7 @@ import {
   ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen,
 } from '../lib/league.js';
 import { Lobby, Feed, ComposeSheet, MemberSheet } from './LeagueSocial.jsx';
+import { ProgramSheet, ChatSheet, Inbox } from './LeagueChat.jsx';
 
 const APP_URL = 'https://yaogao1221-ai.github.io/Gymtrack/';
 
@@ -57,6 +58,10 @@ function Board({ m, onLeft }) {
   const [steps, setSteps] = useState(null);
   const [view, setView] = useState('lobby'); const [feed, setFeed] = useState([]); const [seen, setSeen] = useState(feedSeen());
   const [draft, setDraft] = useState(null); const [member, setMember] = useState(null);
+  const [prog, setProg] = useState(null); const [chat, setChat] = useState(null); const [inboxV, setInboxV] = useState(0); const [unread, setUnread] = useState(0);
+  useEffect(() => { setUnread(data?.board?.unread || 0); }, [data]);
+  const openChat = useCallback((member, about) => { setProg(null); setChat({ member, about, n: Date.now() }); }, []);
+  const onRead = useCallback(() => setInboxV((v) => v + 1), []);
   const loadFeed = useCallback(() => getFeed().then((f) => setFeed(f || [])).catch(() => {}), []);
   const load = useCallback(async () => {
     setError(null);
@@ -104,8 +109,9 @@ function Board({ m, onLeft }) {
         <button className="btn primary sm" onClick={invite}><Icon name="plus" size={14} />Inviter des amis</button>
       </div>
       {error && <p className="warn-text small">{error}</p>}
-      <Segmented value={view} onChange={switchView} options={[['lobby', 'Lobby'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil']]} />
-      {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} />}
+      <Segmented value={view} onChange={switchView} options={[['lobby', 'Lobby'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil'], ['msgs', unread ? `Messages (${unread})` : 'Messages']]} />
+      {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} onProgram={setProg} onChat={openChat} />}
+      {view === 'msgs' && <Inbox board={board} me={m.member_id} onOpen={(x) => openChat(x)} version={inboxV} onCount={setUnread} />}
       {view === 'feed' && <Feed board={board} feed={feed} me={m.member_id} onCompose={compose} onHidden={loadFeed} />}
       {view === 'board' && <>
       <Segmented value={kind} onChange={setKind} options={[['week', 'Cette semaine'], ['month', 'Ce mois']]} />
@@ -164,7 +170,9 @@ function Board({ m, onLeft }) {
       </Card>
       </>}
       <ComposeSheet draft={draft} onClose={() => setDraft(null)} board={board} me={m.member_id} curKey={weekKey} onSent={() => { loadFeed(); setView('feed'); }} />
-      <MemberSheet member={member} onClose={() => setMember(null)} board={board} me={m.member_id} curKey={weekKey} monthKey={monthKey} rows={weekRows} feed={feed} onCompose={compose} />
+      <MemberSheet member={member} onClose={() => setMember(null)} board={board} me={m.member_id} curKey={weekKey} monthKey={monthKey} rows={weekRows} feed={feed} onCompose={compose} onProgram={(x) => { setMember(null); setProg(x); }} onChat={(x) => { setMember(null); openChat(x); }} />
+      <ProgramSheet member={prog} onClose={() => setProg(null)} onAdvice={openChat} />
+      <ChatSheet chat={chat} onClose={() => setChat(null)} me={m.member_id} onRead={onRead} />
 
       <Sheet open={stakeEdit != null} onClose={() => setStakeEdit(null)} title={kind === 'week' ? 'Enjeu de la semaine' : 'Enjeu du mois'}
         footer={<button className="btn primary block" onClick={async () => { try { await setStake(kind, stakeEdit); setStakeEdit(null); load(); toast('Enjeu enregistré'); } catch (e) { toast(e.message, 'err'); } }}>Enregistrer</button>}>

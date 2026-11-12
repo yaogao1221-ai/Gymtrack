@@ -10,6 +10,8 @@ Projet Supabase gratuit `gymtrack-ligue` (réf. `osrhhlqtstbxzecmfobm`, région 
   - `ligue_steps(...)`, `ligue_pas(p_key, p_steps)` (raccourci iPhone, clé `membre.jeton`, jour selon le fuseau du membre), `ligue_tz`, `ligue_stake`, `ligue_leave`
   - Lobby : `ligue_photo(p_member, p_token, p_photo)` (data URL JPEG/PNG/WebP ≤ 150 000 caractères, recadrée à 192 px côté appli)
   - Fil : `ligue_post(p_member, p_token, p_target, p_tone, p_body)` (ton `bravo` / `motive` / `chambre`, 200 caractères, 30 messages par heure), `ligue_feed(p_member, p_token, p_limit)`, `ligue_post_hide(p_member, p_token, p_post)` (l'auteur ou la personne visée masque le message)
+  - Programme partagé (volontaire) : `ligue_share(p_member, p_token, p_data)` (null = arrêter), `ligue_shared(p_member, p_token, p_of)`
+  - Messages privés : `ligue_dm_send(p_member, p_token, p_to, p_body, p_about)`, `ligue_dm_thread(p_member, p_token, p_with)` (marque lus), `ligue_dm_inbox(p_member, p_token)`, `ligue_dm_hide(p_member, p_token, p_with)`
 - La clé `sb_publishable_…` dans `client/src/lib/league.js` est publique par nature : tous les droits sont dans les fonctions.
 
 Seuls des totaux sont envoyés (km, minutes et nombre de séances cardio, séances muscu, séries, records, pas). Le détail des séances reste sur le téléphone.

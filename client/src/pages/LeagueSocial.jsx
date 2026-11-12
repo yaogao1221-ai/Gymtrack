@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Card, Icon, Field, Sheet, useToast } from '../components/ui.jsx';
+import { ShareToggle } from './LeagueChat.jsx';
 import { setPhoto, resizePhoto, postMessage, hidePost, TONES, quickLines, ago, totalPoints } from '../lib/league.js';
 
 const HUES = [18, 168, 262, 330, 42, 205, 290];
@@ -35,7 +36,7 @@ const statLine = (s, steps) => [
   s?.prs ? `${s.prs} record${s.prs > 1 ? 's' : ''}` : null,
 ].filter(Boolean).join(' · ');
 
-export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOpenMember }) {
+export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOpenMember, onProgram, onChat }) {
   const mine = board.members.find((x) => x.id === me);
   const rank = (id) => rows.findIndex((r) => r.id === id) + 1;
   const received = (id) => feed.filter((p) => p.target === id).length;
@@ -49,6 +50,7 @@ export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOp
             <p className="muted small">{mine?.photo ? 'Touche ta photo pour la changer' : 'Touche le rond pour ajouter ta photo'}</p>
           </div>
         </div>
+        <ShareToggle onChanged={onReload} />
       </Card>
       <Card title="Participants" icon="user">
         <ul className="lobby-list">
@@ -66,6 +68,8 @@ export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOp
                 </button>
                 {x.id !== me && (
                   <div className="lobby-acts">
+                    {x.shares && <button className="chip prog-chip" onClick={() => onProgram(x)}><Icon name="dumbbell" size={13} />Programme</button>}
+                    <button className="chip" onClick={() => onChat(x)}><Icon name="chat" size={13} />Écrire</button>
                     {TONES.map((t) => <button key={t.id} className={`chip tone-${t.id}`} onClick={() => onCompose(x, t.id)}>{t.label}</button>)}
                     {received(x.id) > 0 && <span className="muted small">{received(x.id)} message{received(x.id) > 1 ? 's' : ''}</span>}
                   </div>
@@ -149,7 +153,7 @@ export function ComposeSheet({ draft, onClose, board, me, curKey, onSent }) {
   );
 }
 
-export function MemberSheet({ member, onClose, board, me, curKey, monthKey, rows, feed, onCompose }) {
+export function MemberSheet({ member, onClose, board, me, curKey, monthKey, rows, feed, onCompose, onProgram, onChat }) {
   if (!member) return <Sheet open={false} onClose={onClose} />;
   const w = member.periods?.[curKey] || {}; const mo = member.periods?.[monthKey] || {};
   const rank = rows.findIndex((r) => r.id === member.id) + 1;
@@ -164,6 +168,11 @@ export function MemberSheet({ member, onClose, board, me, curKey, monthKey, rows
       <div className="member-stats">
         <div><span className="muted small">Cette semaine</span><p className="small">{statLine(w.stats, w.steps)}</p><p className="small mono">{totalPoints(w.stats, w.steps)} pts</p></div>
         <div><span className="muted small">Ce mois</span><p className="small">{statLine(mo.stats, mo.steps)}</p><p className="small mono">{totalPoints(mo.stats, mo.steps)} pts</p></div>
+      </div>
+      <div className="row gap-s wrap mt">
+        {member.shares && <button className="btn sm primary" onClick={() => onProgram(member)}><Icon name="dumbbell" size={14} />{member.id === me ? 'Voir ce que je partage' : 'Voir son programme et sa progression'}</button>}
+        {member.id !== me && <button className="btn sm" onClick={() => onChat(member)}><Icon name="chat" size={14} />Écrire</button>}
+        {!member.shares && member.id !== me && <span className="muted small">Ne partage pas son programme</span>}
       </div>
       {member.id !== me && <div className="chips mt">{TONES.map((t) => <button key={t.id} className={`chip tone-${t.id}`} onClick={() => { onClose(); onCompose(member, t.id); }}>{t.label}</button>)}</div>}
       {msgs.length > 0 && <>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { periodStats, allRecords } from '../services.js';
+import { periodStats, allRecords, getProgram, exerciseSeries, workoutSummary, getProfile, USER_ID } from '../services.js';
 import { addDays, weekStart } from '../util.js';
 
 // Barème de la ligue : identique pour tout le monde, calculé sur chaque téléphone
@@ -55,5 +55,51 @@ export default function leagueRoutes(db) {
     ];
     res.json({ periods, streak, badges, points: POINTS });
   });
+
+  // Programme complet + progression, partagé seulement si la personne l’active dans la ligue
+  r.get('/league/share', (req, res) => res.json(sharePayload(db, req.today)));
   return r;
+}
+
+export function sharePayload(db, today) {
+  const profile = getProfile(db) || {};
+  const { program, days } = getProgram(db, { withLast: false });
+  const exIds = new Set();
+  const outDays = days.map((d) => ({
+    code: d.code, name: d.name, focus: d.focus,
+    exercises: d.exercises.map((e) => {
+      exIds.add(e.exercise_id);
+      return { id: e.exercise_id, name: e.name, kind: e.kind, sets: e.sets, reps: e.reps, reps_note: e.reps_note, w: e.target_weight, wmax: e.target_weight_max, unit: e.weight_unit, wnote: e.weight_note, rest: e.rest_seconds, ss: e.superset_group, notes: e.notes };
+    }),
+    cardio: d.cardio.map((c) => ({ label: c.label, min: c.duration_min, kmh: c.speed_kmh, incl: c.incline_pct, at: c.placement })),
+  }));
+  const progress = [...exIds].map((id) => {
+    const s = exerciseSeries(db, id); if (!s) return null;
+    const pts = s.points.filter((p) => p.top_weight != null || p.best_reps);
+    if (!pts.length) return null;
+    const first = pts[0]; const last = pts.at(-1);
+    return {
+      id, name: s.exercise.name, kind: s.exercise.kind, unit: last.unit, sessions: pts.length,
+      first: { date: first.date, top: first.top_weight, reps: first.best_reps },
+      last: { date: last.date, top: last.top_weight, reps: last.best_reps, e1rm: last.e1rm },
+      points: pts.slice(-12).map((p) => [p.date, p.top_weight, p.best_reps]),
+    };
+  }).filter(Boolean);
+  const setsOf = db.prepare(`SELECT e.name, s.weight, s.weight_unit unit, s.reps FROM workout_sets s JOIN exercises e ON e.id = s.exercise_id
+    WHERE s.workout_id = ? AND s.completed = 1 ORDER BY s.position, s.set_index`);
+  const recent = db.all('SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 6', USER_ID).map((w) => {
+    const sm = workoutSummary(db, w);
+    const ex = [];
+    for (const x of setsOf.all(w.id)) {
+      let g = ex.at(-1);
+      if (!g || g.name !== x.name) { g = { name: x.name, unit: x.unit, sets: [] }; ex.push(g); }
+      g.sets.push([x.weight, x.reps]);
+    }
+    return { date: w.date, name: w.name, min: Math.round((w.duration_sec || 0) / 60), rpe: w.rpe, volume: sm.volume_lbs, ex };
+  });
+  const records = allRecords(db).slice(-10).reverse().map((x) => ({ name: x.name, date: x.date, w: x.weight, prev: x.previous, unit: x.unit, assisted: x.assisted }));
+  return {
+    v: 1, date: today, level: profile.level || null, goal: profile.goal || null, per_week: profile.sessions_per_week || null,
+    program: program ? { name: program.name, days: outDays } : null, progress, recent, records,
+  };
 }
