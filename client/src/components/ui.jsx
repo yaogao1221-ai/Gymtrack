@@ -34,6 +34,8 @@ const P = {
   moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
   skip: 'M5 5l10 7-10 7zM19 5v14',
   wifiOff: 'M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.7M19 13a10 10 0 0 0-2.3-1.6M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8A15 15 0 0 0 10.7 5M12 20h.01',
+  chat: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   sparkles: 'M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
 };
 export function Icon({ name, size = 20, stroke = 2, className = '' }) {
@@ -63,7 +65,7 @@ export function ToastProvider({ children }) {
   const [items, setItems] = useState([]);
   const push = useCallback((text, kind = 'ok') => {
     const id = Math.random();
-    setItems((x) => [...x, { id, text, kind }]);
+    setItems((x) => [...x.slice(-1), { id, text, kind }]);
     setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), 3200);
   }, []);
   return (

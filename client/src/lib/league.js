@@ -110,3 +110,66 @@ export function healthAdvice(rows) {
   if (!tips.length && (lastNight != null || todayRhr)) tips.push({ level: 'ok', text: 'Sommeil et pouls au repos dans ta normale : feu vert pour ta séance prévue.' });
   return { avgSleep: avg(sleep), baseline, todayRhr, lastNight, tips };
 }
+
+// Lobby : photo de profil, fil de messages (féliciter, motiver, chambrer)
+const auth = () => { const m = getMembership(); return { p_member: m.member_id, p_token: m.token }; };
+export const setPhoto = (photo) => rpc('ligue_photo', { ...auth(), p_photo: photo });
+export const getFeed = () => rpc('ligue_feed', { ...auth(), p_limit: 80 });
+export const postMessage = (target, tone, body) => rpc('ligue_post', { ...auth(), p_target: target || null, p_tone: tone, p_body: body });
+export const hidePost = (id) => rpc('ligue_post_hide', { ...auth(), p_post: id });
+
+// Recadre au carré et compresse (≈ 10 Ko) : la photo est stockée dans la ligue
+export async function resizePhoto(file, size = 192) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('Image illisible')); i.src = url; });
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
+    return c.toDataURL('image/jpeg', 0.8);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+const FEED_SEEN = 'gt_league_feed_seen';
+export const feedSeen = () => store.get(FEED_SEEN) || '';
+export const markFeedSeen = (iso) => store.set(FEED_SEEN, iso);
+
+export const TONES = [
+  { id: 'bravo', label: '👏 Féliciter', short: 'Bravo' },
+  { id: 'motive', label: '💪 Motiver', short: 'Motivation' },
+  { id: 'chambre', label: '😈 Chambrer', short: 'Chambrage' },
+];
+
+// Phrases toutes prêtes, adaptées aux chiffres de la personne visée
+export function quickLines(tone, p, s) {
+  const n = p || 'toi';
+  const km = s?.km ? s.km.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : null;
+  const w = s?.workouts || 0;
+  if (tone === 'bravo') return [
+    `Énorme semaine ${n}, respect !`,
+    w ? `${w} séance${w > 1 ? 's' : ''} cette semaine, machine.` : `Propre ${n}, continue comme ça.`,
+    km ? `${km} km au compteur, les jambes de feu !` : `Bien joué ${n}, ça paie.`,
+    s?.prs ? `Record battu, la barre a pleuré.` : `Régulier comme une horloge, chapeau.`,
+  ];
+  if (tone === 'motive') return [
+    `Allez ${n}, une séance et tu remontes au classement !`,
+    `On t’attend à la salle ${n}, pas d’excuse.`,
+    `Petite sortie cardio demain ? Je te suis.`,
+    `La régularité gagne toujours. Lâche rien.`,
+  ];
+  return [
+    w ? `${w} séance${w > 1 ? 's' : ''} ? Moi je fais ça en échauffement.` : `${n}, t’as confondu la salle et le canapé ?`,
+    km ? `${km} km… tu cours ou tu promènes le chien ?` : `Ta paire de baskets se demande si elle a un propriétaire.`,
+    `Le podium a envoyé un avis de recherche : ${n}, vu nulle part.`,
+    `Prépare ta carte bleue ${n}, l’enjeu c’est pour toi.`,
+    `${n} soulève surtout des excuses.`,
+  ];
+}
+
+export function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'à l’instant';
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  const d = Math.floor(s / 86400); return d === 1 ? 'hier' : d < 7 ? `il y a ${d} j` : new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}

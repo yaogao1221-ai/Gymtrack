@@ -8,6 +8,8 @@ Projet Supabase gratuit `gymtrack-ligue` (réf. `osrhhlqtstbxzecmfobm`, région 
   - `ligue_push(p_member, p_token, p_periods)` : totaux par période (`W2026-46`, `M2026-11`), bornés, champs inconnus ignorés
   - `ligue_board(p_member, p_token, p_periods)` : membres actifs + totaux + pas sur chaque période
   - `ligue_steps(...)`, `ligue_pas(p_key, p_steps)` (raccourci iPhone, clé `membre.jeton`, jour selon le fuseau du membre), `ligue_tz`, `ligue_stake`, `ligue_leave`
+  - Lobby : `ligue_photo(p_member, p_token, p_photo)` (data URL JPEG/PNG/WebP ≤ 150 000 caractères, recadrée à 192 px côté appli)
+  - Fil : `ligue_post(p_member, p_token, p_target, p_tone, p_body)` (ton `bravo` / `motive` / `chambre`, 200 caractères, 30 messages par heure), `ligue_feed(p_member, p_token, p_limit)`, `ligue_post_hide(p_member, p_token, p_post)` (l'auteur ou la personne visée masque le message)
 - La clé `sb_publishable_…` dans `client/src/lib/league.js` est publique par nature : tous les droits sont dans les fonctions.
 
 Seuls des totaux sont envoyés (km, minutes et nombre de séances cardio, séances muscu, séries, records, pas). Le détail des séances reste sur le téléphone.

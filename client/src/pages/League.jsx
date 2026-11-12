@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
-  ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl,
+  ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen,
 } from '../lib/league.js';
+import { Lobby, Feed, ComposeSheet, MemberSheet } from './LeagueSocial.jsx';
 
 const APP_URL = 'https://yaogao1221-ai.github.io/Gymtrack/';
 
@@ -54,11 +55,19 @@ function Board({ m, onLeft }) {
   const [kind, setKind] = useState('week'); const [cat, setCat] = useState('points');
   const [stakeEdit, setStakeEdit] = useState(null); const [shortcut, setShortcut] = useState(false); const [leave, setLeave] = useState(false);
   const [steps, setSteps] = useState(null);
+  const [view, setView] = useState('lobby'); const [feed, setFeed] = useState([]); const [seen, setSeen] = useState(feedSeen());
+  const [draft, setDraft] = useState(null); const [member, setMember] = useState(null);
+  const loadFeed = useCallback(() => getFeed().then((f) => setFeed(f || [])).catch(() => {}), []);
   const load = useCallback(async () => {
     setError(null);
     try { setData(await syncBoard()); } catch (e) { setError(e.message); }
-  }, []);
+    loadFeed();
+  }, [loadFeed]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (view === 'feed' && feed[0]) { markFeedSeen(feed[0].created_at); } }, [view, feed]);
+  const fresh = feed.filter((p) => p.author !== m.member_id && p.created_at > seen).length;
+  const compose = (target, tone) => setDraft({ target, tone, n: Date.now() });
+  const switchView = (v) => { if (view === 'feed') setSeen(feedSeen()); setView(v); };
 
   if (!data && !error) return <Page title="Ligue"><Loading /></Page>;
   if (!data) return <Page title="Ligue"><Card><p className="warn-text small">{error}</p><button className="btn sm" onClick={load}>Réessayer</button></Card></Page>;
@@ -76,6 +85,9 @@ function Board({ m, onLeft }) {
   });
   const general = ranking(board, cur.key, CATEGORIES[0]);
   const prevGeneral = ranking(board, prev.key, CATEGORIES[0]).filter((r) => r.stats);
+  const weekKey = summary.periods.find((p) => p.kind === 'week' && p.current).key;
+  const monthKey = summary.periods.find((p) => p.kind === 'month' && p.current).key;
+  const weekRows = ranking(board, weekKey, CATEGORIES[0]);
   const stake = kind === 'week' ? board.league.stake_week : board.league.stake_month;
   const invite = async () => {
     const text = `Rejoins ma ligue GymTrack « ${board.league.name} » ! Installe l’appli : ${APP_URL} puis Plus → Ligue → Rejoindre, code ${board.league.code}`;
@@ -92,6 +104,10 @@ function Board({ m, onLeft }) {
         <button className="btn primary sm" onClick={invite}><Icon name="plus" size={14} />Inviter des amis</button>
       </div>
       {error && <p className="warn-text small">{error}</p>}
+      <Segmented value={view} onChange={switchView} options={[['lobby', 'Lobby'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil']]} />
+      {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} />}
+      {view === 'feed' && <Feed board={board} feed={feed} me={m.member_id} onCompose={compose} onHidden={loadFeed} />}
+      {view === 'board' && <>
       <Segmented value={kind} onChange={setKind} options={[['week', 'Cette semaine'], ['month', 'Ce mois']]} />
 
       <Card title={kind === 'week' ? 'Titres de la semaine dernière' : 'Titres du mois dernier'} icon="trophy">
@@ -146,6 +162,9 @@ function Board({ m, onLeft }) {
         <p className="muted small">Iron : séances × {POINTS.workout} + séries validées + records × {POINTS.record}. Les records comptent ta progression à toi, donc un débutant peut battre un costaud.</p>
         <button className="btn xs ghost mt" onClick={() => setLeave(true)}>Quitter la ligue</button>
       </Card>
+      </>}
+      <ComposeSheet draft={draft} onClose={() => setDraft(null)} board={board} me={m.member_id} curKey={weekKey} onSent={() => { loadFeed(); setView('feed'); }} />
+      <MemberSheet member={member} onClose={() => setMember(null)} board={board} me={m.member_id} curKey={weekKey} monthKey={monthKey} rows={weekRows} feed={feed} onCompose={compose} />
 
       <Sheet open={stakeEdit != null} onClose={() => setStakeEdit(null)} title={kind === 'week' ? 'Enjeu de la semaine' : 'Enjeu du mois'}
         footer={<button className="btn primary block" onClick={async () => { try { await setStake(kind, stakeEdit); setStakeEdit(null); load(); toast('Enjeu enregistré'); } catch (e) { toast(e.message, 'err'); } }}>Enregistrer</button>}>
