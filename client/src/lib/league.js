@@ -117,6 +117,12 @@ const auth = () => { const m = getMembership(); return { p_member: m.member_id, 
 export const setPhoto = (photo) => rpc('ligue_photo', { ...auth(), p_photo: photo });
 export const getFeed = () => rpc('ligue_feed', { ...auth(), p_limit: 80 });
 export const postMessage = (target, tone, body) => rpc('ligue_post', { ...auth(), p_target: target || null, p_tone: tone, p_body: body });
+// Sa propre photo de la ligue (pour le visuel du bilan), gardée en cache sur le téléphone
+const PHOTO = 'gt_league_photo';
+export async function myPhoto() {
+  const m = getMembership(); if (!m) return null;
+  try { const b = await rpc('ligue_board', { p_member: m.member_id, p_token: m.token, p_periods: [] }); const p = b.members.find((x) => x.id === m.member_id)?.photo || null; if (p) store.set(PHOTO, p); else store.del(PHOTO); return p; } catch { return store.get(PHOTO) || null; }
+}
 export const hidePost = (id) => rpc('ligue_post_hide', { ...auth(), p_post: id });
 
 // Recadre au carré et compresse (≈ 10 Ko) : la photo est stockée dans la ligue
