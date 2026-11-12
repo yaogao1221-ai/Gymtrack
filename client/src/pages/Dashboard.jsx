@@ -93,6 +93,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {d.nutrition && <Link to="/corps" className="recap-link card nut-link"><Icon name="flame" size={20} /><span className="grow"><b>{d.nutrition.label} · semaine {d.nutrition.week}/{d.nutrition.weeks}</b><span className="muted small">Aujourd’hui : {d.nutrition.kcal.toLocaleString('fr-FR')} kcal · {d.nutrition.protein_g} g de protéines{d.nutrition.check !== 'ok' && d.nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={18} /></Link>}
       <Link to="/bilan" className="recap-link card"><Icon name="chart" size={20} /><span className="grow"><b>Bilan de la semaine</b><span className="muted small">Séances, volume, records, à partager en image</span></span><Icon name="right" size={18} /></Link>
       <div className="grid-2col">
         <Card title="Progression des charges" icon="up" action={<Link className="link" to="/progres">Graphiques</Link>}>

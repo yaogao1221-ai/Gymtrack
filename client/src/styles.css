@@ -599,3 +599,19 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .zones { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .zones li { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 9px; border-left: 4px solid; background: var(--bg2); }
 .zones .z1 { border-color: #60a5fa; } .zones .z2 { border-color: #2ee6c5; } .zones .z3 { border-color: #ffd166; } .zones .z4 { border-color: #ff7a3d; } .zones .z5 { border-color: #ff4d8d; }
+
+.menu-group { margin-bottom: 18px; }
+.menu-group .eyebrow { margin: 0 0 8px 4px; }
+.nut-link > svg:first-child { color: #ffb03a; }
+
+/* Petits écrans (iPhone SE) */
+.hero .row { flex-wrap: wrap; }
+.card-head { flex-wrap: wrap; row-gap: 8px; }
+.btn { max-width: 100%; }
+.segmented button { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) {
+  .segmented button { font-size: 12px; padding: 8px 3px; }
+  .btn { white-space: normal; }
+  .body-tiles b, .recap-tiles b { font-size: 22px; }
+  .kcal-target b { font-size: 34px; }
+}
