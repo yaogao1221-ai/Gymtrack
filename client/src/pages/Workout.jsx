@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { get, postOrQueue, store, uid, today } from '../lib/api.js';
 import { Icon, Loading, Sheet, Field, NumInput, Confirm, useToast, ErrorBox } from '../components/ui.jsx';
 import { clock, weightLabel, repsLabel, fmtDate, CARDIO_ICON } from '../lib/format.js';
+import ExercisePicker, { platesFor, warmupFor } from '../components/ExercisePicker.jsx';
 
 const KEY = 'gt_active_workout';
 let audioCtx;
@@ -21,6 +22,7 @@ function buildSession(day, profile, deload = false) {
     const lastSets = pe.last?.sets || [];
     return {
       pe_id: pe.id, exercise_id: pe.exercise_id, name: pe.name, kind: pe.kind, unit: pe.weight_unit, technique: pe.technique, superset: pe.superset_group,
+      pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note,
       target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
       last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
       // Deload : moitié des séries, charge ~-10 % (assistance +10 %), arrondie au pas de 5 lbs / 2,5 kg
@@ -47,7 +49,7 @@ export default function Workout() {
   const [s, setS] = useState(() => { const a = store.get(KEY); return a && String(a.dayId) === String(dayId) ? a : null; });
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
-  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({});
+  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null);
   const blockRefs = useRef([]);
 
   useEffect(() => {
@@ -146,6 +148,28 @@ export default function Workout() {
   const bump = (ii, si, k, d) => update((y) => { const set = y.items[ii].sets[si]; const cur = Number(set[k]) || 0; set[k] = Math.max(0, Math.round((cur + d) * 10) / 10); });
   const addSet = (ii) => update((y) => { const l = y.items[ii].sets.at(-1); y.items[ii].sets.push({ weight: l?.weight ?? null, reps: l?.reps ?? y.items[ii].target.reps, done: false }); });
   const removeSet = (ii) => update((y) => { if (y.items[ii].sets.length > 1) y.items[ii].sets.pop(); });
+  // Exercice hors programme : machine prise, envie d'ajouter un exercice…
+  const fromLib = (e, base) => ({
+    pe_id: null, exercise_id: e.id, name: e.name, kind: e.kind, unit: e.default_unit || base?.unit || 'lbs', technique: e.technique, superset: null,
+    pattern: e.pattern, muscles: e.muscles, equipment: e.equipment, wnote: null, extra: true, replaced: base?.name || null,
+    target: { sets: base?.target.sets || 3, reps: base?.target.reps || 10, label: `${base?.target.sets || 3} × ${base?.target.reps || 10} · hors programme` }, rest: base?.rest || 90, last: null,
+    sets: Array.from({ length: base?.sets.length || 3 }, () => ({ weight: null, reps: base?.target.reps || 10, done: false })),
+  });
+  const pick = (e) => {
+    const p = picker; setPicker(null);
+    if (p.ii != null) { update((y) => { y.items[p.ii] = fromLib(e, y.items[p.ii]); }); toast(`${e.name} remplace l’exercice pour aujourd’hui`); return; }
+    update((y) => { y.items.push(fromLib(e)); y.blocks.push({ items: [y.items.length - 1] }); y.current = y.blocks.length - 1; });
+    setTimeout(() => blockRefs.current[blockRefs.current.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  };
+  const isBar = (it) => /barre|barbell|smith/i.test(it.equipment || '') && !/haltère/i.test(it.wnote || '');
+  const barW = (it) => (/ez/i.test(it.equipment || '') ? (it.unit === 'kg' ? 10 : 25) : (it.unit === 'kg' ? 20 : 45));
+  const plateText = (it, w) => {
+    if (!isBar(it) || w == null) return null;
+    const perSide = /côté/i.test(it.wnote || '');
+    const r = perSide ? platesFor(w * 2 + barW(it), it.unit, barW(it)) : platesFor(w, it.unit, barW(it));
+    if (!r) return null;
+    return r.plates.length ? `${r.plates.map((x) => x.toLocaleString('fr-FR')).join(' + ')} par côté${r.rest ? ` (+${r.rest} à compléter)` : ''}` : 'barre seule';
+  };
 
   const save = async () => {
     setSaving(true);
@@ -194,7 +218,16 @@ export default function Workout() {
                       {it.last ? <>Dernière fois ({fmtDate(it.last.date, { day: 'numeric', month: 'short' })}) : <b>{it.last.text}</b></> : 'Première fois : choisis une charge confortable.'}
                       {it.technique && <button className="link small" onClick={() => setTips({ ...tips, [ii]: !tips[ii] })}>Technique</button>}
                     </div>
+                    {it.replaced && <p className="muted small">Remplace {it.replaced} aujourd’hui (ton programme ne change pas).</p>}
                     {tips[ii] && <p className="tip"><Icon name="info" size={14} />{it.technique}</p>}
+                    {warm[ii] && (() => {
+                      const top = Math.max(0, ...it.sets.map((x) => Number(x.weight) || 0)); const wu = warmupFor(top, it.unit, it.kind); const pt = plateText(it, top);
+                      return <div className="tip warm"><Icon name="flame" size={14} /><div>
+                        {wu.length ? <><b>Échauffement avant {top.toLocaleString('fr-FR')} {it.unit}</b><ul>{wu.map((x, k) => <li key={k}>{x.w.toLocaleString('fr-FR')} {it.unit} × {x.reps}{plateText(it, x.w) ? ` · ${plateText(it, x.w)}` : ''}</li>)}</ul></> : <span>Charge légère : une série à vide ou à mi-charge suffit.</span>}
+                        {pt && <p className="small">Séries de travail : {pt} (barre {barW(it)} {it.unit}).</p>}
+                        <p className="muted small">Ces séries ne comptent pas dans la séance.</p>
+                      </div></div>;
+                    })()}
                     <div className="set-head"><span>Série</span><span>{it.kind === 'assisted' ? `Assistance (${it.unit})` : `Charge (${it.unit})`}</span><span>Reps</span><span /></div>
                     {it.sets.map((x, si) => (
                       <div key={si} className={`set-row ${x.done ? 'done' : ''}`}>
@@ -212,7 +245,9 @@ export default function Workout() {
                         <button className={`check-btn ${x.done ? 'on' : ''}`} onClick={() => toggleSet(bi, ii, si)} aria-label={x.done ? 'Annuler la série' : 'Valider la série'}><Icon name="check" size={20} stroke={3} /></button>
                       </div>
                     ))}
-                    <div className="row gap-s mt-s"><button className="btn xs ghost" onClick={() => addSet(ii)}><Icon name="plus" size={14} />Série</button>{it.sets.length > 1 && <button className="btn xs ghost" onClick={() => removeSet(ii)}>Retirer une série</button>}</div>
+                    <div className="row gap-s wrap mt-s"><button className="btn xs ghost" onClick={() => addSet(ii)}><Icon name="plus" size={14} />Série</button>{it.sets.length > 1 && <button className="btn xs ghost" onClick={() => removeSet(ii)}>Retirer une série</button>}
+                      {it.kind === 'weighted' && <button className={`btn xs ghost ${warm[ii] ? 'on' : ''}`} onClick={() => setWarm({ ...warm, [ii]: !warm[ii] })}><Icon name="flame" size={14} />Échauffement</button>}
+                      {!it.sets.some((x) => x.done) && <button className="btn xs ghost" onClick={() => setPicker({ ii, like: it, title: `Remplacer ${it.name}` })}><Icon name="skip" size={14} />Remplacer</button>}</div>
                   </>)}
                 </div>
               );
@@ -220,6 +255,7 @@ export default function Workout() {
           </section>
         );
       })}
+      <button className="btn block dashed mt" onClick={() => setPicker({ title: 'Ajouter un exercice' })}><Icon name="plus" size={16} />Ajouter un exercice</button>
       {cardio.map((c, ci) => (c.placement !== 'debut' ? cardioCard(c, ci) : null))}
       <button className="btn ghost danger-text block mt" onClick={() => setCancel(true)}>Abandonner la séance</button>
 
@@ -249,6 +285,7 @@ export default function Workout() {
         <Field label="Notes (sensations, douleurs, technique…)"><textarea rows={3} value={s.notes} onChange={(e) => update((y) => { y.notes = e.target.value; })} /></Field>
         <p className="muted small">Les charges de ton programme ne changent pas automatiquement : l’onglet Analyse te proposera une progression que tu pourras valider.</p>
       </Sheet>
+      <ExercisePicker open={!!picker} onClose={() => setPicker(null)} title={picker?.title} like={picker?.like} onPick={pick} />
       <Confirm open={cancel} onClose={() => setCancel(false)} danger title="Abandonner la séance ?" confirmLabel="Abandonner" text="Les séries saisies seront perdues."
         onConfirm={() => { store.del(KEY); nav('/'); }} />
     </div>

@@ -16,7 +16,10 @@ const isoWeekKey = (monday) => {
 
 export function leaguePeriods(today) {
   const ws = weekStart(today); const pws = addDays(ws, -7); const ms = monthStart(today); const pms = prevMonth(today);
+  const yd = addDays(today, -1);
   return [
+    { key: 'D' + today, kind: 'day', from: today, to: today, current: true },
+    { key: 'D' + yd, kind: 'day', from: yd, to: yd, current: false },
     { key: isoWeekKey(ws), kind: 'week', from: ws, to: addDays(ws, 6), current: true },
     { key: isoWeekKey(pws), kind: 'week', from: pws, to: addDays(pws, 6), current: false },
     { key: 'M' + ms.slice(0, 7), kind: 'month', from: ms, to: monthEnd(ms), current: true },

@@ -107,13 +107,14 @@ test('ligue : bilan des périodes (totaux seulement), badges, semaines ISO', asy
   const c = await call('POST', '/cardio', { activity: 'course', date: '2026-11-09', duration_min: 30, distance_km: 5.5 }); assert.equal(c.status, 201, JSON.stringify(c.body));
   const { status, body } = await call('GET', '/league/summary');
   assert.equal(status, 200);
-  assert.deepEqual(body.periods.map((p) => p.key), ['W2026-46', 'W2026-45', 'M2026-11', 'M2026-10']);
-  const w = body.periods[0];
+  assert.deepEqual(body.periods.map((p) => p.key), ['D2026-11-09', 'D2026-11-08', 'W2026-46', 'W2026-45', 'M2026-11', 'M2026-10']);
+  assert.ok(body.periods[0].stats.km >= 5.5); assert.equal(body.periods[1].stats.km, 0);
+  const w = body.periods[2];
   assert.deepEqual([w.from, w.to], ['2026-11-09', '2026-11-15']);
   assert.ok(w.stats.km >= 5.5); assert.ok(w.stats.workouts >= 1);
   assert.deepEqual(Object.keys(w.stats).sort(), ['cardio_min', 'cardio_n', 'km', 'prs', 'sets', 'workouts']);
   assert.ok(body.badges.find((b) => b.id === 'first').got);
-  assert.equal(body.periods[3].to, '2026-10-31');
+  assert.equal(body.periods[5].to, '2026-10-31');
 });
 
 test('cardio dans le programme : bloc, lien avec la séance, progression validée', async () => {

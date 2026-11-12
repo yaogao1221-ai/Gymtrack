@@ -82,7 +82,9 @@ function Board({ m, onLeft }) {
   const prev = summary.periods.find((p) => p.kind === kind && !p.current);
   const category = CATEGORIES.find((c) => c.id === cat);
   const rows = ranking(board, cur.key, category);
-  const label = kind === 'week' ? 'semaine' : 'mois';
+  const label = kind === 'day' ? 'journée' : kind === 'week' ? 'semaine' : 'mois';
+  const dayCur = summary.periods.find((p) => p.kind === 'day' && p.current); const dayPrev = summary.periods.find((p) => p.kind === 'day' && !p.current);
+  const dayLeader = dayCur ? ranking(board, dayCur.key, CATEGORIES[0])[0] : null; const dayWinner = dayPrev ? ranking(board, dayPrev.key, CATEGORIES[0])[0] : null;
   const fmt = (c, v) => (c.fmt ? c.fmt(v) : Math.round(v).toLocaleString('fr-FR'));
   const titles = ['points', 'km', 'iron'].map((id) => {
     const c = CATEGORIES.find((x) => x.id === id); const r = ranking(board, prev.key, c);
@@ -110,17 +112,21 @@ function Board({ m, onLeft }) {
       </div>
       {error && <p className="warn-text small">{error}</p>}
       <Segmented value={view} onChange={switchView} options={[['lobby', 'Lobby'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil'], ['msgs', unread ? `Messages (${unread})` : 'Messages']]} />
+      {(dayLeader?.value > 0 || dayWinner?.value > 0) && <div className="day-winner">
+        <Icon name="trophy" size={18} />
+        <span className="grow">{dayLeader?.value > 0 ? <span>Gagnant du jour : <b>{dayLeader.pseudo}</b> <span className="mono small">{dayLeader.value} pts</span></span> : 'Personne n’a encore marqué aujourd’hui'}{dayWinner?.value > 0 && <span className="muted small">Hier : {dayWinner.pseudo} ({dayWinner.value} pts)</span>}</span>
+      </div>}
       {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} onProgram={setProg} onChat={openChat} />}
       {view === 'msgs' && <Inbox board={board} me={m.member_id} onOpen={(x) => openChat(x)} version={inboxV} onCount={setUnread} />}
       {view === 'feed' && <Feed board={board} feed={feed} me={m.member_id} onCompose={compose} onHidden={loadFeed} />}
       {view === 'board' && <>
-      <Segmented value={kind} onChange={setKind} options={[['week', 'Cette semaine'], ['month', 'Ce mois']]} />
+      <Segmented value={kind} onChange={setKind} options={[['day', 'Aujourd’hui'], ['week', 'Semaine'], ['month', 'Mois']]} />
 
-      <Card title={kind === 'week' ? 'Titres de la semaine dernière' : 'Titres du mois dernier'} icon="trophy">
+      <Card title={kind === 'day' ? 'Titres d’hier' : kind === 'week' ? 'Titres de la semaine dernière' : 'Titres du mois dernier'} icon="trophy">
         <div className="titles">
           {titles.map(({ c, winner }) => (
             <div key={c.id} className={`title-card t-${c.id}`}>
-              <span className="muted small">{c.short === 'Champion' ? 'Champion' : `${c.short} of the ${kind === 'week' ? 'week' : 'month'}`}</span>
+              <span className="muted small">{c.short === 'Champion' ? 'Champion' : `${c.short} of the ${kind}`}</span>
               <b>{winner ? winner.pseudo : '—'}</b>
               <span className="small mono">{winner ? `${fmt(c, winner.value)} ${c.unit}` : 'personne'}</span>
             </div>
@@ -141,12 +147,12 @@ function Board({ m, onLeft }) {
         {rows.every((r) => r.value === 0) && <p className="muted small">Personne n’a encore marqué cette {label}. Une séance ou une sortie cardio suffit pour entrer au classement.</p>}
       </Card>
 
-      <Card title={kind === 'week' ? 'Enjeu de la semaine' : 'Enjeu du mois'} icon="flame"
+      {kind !== 'day' && <Card title={kind === 'week' ? 'Enjeu de la semaine' : 'Enjeu du mois'} icon="flame"
         action={<button className="btn xs" onClick={() => setStakeEdit(stake || '')}><Icon name="edit" size={12} />Modifier</button>}>
         {stake ? <p className="stake">« {stake} »</p> : <p className="muted small">Aucun enjeu fixé. Exemple : « Le dernier paie le café à tout le monde ».</p>}
         {stake && general.length > 1 && <p className="small">Si ça s’arrêtait maintenant : <b>{general.at(-1).pseudo}</b> devrait l’honorer.</p>}
         {stake && prevGeneral.length > 1 && <p className="small">{kind === 'week' ? 'Semaine dernière' : 'Mois dernier'} : <b>{prevGeneral.at(-1).pseudo}</b> doit honorer l’enjeu.</p>}
-      </Card>
+      </Card>}
 
       <HealthCard onOpen={() => setShortcut(true)} />
       <Card title="Saisir mes pas" icon="heart">

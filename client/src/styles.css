@@ -518,3 +518,15 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .inbox-row .grow { display: flex; flex-direction: column; min-width: 0; }
 .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unread { flex: none; min-width: 22px; height: 22px; border-radius: 11px; background: linear-gradient(135deg, #ffb03a, #ff4d8d); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+
+/* Séance : remplacement, ajout, échauffement */
+.pick-list { list-style: none; margin: 0; padding: 0; }
+.pick-list li button { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 2px; color: inherit; text-align: left; }
+.pick-list li:first-child button { border-top: 0; }
+.pick-list li .grow { display: flex; flex-direction: column; }
+.tip.warm { color: var(--text); }
+.tip.warm ul { margin: 4px 0; padding-left: 18px; }
+.btn.xs.on { color: var(--accent); border-color: var(--accent-line); }
+
+.day-winner { display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(255, 209, 102, .16), rgba(255, 122, 61, .12)); border: 1px solid rgba(255, 209, 102, .45); color: var(--gold); }
+.day-winner .grow { display: flex; flex-direction: column; color: var(--text); }
