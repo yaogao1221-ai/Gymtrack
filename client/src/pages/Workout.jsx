@@ -16,16 +16,19 @@ const beep = () => {
 };
 
 // Construit la séance à partir du jour de programme (dernière charge utilisée en priorité)
-function buildSession(day, profile) {
+function buildSession(day, profile, deload = false) {
   const items = day.exercises.map((pe) => {
     const lastSets = pe.last?.sets || [];
     return {
       pe_id: pe.id, exercise_id: pe.exercise_id, name: pe.name, kind: pe.kind, unit: pe.weight_unit, technique: pe.technique, superset: pe.superset_group,
       target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
       last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
-      sets: Array.from({ length: pe.sets }, (_, i) => {
+      // Deload : moitié des séries, charge ~-10 % (assistance +10 %), arrondie au pas de 5 lbs / 2,5 kg
+      sets: Array.from({ length: deload ? Math.max(1, Math.floor(pe.sets / 2)) : pe.sets }, (_, i) => {
         const ls = lastSets[i] || lastSets.at(-1);
-        return { weight: ls?.weight ?? pe.target_weight ?? null, reps: pe.reps ?? ls?.reps ?? null, done: false };
+        let w = ls?.weight ?? pe.target_weight ?? null;
+        if (deload && w != null && pe.kind !== 'bodyweight') { const step = pe.weight_unit === 'kg' ? 2.5 : 5; w = Math.round((pe.kind === 'assisted' ? w * 1.1 : w * 0.9) / step) * step; }
+        return { weight: w, reps: pe.reps ?? ls?.reps ?? null, done: false };
       }),
     };
   });
@@ -36,7 +39,7 @@ function buildSession(day, profile) {
   });
   const cardio = (day.cardio || []).map((c) => ({ pc_id: c.id, activity: c.activity, custom_name: c.custom_name, label: c.label, placement: c.placement,
     duration_min: c.duration_min, speed_kmh: c.speed_kmh, incline_pct: c.incline_pct, last: c.last, done: false }));
-  return { dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, current: 0, rest: null, notes: '', rpe: null };
+  return { dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, deload, current: 0, rest: null, notes: '', rpe: null };
 }
 
 export default function Workout() {
@@ -51,10 +54,10 @@ export default function Workout() {
     if (s) return;
     const other = store.get(KEY);
     if (other && String(other.dayId) !== String(dayId)) { setConflict(other); return; }
-    Promise.all([get('/program'), get('/profile')]).then(([prog, profile]) => {
+    Promise.all([get('/program'), get('/profile'), get('/deload').catch(() => null)]).then(([prog, profile, dl]) => {
       const day = prog.days.find((d) => String(d.id) === String(dayId));
       if (!day) throw new Error('Séance introuvable dans le programme');
-      setS(buildSession(day, profile));
+      setS(buildSession(day, profile, !!dl?.active));
     }).catch(setError);
   }, [dayId, s]);
   useEffect(() => { if (s) store.set(KEY, s); }, [s]);
@@ -169,6 +172,7 @@ export default function Workout() {
       </header>
       <div className="wk-progress"><span style={{ width: `${total ? (done / total) * 100 : (cardio.length ? (cardioDone / cardio.length) * 100 : 0)}%` }} /></div>
       <p className="muted small center">{total ? `${done} / ${total} séries validées` : ''}{cardio.length ? `${total ? ' · ' : ''}cardio ${cardioDone}/${cardio.length}` : ''}</p>
+      {s.deload && <div className="deload-banner"><Icon name="moon" size={16} /><span><b>Semaine de deload</b> : moitié des séries et charges −10 % déjà appliquées. Arrête chaque série à 3 ou 4 répétitions de l’échec, cardio facile.</span></div>}
       {cardio.map((c, ci) => (c.placement === 'debut' ? cardioCard(c, ci) : null))}
 
       {s.blocks.map((b, bi) => {

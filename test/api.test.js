@@ -138,3 +138,22 @@ test('cardio dans le programme : bloc, lien avec la séance, progression validé
   assert.equal((await call('PATCH', `/program/cardio/${b.body.id}`, { placement: 'debut' })).body.placement, 'debut');
   const exp = (await call('GET', '/data/export')).body; assert.equal(exp.data.program_cardio.length, 1);
 });
+
+test('calendrier : reprise par un jour choisi, repos conservés, deload', async () => {
+  const { body: prog } = await call('GET', '/program');
+  const d4 = prog.days.find((d) => d.code === 'D4');
+  // 2026-11-10 = mardi (planning type : mar D2, mer D3, jeu repos, ven D4, sam D5, dim repos, lun D1)
+  const r = await call('POST', '/calendar/reflow', { from: '2026-11-10', program_day_id: d4.id, weeks: 1 });
+  assert.equal(r.status, 200);
+  const cal = (await call('GET', '/calendar?from=2026-11-10&to=2026-11-16')).body.events;
+  const seq = cal.map((e) => `${e.date.slice(8)}:${e.type === 'rest' ? 'R' : e.code}`);
+  assert.deepEqual(seq, ['10:D4', '11:D5', '12:R', '13:D1', '14:D2', '15:R', '16:D3']);
+  const st = (await call('GET', '/deload')).body;
+  assert.equal(st.interval, 6); assert.equal(st.rules.length, 6);
+  assert.equal((await call('POST', '/deload', { start: '2026-11-16' })).status, 200);
+  const after = (await call('GET', '/calendar?from=2026-11-16&to=2026-11-22')).body.events;
+  assert.ok(after.length >= 7 && after.every((e) => e.deload === 1));
+  assert.equal((await call('GET', '/deload')).body.planned_start, '2026-11-16');
+  await call('DELETE', '/deload?start=2026-11-16');
+  assert.ok((await call('GET', '/calendar?from=2026-11-16&to=2026-11-22')).body.events.every((e) => e.deload === 0));
+});

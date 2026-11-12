@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
-import { post, patch, put, today } from '../lib/api.js';
+import { post, patch, put, del, today } from '../lib/api.js';
 import { DAYS, fmtDate } from '../lib/format.js';
 import { RadarChart, COLORS } from '../components/charts.jsx';
 import { getMembership, getHealth, healthAdvice } from '../lib/league.js';
@@ -39,6 +39,8 @@ export default function Coach() {
             <button className="btn sm" onClick={() => setPain({ area: 'epaule', intensity: 3, date: today(), notes: '' })}><Icon name="plus" size={14} />Signaler une douleur</button>
           </div>
         </Card>
+
+        <DeloadCard d={a.deload} act={act} busy={busy} />
 
         <Card title="Progression proposée" icon="up">
           {progression.length ? <ul className="recs">{progression.map((p) => (
@@ -130,5 +132,25 @@ function HealthTips() {
     <ul className="factors health-tips">
       {adv.tips.map((t, i) => <li key={i} className={t.level === 'warn' ? 'neg' : ''}>{t.text}</li>)}
     </ul>
+  );
+}
+
+function DeloadCard({ d, act, busy }) {
+  if (!d) return null;
+  const nf = (x) => fmtDate(x, { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <Card title="Semaine de deload" icon="moon" className="deload-card">
+      {d.active ? <p className="small"><b>Tu es en semaine de deload.</b> Moitié des séries, charges un peu plus légères, rien à l’échec. La séance l’applique automatiquement.</p>
+        : d.planned_start ? <p className="small">Deload prévu à partir du <b>{nf(d.planned_start)}</b>.</p>
+        : d.due ? <p className="small"><b>C’est le bon moment.</b> {d.why} {d.signals.length ? `Signaux : ${d.signals.join(' · ')}.` : ''}</p>
+        : d.soon ? <p className="small">Bientôt : {d.weeks_trained} semaines d’affilée, deload conseillé vers la {d.interval}<sup>e</sup>.</p>
+        : <p className="small">{d.weeks_trained} semaine{d.weeks_trained > 1 ? 's' : ''} d’entraînement d’affilée. Pour ton niveau, un deload toutes les <b>{d.interval} semaines</b> environ, ou plus tôt si la fatigue s’accumule.</p>}
+      {!d.active && !d.planned_start && (
+        <button className={`btn sm mt ${d.due ? 'primary' : ''}`} disabled={busy === 'deload'} onClick={() => act(() => post('/deload', { start: d.recommended_start }), 'Deload ajouté au calendrier', 'deload')}>
+          <Icon name="calendar" size={14} />Planifier le deload du {fmtDate(d.recommended_start, { day: 'numeric', month: 'short' })}
+        </button>)}
+      {d.planned_start && !d.active && <button className="btn xs ghost mt" onClick={() => act(() => del(`/deload?start=${d.planned_start}`), 'Deload retiré', 'deload')}>Annuler ce deload</button>}
+      <details className="mt"><summary className="small">Comment ça se passe</summary><ul className="rules">{d.rules.map((r) => <li key={r}>{r}</li>)}</ul></details>
+    </Card>
   );
 }

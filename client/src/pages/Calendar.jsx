@@ -11,7 +11,7 @@ export default function Calendar() {
   const t = today();
   const [month, setMonth] = useState(monthOf(params.get('d') || t));
   const [selected, setSelected] = useState(params.get('d') || null);
-  const [adding, setAdding] = useState(null); const [dragId, setDragId] = useState(null);
+  const [adding, setAdding] = useState(null); const [dragId, setDragId] = useState(null); const [reflow, setReflow] = useState(null);
   const nav = useNavigate(); const toast = useToast();
   const first = `${month}-01`;
   const gridStart = weekStart(first);
@@ -29,8 +29,11 @@ export default function Calendar() {
   const sel = selected && by(selected);
 
   return (
-    <Page title="Calendrier" subtitle="Planifie, déplace et consulte tes séances"
-      actions={<button className="btn sm" onClick={() => run(() => post('/calendar/plan', { from: weekStart(t), weeks: 4 }), (r) => `${r.created} jour(s) planifié(s)${r.skipped ? `, ${r.skipped} déjà occupé(s)` : ''}`)}><Icon name="sparkles" size={16} />Planifier 4 sem.</button>}>
+    <Page title="Calendrier" subtitle="Planifie, déplace et consulte tes séances">
+      <div className="row gap-s wrap cal-actions">
+        <button className="btn sm primary" onClick={() => setReflow({ from: t, program_day_id: program.data?.days[0]?.id, weeks: 4 })}><Icon name="calendar" size={16} />Reprendre par…</button>
+        <button className="btn sm" onClick={() => run(() => post('/calendar/plan', { from: weekStart(t), weeks: 4 }), (r) => `${r.created} jour(s) planifié(s)${r.skipped ? `, ${r.skipped} déjà occupé(s)` : ''}`)}><Icon name="sparkles" size={16} />Planifier 4 sem.</button>
+      </div>
       <div className="cal card">
         <div className="cal-head">
           <button className="icon-btn" onClick={() => shift(-1)} aria-label="Mois précédent"><Icon name="left" /></button>
@@ -42,7 +45,7 @@ export default function Calendar() {
           {!data ? <div className="cal-loading"><Loading /></div> : cells.map((date) => {
             const x = by(date);
             return (
-              <button key={date} className={`cal-cell ${monthOf(date) !== month ? 'out' : ''} ${date === t ? 'today' : ''} ${date === selected ? 'sel' : ''}`}
+              <button key={date} className={`cal-cell ${x.events.some((e) => e.deload) ? 'deload' : ''} ${monthOf(date) !== month ? 'out' : ''} ${date === t ? 'today' : ''} ${date === selected ? 'sel' : ''}`}
                 onClick={() => setSelected(date)} onDragOver={(e) => e.preventDefault()}
                 onDrop={() => dragId && run(() => patch(`/calendar/${dragId}`, { date }), 'Séance déplacée')}>
                 <span className="cal-num">{Number(date.slice(8))}</span>
@@ -62,6 +65,20 @@ export default function Calendar() {
         <div className="legend small muted"><span><i className="cal-chip done">J1</i>faite</span><span><i className="cal-chip planned">J2</i>prévue</span><span><i className="cal-dot mint" />cardio</span><span className="hide-mobile">Glisse une séance prévue pour la déplacer</span></div>
       </div>
 
+      <Sheet open={!!reflow} onClose={() => setReflow(null)} title="Reprendre le programme"
+        footer={<button className="btn primary" disabled={!reflow?.program_day_id} onClick={() => run(async () => { const r = await post('/calendar/reflow', reflow); setReflow(null); return r; }, (r) => `Programme recalé à partir du ${fmtDay(r.from)}`)}>Recaler le calendrier</button>}>
+        {reflow && <>
+          <p className="small">Tu as sauté une séance ou tu veux changer l’ordre ? Choisis le jour et la séance par laquelle tu reprends : la suite du programme s’enchaîne dans l’ordre, et tes jours de repos restent à leur place.</p>
+          <Field label="À partir du"><input type="date" value={reflow.from} onChange={(e) => setReflow({ ...reflow, from: e.target.value })} /></Field>
+          <Field label="Je commence par">
+            <div className="pick-days">{(program.data?.days || []).map((d) => (
+              <button key={d.id} type="button" className={`chip ${reflow.program_day_id === d.id ? 'on' : ''}`} onClick={() => setReflow({ ...reflow, program_day_id: d.id })}><b>{d.name}</b> · {d.focus}</button>
+            ))}</div>
+          </Field>
+          <Field label="Sur"><Segmented value={reflow.weeks} onChange={(v) => setReflow({ ...reflow, weeks: v })} options={[[2, '2 sem.'], [4, '4 sem.'], [8, '8 sem.']]} /></Field>
+          <p className="muted small">Les séances déjà faites ou marquées sautées ne bougent pas. Le reste des séances prévues sur la période est remplacé.</p>
+        </>}
+      </Sheet>
       <Sheet open={!!selected} onClose={() => setSelected(null)} title={selected ? fmtDay(selected) : ''}>
         {sel && (<>
           {sel.workouts.map((w) => <Link key={w.id} className="cal-row done" to={`/historique/${w.id}`}><Icon name="check" size={16} /><span><b>{w.name}</b> {w.focus}</span><span className="muted small">{mins(Math.round(w.duration_sec / 60))}</span></Link>)}

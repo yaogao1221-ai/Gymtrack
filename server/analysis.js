@@ -65,6 +65,48 @@ export function recoveryScore(db, profile, today) {
   return { score, label: score >= 75 ? 'Bonne' : score >= 55 ? 'Correcte' : 'À surveiller', factors, pains };
 }
 
+// Semaine de deload : quand, combien de temps, comment.
+// Repères : toutes les 4 à 8 semaines d'entraînement soutenu selon le niveau (plus tôt si les signaux de fatigue s'accumulent),
+// durée ~1 semaine, volume réduit d'environ moitié, charges un peu plus légères (~-10 %), séries loin de l'échec, cardio facile.
+export const DELOAD_INTERVAL = { debutant: 8, intermediaire: 6, avance: 5 };
+export function deloadStatus(db, today) {
+  const profile = getProfile(db);
+  const level = profile.level || 'intermediaire';
+  const interval = DELOAD_INTERVAL[level] || 6;
+  const active = !!db.one('SELECT id FROM calendar_events WHERE user_id = ? AND deload = 1 AND date = ?', USER_ID, today);
+  const lastEnd = db.one('SELECT MAX(date) d FROM calendar_events WHERE user_id = ? AND deload = 1 AND date < ?', USER_ID, today).d;
+  const planned = db.one('SELECT MIN(date) d FROM calendar_events WHERE user_id = ? AND deload = 1 AND date > ?', USER_ID, today).d;
+  // Semaines consécutives avec au moins 2 séances de muscu (depuis le dernier deload)
+  let weeks = 0;
+  for (let ws = addDays(weekStart(today), -7), i = 0; i < 26; i++, ws = addDays(ws, -7)) {
+    if (lastEnd && addDays(ws, 6) <= lastEnd) break;
+    const n = db.one('SELECT COUNT(*) n FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, ws, addDays(ws, 6)).n;
+    if (n >= 2) weeks++; else break;
+  }
+  const recovery = recoveryScore(db, profile, today);
+  const signals = [];
+  if (recovery.score < 55) signals.push(`Récupération « ${recovery.label.toLowerCase()} » (${recovery.score}/100)`);
+  if (recovery.pains.length) signals.push(`${recovery.pains.length} douleur(s) active(s)`);
+  const rpe2w = periodStats(db, addDays(today, -13), today).avg_rpe;
+  if (rpe2w >= 8.5) signals.push(`Effort ressenti élevé depuis 2 semaines (RPE moyen ${rpe2w})`);
+  const due = !active && !planned && (weeks >= interval || (weeks >= 3 && signals.length >= 2));
+  const soon = !due && !active && !planned && weeks >= interval - 1;
+  return {
+    active, planned_start: planned, last_end: lastEnd, weeks_trained: weeks, interval, level, due, soon, signals,
+    recommended_start: addDays(weekStart(today), 7), recommended_days: 7,
+    rules: [
+      'Durée : 1 semaine (5 à 7 jours), puis reprise normale.',
+      'Volume : environ la moitié des séries (ex. 2 séries → 1, 4 → 2).',
+      'Charges : environ −10 %, et s’arrêter à 3 ou 4 répétitions de l’échec.',
+      'Garder les mêmes exercices et la même fréquence pour entretenir la technique.',
+      'Cardio : facile uniquement (tu peux parler), pas de fractionné.',
+      'Aucune progression proposée pendant le deload : on recharge les batteries.',
+    ],
+    why: weeks >= interval ? `${weeks} semaines d’entraînement d’affilée (repère pour ton niveau : toutes les ${interval} semaines).`
+      : signals.length >= 2 ? 'Plusieurs signaux de fatigue s’accumulent.' : null,
+  };
+}
+
 function scheduleIssues(days, schedule) {
   const byCode = Object.fromEntries(days.map((d) => [d.code, d]));
   const issues = []; let penalty = 0;
@@ -304,6 +346,7 @@ export function analyse(db, today) {
   for (const d of days) for (const pe of d.exercises) { const p = progressionFor(db, pe, painPatterns, recovery); if (p) progression.push({ ...p, day_name: d.name }); }
   for (const d of days) for (const c of d.cardio || []) { const p = cardioProgressionFor(db, c, recovery, today); if (p) progression.push({ ...p, day_name: d.name }); }
 
+  if (db.one('SELECT id FROM calendar_events WHERE user_id = ? AND deload = 1 AND date = ?', USER_ID, today)) progression.length = 0;
   // Filtrer ce qui a déjà été validé ou ignoré récemment
   const log = db.all('SELECT rec_key, status, created_at FROM recommendation_log WHERE user_id = ? AND created_at >= ?', USER_ID, addDays(today, -21));
   const hidden = new Set(log.map((l) => l.rec_key));
@@ -313,7 +356,7 @@ export function analyse(db, today) {
   findings.sort((a, b) => order[a.severity] - order[b.severity]);
 
   return {
-    generated_at: new Date().toISOString(), today, level,
+    generated_at: new Date().toISOString(), today, level, deload: deloadStatus(db, today),
     recovery: { score: recovery.score, label: recovery.label, factors: recovery.factors },
     volume: { muscles, per_day: perDay, total_sets: perDay.reduce((a, p) => a + p.sets, 0) },
     findings, history,

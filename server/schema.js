@@ -231,6 +231,7 @@ export function setupDb(db) {
   db.exec(SCHEMA);
   // Migrations légères pour les bases existantes
   const cols = (t) => new Set(db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name));
+  if (!cols('calendar_events').has('deload')) db.exec('ALTER TABLE calendar_events ADD COLUMN deload INTEGER NOT NULL DEFAULT 0');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   db.tx = (fn) => {
     db.exec('BEGIN');

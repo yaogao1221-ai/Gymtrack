@@ -440,3 +440,9 @@ a.btn { text-decoration: none; }
 .cardio-block .act { margin-top: 2px; }
 .cardio-wk { border-color: rgba(46,230,197,.3); background: linear-gradient(160deg, rgba(46,230,197,.08), rgba(59,130,246,.04)), var(--surface); }
 .wk-ex-head.static { display: flex; align-items: center; gap: 6px; width: 100%; }
+.cal-cell.deload { background: linear-gradient(160deg, rgba(167,139,250,.16), rgba(225,75,208,.06)), var(--bg2); border-color: rgba(167,139,250,.35); }
+.pick-days { display: grid; gap: 6px; }
+.pick-days .chip { text-align: left; }
+.deload-card .rules { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px; }
+.deload-banner { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin: 8px 0; border-radius: 12px; background: linear-gradient(160deg, rgba(167,139,250,.2), rgba(225,75,208,.08)); border: 1px solid rgba(167,139,250,.4); font-size: 13.5px; }
+.cal-actions { margin-bottom: 12px; }
