@@ -19,6 +19,7 @@ import Data from './pages/Data.jsx';
 import More from './pages/More.jsx';
 import League from './pages/League.jsx';
 import Reminders from './pages/Reminders.jsx';
+import Recap from './pages/Recap.jsx';
 
 const NAV = [
   ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/progres', 'chart', 'Progrès'], ['/plus', 'menu', 'Plus'],
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="/donnees" element={<Data />} />
           <Route path="/plus" element={<More />} />
           <Route path="/rappels" element={<Reminders />} />
+          <Route path="/bilan" element={<Recap />} />
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

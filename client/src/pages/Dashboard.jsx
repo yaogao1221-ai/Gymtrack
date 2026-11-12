@@ -93,6 +93,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <Link to="/bilan" className="recap-link card"><Icon name="chart" size={20} /><span className="grow"><b>Bilan de la semaine</b><span className="muted small">Séances, volume, records, à partager en image</span></span><Icon name="right" size={18} /></Link>
       <div className="grid-2col">
         <Card title="Progression des charges" icon="up" action={<Link className="link" to="/progres">Graphiques</Link>}>
           {d.progression.length ? (

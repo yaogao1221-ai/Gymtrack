@@ -530,3 +530,25 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 
 .day-winner { display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(255, 209, 102, .16), rgba(255, 122, 61, .12)); border: 1px solid rgba(255, 209, 102, .45); color: var(--gold); }
 .day-winner .grow { display: flex; flex-direction: column; color: var(--text); }
+
+/* Bilan de la semaine */
+.recap-card { margin: 14px 0; padding: 18px; border-radius: var(--r); border: 1px solid var(--line); background: radial-gradient(120% 80% at 100% 0%, rgba(255,122,61,.18), transparent 60%), radial-gradient(100% 80% at 0% 100%, rgba(46,230,197,.12), transparent 60%), var(--surface); }
+.recap-verdict { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0 0 14px; }
+.recap-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.recap-tiles > div { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.recap-tiles b { font-family: var(--display); font-size: 30px; line-height: 1.1; background-clip: text; -webkit-background-clip: text; color: transparent; }
+.recap-tiles b span { font-size: 18px; }
+.recap-tiles > div > span { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.recap-tiles .t-fire b { background-image: var(--grad-fire); } .recap-tiles .t-violet b { background-image: var(--grad-violet); }
+.recap-tiles .t-orange b { background-image: linear-gradient(135deg, #ff7a3d, #ffb03a); } .recap-tiles .t-aqua b { background-image: var(--grad-aqua); }
+.recap-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 14px 0 8px; }
+.recap-days span { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; background: rgba(255,255,255,.05); color: var(--muted); }
+.recap-days span.on { background: var(--accent); color: var(--accent-ink); }
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.plain-list li:first-child { border-top: 0; }
+.bar-row { display: grid; grid-template-columns: 96px 1fr 36px; gap: 10px; align-items: center; margin: 8px 0; }
+.bar-row .bar { margin-top: 0; }
+.recap-link { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 14px 16px; color: inherit; }
+.recap-link .grow { display: flex; flex-direction: column; }
+.recap-link > svg:first-child { color: var(--accent); }

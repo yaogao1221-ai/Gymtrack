@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile } from '../services.js';
+import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile, allRecords } from '../services.js';
 import { recoveryScore } from '../analysis.js';
+import { MUSCLES } from '../seed.js';
 import { date, notFound, addDays, weekStart, diffDays } from '../util.js';
 
 export default function statsRoutes(db) {
@@ -38,6 +39,31 @@ export default function statsRoutes(db) {
       goals: goalsWithProgress(db, today).filter((g) => g.status === 'actif').slice(0, 4),
       recovery: (({ score, label }) => ({ score, label }))(recoveryScore(db, profile, today)),
     });
+  });
+
+  // Bilan d'une semaine (0 = en cours, 1 = précédente) comparé à la semaine d'avant
+  r.get('/recap', (req, res) => {
+    const off = Math.min(52, Math.max(0, Number(req.query.offset) || 0));
+    const from = addDays(weekStart(req.today), -7 * off); const to = addDays(from, 6);
+    const pf = addDays(from, -7); const pt = addDays(from, -1);
+    const cur = periodStats(db, from, to); const prev = periodStats(db, pf, pt);
+    const recs = allRecords(db).filter((x) => x.date >= from && x.date <= to);
+    const muscles = {};
+    for (const r of db.all(`SELECT e.muscles FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+      WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ?`, USER_ID, from, to)) {
+      let m = {}; try { m = JSON.parse(r.muscles || '{}'); } catch { /* */ }
+      for (const [k, v] of Object.entries(m)) muscles[k] = (muscles[k] || 0) + v;
+    }
+    const top = Object.entries(muscles).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => ({ muscle: k, label: MUSCLES[k] || k, sets: Math.round(v * 10) / 10 }));
+    const days = db.all('SELECT DISTINCT date FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ? UNION SELECT DISTINCT date FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, from, to, USER_ID, from, to).map((x) => x.date);
+    const profile = getProfile(db) || {};
+    let streak = 0;
+    for (let ws = weekStart(req.today), i = 0; i < 104; i++, ws = addDays(ws, -7)) {
+      const st = periodStats(db, ws, addDays(ws, 6));
+      if (st.workouts + st.cardio_sessions > 0) streak++; else if (i > 0) break;
+    }
+    res.json({ from, to, cur, prev, records: recs.map((x) => ({ name: x.name, weight: x.weight, previous: x.previous, unit: x.unit, assisted: x.assisted })),
+      muscles: top, active_days: days.sort(), target: profile.sessions_per_week || null, streak, name: profile.name && profile.name !== 'Athlète' ? profile.name : null });
   });
 
   r.get('/stats/overview', (req, res) => {
