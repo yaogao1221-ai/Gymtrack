@@ -4,6 +4,16 @@ import { get, postOrQueue, store, uid, today } from '../lib/api.js';
 import { Icon, Loading, Sheet, Field, NumInput, Confirm, useToast, ErrorBox } from '../components/ui.jsx';
 import { clock, weightLabel, repsLabel, fmtDate, CARDIO_ICON } from '../lib/format.js';
 import ExercisePicker, { platesFor, warmupFor } from '../components/ExercisePicker.jsx';
+import { e1rm, toLbs } from '../../../server/formulas.js';
+import { suggestNext } from '../lib/progression.js';
+
+const isRecord = (it, set) => {
+  const b = it.best; const w = Number(set.weight); if (!b || !w) return false;
+  const v = toLbs(w, it.unit);
+  if (it.kind === 'assisted') return b.top_lbs != null && v < b.top_lbs - 1e-9;
+  if (b.top_lbs != null && v > b.top_lbs + 1e-9) return true;
+  const e = e1rm(v, Number(set.reps)); return !!(e && b.e1rm_lbs && e > b.e1rm_lbs + 0.5);
+};
 
 const KEY = 'gt_active_workout';
 let audioCtx;
@@ -25,6 +35,7 @@ function buildSession(day, profile, deload = false) {
       pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note,
       target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
       last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
+      best: pe.best || null, sugg: deload ? null : suggestNext(pe),
       // Deload : moitié des séries, charge ~-10 % (assistance +10 %), arrondie au pas de 5 lbs / 2,5 kg
       sets: Array.from({ length: deload ? Math.max(1, Math.floor(pe.sets / 2)) : pe.sets }, (_, i) => {
         const ls = lastSets[i] || lastSets.at(-1);
@@ -123,11 +134,22 @@ export default function Workout() {
 
   const toggleSet = (bi, ii, si) => {
     unlockAudio();
+    // Record : comparé aux meilleures perfs d'avant la séance et aux séries déjà validées aujourd'hui
+    const cur = s.items[ii]; const cs = cur.sets[si];
+    if (!cs.done) {
+      const probe = { ...cs, reps: cs.reps ?? cur.target.reps };
+      const today = { ...cur, best: cur.best ? { ...cur.best } : null };
+      for (const x of cur.sets) if (x.done && x.pr && Number(x.weight)) { const v = toLbs(Number(x.weight), cur.unit); if (today.best) { if (cur.kind === 'assisted') today.best.top_lbs = Math.min(today.best.top_lbs, v); else { today.best.top_lbs = Math.max(today.best.top_lbs ?? 0, v); today.best.e1rm_lbs = Math.max(today.best.e1rm_lbs ?? 0, e1rm(v, Number(x.reps)) || 0); } } }
+      if (isRecord(today, probe)) { setTimeout(() => toast(`Record sur ${cur.name} : ${Number(cs.weight).toLocaleString('fr-FR')} ${cur.unit} × ${probe.reps}`, 'ok'), 50); if (navigator.vibrate) navigator.vibrate([60, 40, 120]); }
+    }
     update((y) => {
       const it = y.items[ii]; const set = it.sets[si];
       set.done = !set.done;
-      if (!set.done) return;
+      if (!set.done) { set.pr = false; return; }
       if (set.reps == null && it.target.reps) set.reps = it.target.reps;
+      const prev = { ...it, best: it.best ? { ...it.best } : null };
+      for (const x of it.sets) if (x !== set && x.done && x.pr && Number(x.weight) && prev.best) { const v = toLbs(Number(x.weight), it.unit); if (it.kind === 'assisted') prev.best.top_lbs = Math.min(prev.best.top_lbs, v); else { prev.best.top_lbs = Math.max(prev.best.top_lbs ?? 0, v); prev.best.e1rm_lbs = Math.max(prev.best.e1rm_lbs ?? 0, e1rm(v, Number(x.reps)) || 0); } }
+      set.pr = isRecord(prev, set);
       const block = y.blocks[bi];
       // En superset, le repos démarre quand le tour est complet
       const roundDone = block.items.every((k) => !y.items[k].sets[si] || y.items[k].sets[si].done);
@@ -218,6 +240,10 @@ export default function Workout() {
                       {it.last ? <>Dernière fois ({fmtDate(it.last.date, { day: 'numeric', month: 'short' })}) : <b>{it.last.text}</b></> : 'Première fois : choisis une charge confortable.'}
                       {it.technique && <button className="link small" onClick={() => setTips({ ...tips, [ii]: !tips[ii] })}>Technique</button>}
                     </div>
+                    {it.sugg && !it.sets.some((x) => x.done) && (
+                      <div className="sugg"><Icon name="up" size={16} /><span className="grow"><b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
+                        <button className="btn xs" onClick={() => update((y) => { y.items[ii].sets.forEach((x) => { if (!x.done) { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; } }); })}>Appliquer</button></div>
+                    )}
                     {it.replaced && <p className="muted small">Remplace {it.replaced} aujourd’hui (ton programme ne change pas).</p>}
                     {tips[ii] && <p className="tip"><Icon name="info" size={14} />{it.technique}</p>}
                     {warm[ii] && (() => {
@@ -230,8 +256,8 @@ export default function Workout() {
                     })()}
                     <div className="set-head"><span>Série</span><span>{it.kind === 'assisted' ? `Assistance (${it.unit})` : `Charge (${it.unit})`}</span><span>Reps</span><span /></div>
                     {it.sets.map((x, si) => (
-                      <div key={si} className={`set-row ${x.done ? 'done' : ''}`}>
-                        <span className="set-idx">{si + 1}</span>
+                      <div key={si} className={`set-row ${x.done ? 'done' : ''} ${x.pr ? 'pr' : ''}`}>
+                        <span className="set-idx" title={x.pr ? 'Record' : undefined}>{x.pr ? <Icon name="trophy" size={14} /> : si + 1}</span>
                         <div className="stepper">
                           <button onClick={() => bump(ii, si, 'weight', -(it.unit === 'kg' ? 2.5 : 5))} aria-label="Moins">−</button>
                           <NumInput value={x.weight} onChange={(v) => setVal(ii, si, 'weight', v)} placeholder={it.kind === 'bodyweight' ? 'PDC' : '—'} aria-label="Charge" />

@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { Icon } from './ui.jsx';
+import { LEAGUE_ON } from '../lib/api.js';
 
 // Sous-onglets d'un espace : on passe d'un écran lié à l'autre sans repasser par un menu
 export const SECTIONS = {
   training: [['/programme', 'dumbbell', 'Programme'], ['/calendrier', 'calendar', 'Calendrier'], ['/cardio', 'heart', 'Cardio']],
   body: [['/corps', 'scale', 'Poids et cure'], ['/plan', 'target', 'Mon plan']],
-  progress: [['/progres', 'chart', 'Progrès'], ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/coach', 'brain', 'Analyse']],
+  progress: [['/progres', 'chart', 'Progrès'], ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/coach', 'brain', 'Analyse'], ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue']] : [])],
 };
 export const SPACE_OF = (path) => {
   if (/^\/(programme|calendrier|cardio|seance|historique)/.test(path)) return 'training';

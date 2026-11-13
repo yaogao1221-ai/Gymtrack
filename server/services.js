@@ -269,3 +269,19 @@ export function goalsWithProgress(db, today, draft = null) {
   });
   return draft ? out[0] : out;
 }
+
+// Meilleures performances par exercice (charge max ou assistance min, 1RM estimé), en lbs.
+// `before` : ne compte que les séances antérieures à { date, id } (pour juger un record a posteriori).
+export function exerciseBests(db, before = null) {
+  const rows = db.all(`SELECT s.exercise_id id, e.kind, s.weight, s.weight_unit unit, s.reps, w.date, w.id wid FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+    WHERE w.user_id = ? AND s.completed = 1 AND s.weight IS NOT NULL AND s.weight > 0`, USER_ID);
+  const out = new Map();
+  for (const r of rows) {
+    if (before && (r.date > before.date || (r.date === before.date && r.wid >= before.id))) continue;
+    const v = toLbs(r.weight, r.unit); const b = out.get(r.id) || { kind: r.kind, top_lbs: null, e1rm_lbs: null };
+    if (b.top_lbs == null || (r.kind === 'assisted' ? v < b.top_lbs : v > b.top_lbs)) b.top_lbs = v;
+    if (r.kind !== 'assisted') { const e = e1rm(v, r.reps); if (e && (b.e1rm_lbs == null || e > b.e1rm_lbs)) b.e1rm_lbs = e; }
+    out.set(r.id, b);
+  }
+  return out;
+}

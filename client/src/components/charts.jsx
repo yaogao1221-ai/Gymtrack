@@ -2,14 +2,20 @@ import { Chart as C, CategoryScale, LinearScale, RadialLinearScale, PointElement
 import { Line, Bar, Radar } from 'react-chartjs-2';
 
 C.register(CategoryScale, LinearScale, RadialLinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend);
-C.defaults.color = '#9a98b8';
-C.defaults.font.family = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+// Couleurs d'axes et de grille lues dans le thème (clair le jour, sombre le soir)
+const syncChartTheme = () => {
+  const cs = getComputedStyle(document.documentElement);
+  C.defaults.color = cs.getPropertyValue('--muted').trim() || '#5B6473';
+  C.defaults.borderColor = cs.getPropertyValue('--line').trim() || '#E2E6EC';
+};
+syncChartTheme();
+window.addEventListener('gt-theme', syncChartTheme);
+C.defaults.font.family = '"Inter", system-ui, sans-serif';
 C.defaults.font.size = 11;
-C.defaults.borderColor = 'rgba(160,150,255,0.08)';
 
-export const COLORS = { lime: '#ff7a3d', mint: '#2ee6c5', blue: '#3b82f6', orange: '#ffb03a', pink: '#e14bd0', violet: '#a78bfa' };
+export const COLORS = { lime: '#F75A17', mint: '#1FAE57', blue: '#3B7BF2', orange: '#E8A100', pink: '#D946EF', violet: '#7C5CF5' };
 // Paires de dégradé associées à chaque couleur
-const PAIR = { '#ff7a3d': ['#ffb03a', '#ff4d8d'], '#2ee6c5': ['#2ee6c5', '#3b82f6'], '#3b82f6': ['#60a5fa', '#8b5cf6'], '#ffb03a': ['#ffd166', '#ff7a3d'], '#e14bd0': ['#f472b6', '#8b5cf6'], '#a78bfa': ['#a78bfa', '#e14bd0'] };
+const PAIR = {}; // aplats : une couleur par série
 const vgrad = (color, alphaTop = 'ff', alphaBottom = 'ff') => (ctx) => {
   const { chart } = ctx; const area = chart.chartArea; if (!area) return color;
   const p = PAIR[color] || [color, color];
@@ -22,7 +28,7 @@ const base = (yTitle, legend) => ({
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { display: !!legend, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
-    tooltip: { backgroundColor: '#22223d', borderColor: '#3a3a62', borderWidth: 1, padding: 10, titleColor: '#f1f0fa', bodyColor: '#cfcde6', cornerRadius: 10, displayColors: true },
+    tooltip: { backgroundColor: '#12161F', borderColor: '#2A303C', borderWidth: 1, padding: 10, titleColor: '#FFFFFF', bodyColor: '#D5DAE3', cornerRadius: 10, displayColors: true },
   },
   scales: {
     x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } },
@@ -58,7 +64,7 @@ export function RadarChart({ labels, series, height = 300, max }) {
   const o = {
     responsive: true, maintainAspectRatio: false, animation: { duration: 700 },
     plugins: { legend: { display: series.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } }, tooltip: base().plugins.tooltip },
-    scales: { r: { min: 0, max, ticks: { display: false, maxTicksLimit: 4 }, grid: { color: 'rgba(160,150,255,0.12)' }, angleLines: { color: 'rgba(160,150,255,0.12)' }, pointLabels: { color: '#cfcde6', font: { size: 10.5 } } } },
+    scales: { r: { min: 0, max, ticks: { display: false, maxTicksLimit: 4 }, grid: { color: 'rgba(128,140,160,0.22)' }, angleLines: { color: 'rgba(128,140,160,0.22)' }, pointLabels: { color: C.defaults.color, font: { size: 10.5 } } } },
   };
   return <div style={{ height }}><Radar data={data} options={o} /></div>;
 }

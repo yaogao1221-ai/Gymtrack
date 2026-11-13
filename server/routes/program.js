@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfile } from '../services.js';
+import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfile, exerciseBests } from '../services.js';
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
 
@@ -51,8 +51,10 @@ export default function programRoutes(db) {
 
   // Programme + liens avec le calendrier (prochaine date prévue, dernière séance faite) et le planning type
   r.get('/program', (req, res) => {
-    const p = getProgram(db);
+    const p = getProgram(db); const bests = exerciseBests(db);
     for (const d of p.days) {
+      // Meilleures perfs de chaque exercice : la séance détecte les records en direct
+      for (const e of d.exercises) { const b = bests.get(e.exercise_id); e.best = b ? { top_lbs: b.top_lbs, e1rm_lbs: b.e1rm_lbs } : null; }
       d.next_date = db.one("SELECT MIN(date) d FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND program_day_id = ? AND date >= ?", USER_ID, d.id, req.today).d;
       d.last_date = db.one('SELECT MAX(date) d FROM workouts WHERE user_id = ? AND program_day_id = ?', USER_ID, d.id).d;
       d.total_sets = d.exercises.reduce((a, e) => a + (e.sets || 0), 0);

@@ -8,6 +8,7 @@ import Onboarding from './pages/Onboarding.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 const Program = lazy(() => import('./pages/Program.jsx'));
 import Workout from './pages/Workout.jsx';
+import StartSession from './pages/StartSession.jsx';
 const WorkoutDetail = lazy(() => import('./pages/WorkoutDetail.jsx'));
 const Cardio = lazy(() => import('./pages/Cardio.jsx'));
 const Calendar = lazy(() => import('./pages/Calendar.jsx'));
@@ -26,11 +27,11 @@ const Plan = lazy(() => import('./pages/Plan.jsx'));
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
-  ['/', 'home', "Aujourd'hui", null],
+  ['/', 'home', 'Accueil', null],
   ['/programme', 'dumbbell', 'Entraînement', /^\/(programme|calendrier|cardio|historique)/],
+  ['/demarrer', 'play', 'Séance', /^\/seance/, 'go'],
   ['/corps', 'scale', 'Corps', /^\/(corps|plan)/],
-  ['/progres', 'chart', 'Progrès', /^\/(progres|objectifs|bilan|coach)/],
-  LEAGUE_ON ? ['/ligue', 'trophy', 'Ligue', /^\/ligue/] : ['/plus', 'menu', 'Plus', /^\/(plus|profil|donnees|rappels|outils)/],
+  ['/progres', 'chart', 'Progrès', /^\/(progres|objectifs|bilan|coach|ligue)/],
 ];
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
@@ -166,13 +167,16 @@ export default function App() {
           <Route path="/corps" element={<Nutrition />} />
           <Route path="/outils" element={<Tools />} />
           <Route path="/plan" element={<Plan />} />
+          <Route path="/demarrer" element={<StartSession />} />
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
       </main>
       {!inWorkout && (
-        <nav className="tabbar">{NAV.map(([to, icon, label, re]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || re?.test(loc.pathname) ? 'active' : '')}><Icon name={icon} size={22} /><span>{label}</span></NavLink>)}</nav>
+        <nav className="tabbar">{NAV.map(([to, icon, label, re, kind]) => (kind === 'go'
+          ? <NavLink key={to} to={active ? `/seance/${active.dayId}` : to} className={`go ${active ? 'live' : ''}`}><span className="go-dot"><Icon name={icon} size={22} /></span><span>{active ? 'En cours' : label}</span></NavLink>
+          : <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || re?.test(loc.pathname) ? 'active' : '')}><Icon name={icon} size={22} /><span>{label}</span></NavLink>))}</nav>
       )}
     </div>
   );

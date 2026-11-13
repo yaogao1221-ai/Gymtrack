@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { USER_ID, workoutSummary } from '../services.js';
+import { USER_ID, workoutSummary, exerciseBests } from '../services.js';
+import { e1rm, toLbs, r1 } from '../formulas.js';
 import { num, str, date, bad, notFound, patchRow } from '../util.js';
 
 export default function workoutRoutes(db) {
@@ -13,7 +14,30 @@ export default function workoutRoutes(db) {
       if (!g) { g = { exercise_id: s.exercise_id, name: s.exercise_name, kind: s.kind, position: s.position, sets: [] }; exercises.push(g); }
       g.sets.push(s);
     }
-    return { ...workoutSummary(db, w), exercises };
+    return { ...workoutSummary(db, w), exercises, review: review(w, exercises) };
+  };
+  // Bilan de séance : records battus et comparaison avec la dernière fois que ce jour du programme a été fait
+  const review = (w, exercises) => {
+    const bests = exerciseBests(db, { date: w.date, id: w.id });
+    const records = [];
+    for (const ex of exercises) {
+      const b = bests.get(ex.exercise_id); if (!b) continue;
+      const done = ex.sets.filter((x) => x.completed && x.weight > 0);
+      if (!done.length) continue;
+      const vals = done.map((x) => toLbs(x.weight, x.weight_unit));
+      const top = ex.kind === 'assisted' ? Math.min(...vals) : Math.max(...vals);
+      const best1 = ex.kind === 'assisted' ? null : Math.max(...done.map((x) => e1rm(toLbs(x.weight, x.weight_unit), x.reps) || 0));
+      const topSet = done[vals.indexOf(top)];
+      if (ex.kind === 'assisted' ? top < b.top_lbs - 1e-9 : top > b.top_lbs + 1e-9) records.push({ name: ex.name, type: ex.kind === 'assisted' ? 'assistance' : 'charge', value: topSet.weight, unit: topSet.weight_unit, reps: topSet.reps });
+      else if (best1 && b.e1rm_lbs && best1 > b.e1rm_lbs + 0.5) records.push({ name: ex.name, type: '1rm', value: r1(topSet.weight_unit === 'kg' ? best1 / 2.20462 : best1), unit: topSet.weight_unit });
+    }
+    const prev = w.program_day_id ? db.one('SELECT * FROM workouts WHERE user_id = ? AND program_day_id = ? AND (date < ? OR (date = ? AND id < ?)) ORDER BY date DESC, id DESC LIMIT 1', USER_ID, w.program_day_id, w.date, w.date, w.id) : null;
+    let compare = null;
+    if (prev) {
+      const a = workoutSummary(db, w); const p = workoutSummary(db, prev);
+      compare = { date: prev.date, volume_lbs: p.volume_lbs, volume_delta: a.volume_lbs - p.volume_lbs, sets_delta: a.sets_done - p.sets_done, duration_delta: (a.duration_sec || 0) - (p.duration_sec || 0) };
+    }
+    return { records, compare, first_time: !prev && !!w.program_day_id };
   };
 
   // Marque l'événement planifié du jour comme fait (de préférence celui du même jour de programme)
