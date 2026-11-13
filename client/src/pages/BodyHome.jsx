@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Loading, Ring, Sheet, Field, NumInput, useToast } from '../components/ui.jsx';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import BodyMap from '../components/BodyMap.jsx';
+import MissingMuscles from '../components/MissingMuscles.jsx';
 import { BodyCard } from './Dashboard.jsx';
 import { post, patch, today } from '../lib/api.js';
 import { fmtDate, n0 } from '../lib/format.js';
@@ -17,6 +18,7 @@ export default function BodyHome() {
   return (
     <Page tabs={<SectionTabs group="body" />} title="Mon corps">
       <section className="card bm-hero">{map.data ? <BodyMap data={map.data} /> : <Loading />}</section>
+      <MissingMuscles onAdded={() => map.reload()} />
 
       <div className="grid-2col">
         {r && <Card title="Récupération" icon="bolt" action={<Link className="link small" to="/progres?v=analyse">Analyse</Link>}>
