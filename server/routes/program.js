@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfile, exerciseBests } from '../services.js';
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
+import { templateList, applyTemplate, activateProgram } from '../templates.js';
 
 const units = ['lbs', 'kg'];
 const peFields = {
@@ -42,12 +43,23 @@ export default function programRoutes(db) {
   r.get('/exercises', (req, res) => res.json({ exercises: db.all('SELECT * FROM exercises ORDER BY name').map(exerciseRow), muscles: MUSCLES }));
   r.post('/exercises', (req, res) => {
     const b = req.body;
+    // Exercice de la bibliothèque illustrée : créé une seule fois puis réutilisé
+    const libId = str(b.lib_id, 'bibliothèque', { max: 80 });
+    if (libId) { const ex = db.one('SELECT * FROM exercises WHERE lib_id = ? ORDER BY id LIMIT 1', libId); if (ex) return res.json(exerciseRow(ex)); }
     const muscles = b.muscles && typeof b.muscles === 'object' ? Object.fromEntries(Object.entries(b.muscles).filter(([k, v]) => MUSCLES[k] && Number(v) > 0).map(([k, v]) => [k, Math.min(1, Number(v))])) : {};
-    const info = db.run('INSERT INTO exercises (name, pattern, muscles, equipment, kind, default_unit, technique) VALUES (?,?,?,?,?,?,?)',
+    const info = db.run('INSERT INTO exercises (name, pattern, muscles, equipment, kind, default_unit, technique, lib_id) VALUES (?,?,?,?,?,?,?,?)',
       str(b.name, 'nom', { required: true, max: 80 }), str(b.pattern, 'schéma', { max: 40 }) || 'custom', JSON.stringify(muscles), str(b.equipment, 'matériel', { max: 60 }),
-      oneOf(b.kind, 'type', ['weighted', 'bodyweight', 'assisted']) || 'weighted', oneOf(b.default_unit, 'unité', units) || 'lbs', str(b.technique, 'technique', { max: 500 }));
+      oneOf(b.kind, 'type', ['weighted', 'bodyweight', 'assisted']) || 'weighted', oneOf(b.default_unit, 'unité', units) || 'lbs', str(b.technique, 'technique', { max: 500 }), libId || null);
     res.status(201).json(exerciseRow(db.one('SELECT * FROM exercises WHERE id = ?', info.lastInsertRowid)));
   });
+
+  // Modèles de programmes et programmes enregistrés
+  r.get('/programs', (req, res) => res.json({
+    templates: templateList(),
+    programs: db.all('SELECT p.*, (SELECT COUNT(*) FROM program_days d WHERE d.program_id = p.id AND d.archived = 0) days FROM programs p WHERE user_id = ? ORDER BY active DESC, id DESC', USER_ID),
+  }));
+  r.post('/programs/template', (req, res) => { const id = applyTemplate(db, req.today, str(req.body.key, 'modèle', { required: true, max: 40 })); res.status(201).json({ id }); });
+  r.post('/programs/:id/activate', (req, res) => { activateProgram(db, req.today, Number(req.params.id)); res.json({ ok: true }); });
 
   // Programme + liens avec le calendrier (prochaine date prévue, dernière séance faite) et le planning type
   r.get('/program', (req, res) => {

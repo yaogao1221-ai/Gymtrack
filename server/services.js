@@ -34,7 +34,7 @@ export function getProgram(db, { withLast = true, includeArchived = false } = {}
   const program = activeProgram(db);
   if (!program) return { program: null, days: [] };
   const days = db.all(`SELECT * FROM program_days WHERE program_id = ? ${includeArchived ? '' : 'AND archived = 0'} ORDER BY position`, program.id);
-  const exStmt = db.prepare(`SELECT pe.*, e.name, e.slug, e.pattern, e.muscles, e.kind, e.equipment, e.technique
+  const exStmt = db.prepare(`SELECT pe.*, e.name, e.slug, e.pattern, e.muscles, e.kind, e.equipment, e.technique, e.lib_id
     FROM program_exercises pe JOIN exercises e ON e.id = pe.exercise_id WHERE pe.day_id = ? ORDER BY pe.position`);
   for (const d of days) {
     d.exercises = exStmt.all(d.id).map((pe) => ({
@@ -203,7 +203,7 @@ export function allRecords(db) {
   for (const r of per.values()) {
     const prev = best.get(r.exercise_id);
     const better = prev != null && (r.kind === 'assisted' ? r.v < prev.v - 1e-9 : r.v > prev.v + 1e-9);
-    if (better) records.push({ exercise_id: r.exercise_id, name: r.name, date: r.date, weight: r.weight, previous: r1(prev.unit === r.unit ? prev.weight : (r.unit === 'kg' ? prev.v / 2.20462 : prev.v)), unit: r.unit, assisted: r.kind === 'assisted' });
+    if (better) records.push({ exercise_id: r.exercise_id, name: r.name, date: r.date, weight: r1(r.weight), previous: r1(prev.unit === r.unit ? prev.weight : (r.unit === 'kg' ? prev.v / 2.20462 : prev.v)), unit: r.unit, assisted: r.kind === 'assisted' });
     if (prev == null || better) best.set(r.exercise_id, r);
   }
   return records;

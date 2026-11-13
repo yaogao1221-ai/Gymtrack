@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Segmented, Field, Loading, Empty, Icon } from '../components/ui.jsx';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import { LineChart, BarChart, COLORS } from '../components/charts.jsx';
+import { Badge3D } from '../components/Art3D.jsx';
 import { get, today } from '../lib/api.js';
 import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
 
@@ -21,24 +22,90 @@ export default function Progress() {
   );
 }
 
+const LIFT_COLORS = [COLORS.lime, COLORS.blue, COLORS.mint, COLORS.violet, COLORS.pink];
+const ZONE = { bas: 'Trop peu', correct: 'Entretien', optimal: 'Idéal', haut: 'Beaucoup' };
+const BADGE_LOOK = { first: ['first', 'mint'], s10: ['w10', 'coral'], s50: ['w10', 'violet'], s100: ['w10', 'gold'], w4: ['streak', 'coral'], w12: ['streak', 'gold'], pr1: ['record', 'gold'], pr25: ['record', 'violet'],
+  t100k: ['bolt', 'cyan'], t1m: ['bolt', 'gold'], c20: ['km42', 'cyan'], c1000: ['km42', 'violet'], weigh30: ['bolt', 'mint'], early: ['bolt', 'coral'], goal: ['first', 'gold'] };
+
 function Overview() {
   const [weeks, setWeeks] = useState(12);
-  const { data } = useApi(`/stats/overview?weeks=${weeks}&months=6`);
+  const { data } = useApi(`/stats/progress?weeks=${weeks}`);
+  const old = useApi('/stats/overview?weeks=4&months=6');
+  const badges = useApi('/badges');
   if (!data) return <Loading />;
-  const wl = data.weekly.map((w) => fmtDate(w.week, { day: 'numeric', month: 'short' }));
-  const ml = data.monthly.map((m) => new Date(m.month + '-15').toLocaleDateString('fr-FR', { month: 'short' }));
+  const wl = data.weeks.map((w) => fmtDate(w, { day: 'numeric', month: 'short' }));
+  const k = data.kpi;
   return (<>
-    <div className="row-between"><span className="muted small">Période</span><Segmented value={weeks} onChange={setWeeks} options={[[8, '8 sem.'], [12, '12 sem.'], [26, '6 mois']]} /></div>
-    <div className="grid-2col">
-      <Card title="Séances par semaine" icon="dumbbell"><BarChart labels={wl} series={[{ label: 'Muscu', data: data.weekly.map((w) => w.workouts), color: COLORS.lime }]} /></Card>
-      <Card title="Volume d’entraînement (lbs × reps)" icon="flame"><BarChart labels={wl} series={[{ label: 'Volume', data: data.weekly.map((w) => w.volume_lbs), color: COLORS.orange }]} /></Card>
-      <Card title="Progression mensuelle" icon="chart"><LineChart labels={ml} beginAtZero series={[
-        { label: 'Séries validées', data: data.monthly.map((m) => m.sets), color: COLORS.lime, fill: true },
-        { label: 'Minutes cardio', data: data.monthly.map((m) => m.cardio_minutes), color: COLORS.mint, axis: 'y2' },
-      ]} /></Card>
+    <div className="kpis">
+      <div className="kpi"><b>{k.streak_weeks}</b><span>semaine{k.streak_weeks > 1 ? 's' : ''} d’affilée</span></div>
+      <div className="kpi"><b>{n1(k.sessions_per_week)}{k.target_per_week ? <small>/{k.target_per_week}</small> : null}</b><span>séances / sem. (4 sem.)</span></div>
+      <div className="kpi"><b>{k.records_30d}</b><span>records en 30 j</span></div>
+      <div className="kpi"><b>{k.workouts}</b><span>séances au total</span></div>
     </div>
-    {data.records.length > 0 && <Card title="Records récents" icon="trophy"><ul className="records">{data.records.map((r, i) => <li key={i}><Icon name="trophy" size={14} className="gold" /><span><b>{r.name}</b> : {r.previous} → {r.weight} {r.unit}</span><span className="muted small">{fmtDate(r.date)}</span></li>)}</ul></Card>}
+    <div className="row-between mt"><span className="muted small">Période</span><Segmented value={weeks} onChange={setWeeks} options={[[8, '8 sem.'], [12, '12 sem.'], [26, '6 mois']]} /></div>
+
+    <Card title="Ta force progresse-t-elle ?" icon="up">
+      {data.lifts.length ? (<>
+        <p className="muted small">1RM estimé de tes exercices les plus pratiqués, en % par rapport au début de la période. Une courbe qui monte = tu deviens plus fort.</p>
+        <LineChart labels={wl} series={data.lifts.map((l, i) => ({ label: l.name, data: l.pct, color: LIFT_COLORS[i] }))} yTitle="%" />
+        <ul className="lift-list">{data.lifts.map((l, i) => (
+          <li key={l.id}><i style={{ background: LIFT_COLORS[i] }} /><span className="grow">{l.name}</span>
+            <span className="muted small">1RM ≈ {n0(l.now)} lbs</span><b className={l.gain_pct > 0 ? 'pos' : l.gain_pct < 0 ? 'neg' : ''}>{l.gain_pct == null ? '—' : `${l.gain_pct > 0 ? '+' : ''}${l.gain_pct} %`}</b></li>
+        ))}</ul>
+      </>) : <Empty icon="chart" title="Pas encore assez de séances">La courbe apparaît dès 2 séances sur un même exercice avec charge.</Empty>}
+    </Card>
+
+    <Card title="Séries par muscle et par semaine" icon="body">
+      <p className="muted small">Moyenne des 4 dernières semaines. La bande verte est la zone idéale pour ton niveau ({data.range.low} à {data.range.high} séries).</p>
+      <ul className="mbars">{[...data.muscles].sort((a, b) => b.sets - a.sets).map((m) => {
+        const max = Math.max(data.range.high + 4, ...data.muscles.map((x) => x.sets));
+        return (
+          <li key={m.key}><span className="mb-l">{m.label}</span>
+            <span className="mb-track"><span className="mb-band" style={{ left: `${data.range.low / max * 100}%`, width: `${(data.range.high - data.range.low) / max * 100}%` }} />
+              <span className={`mb-bar ${m.zone}`} style={{ width: `${Math.min(100, m.sets / max * 100)}%` }} /></span>
+            <span className="mb-v">{n1(m.sets)}</span><span className={`mb-z ${m.zone}`}>{ZONE[m.zone]}</span></li>
+        );
+      })}</ul>
+    </Card>
+
+    <Card title="Régularité (6 mois)" icon="calendar">
+      <Heat heat={data.heat} />
+      <p className="muted small mt-s"><span className="hl l1" /> cardio <span className="hl l2" /> muscu <span className="hl l3" /> muscu + cardio</p>
+    </Card>
+
+    <div className="grid-2col">
+      <Card title="Volume par semaine (lbs × reps)" icon="flame"><BarChart labels={wl} series={[{ label: 'Volume', data: data.weekly.map((w) => w.volume_lbs), color: COLORS.orange }]} /></Card>
+      <Card title="Séances et records" icon="dumbbell"><BarChart labels={wl} series={[{ label: 'Séances', data: data.weekly.map((w) => w.workouts), color: COLORS.lime }, { label: 'Records', data: data.records_by_week, color: COLORS.orange }]} /></Card>
+    </div>
+
+    {badges.data && <Card title={`Trophées · ${badges.data.list.filter((b) => b.earned).length}/${badges.data.list.length}`} icon="trophy">
+      <div className="badge-grid">{badges.data.list.map((b) => {
+        const [glyph, tone] = BADGE_LOOK[b.id] || ['record', 'violet'];
+        return (
+          <div key={b.id} className={`badge-cell ${b.earned ? '' : 'locked'}`} title={b.text}>
+            <Badge3D unlocked={b.earned} glyph={glyph} tone={tone} size={64} label={b.label} />
+            <b className="small">{b.label}</b>
+            {!b.earned && <span className="badge-prog"><span style={{ width: `${b.value / b.target * 100}%` }} /></span>}
+            <span className="muted xs">{b.earned ? b.text : `${n0(b.value)} / ${n0(b.target)}`}</span>
+          </div>
+        );
+      })}</div>
+    </Card>}
+
+    {old.data?.records.length > 0 && <Card title="Records récents" icon="trophy"><ul className="records">{old.data.records.map((r, i) => <li key={i}><Icon name="trophy" size={14} className="gold" /><span><b>{r.name}</b> : {r.previous} → {r.weight} {r.unit}</span><span className="muted small">{fmtDate(r.date)}</span></li>)}</ul></Card>}
   </>);
+}
+
+// Carte de chaleur : une colonne par semaine, une case par jour
+function Heat({ heat }) {
+  const cols = []; let d = heat.from;
+  while (d <= heat.to) { const col = []; for (let i = 0; i < 7; i++) { col.push(d); d = addDays(d, 1); } cols.push(col); }
+  return (
+    <div className="heat">{cols.map((c, i) => <div key={i} className="heat-col">{c.map((x) => {
+      const v = heat.days[x] || 0; const lvl = x > heat.to ? 'future' : v >= 3 ? 'l3' : v >= 2 ? 'l2' : v >= 1 ? 'l1' : '';
+      return <span key={x} className={`heat-cell ${lvl}`} title={`${fmtDate(x)}${v ? '' : ' · repos'}`} />;
+    })}</div>)}</div>
+  );
 }
 
 function ExerciseTab() {

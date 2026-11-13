@@ -1,43 +1,79 @@
 import { useEffect, useMemo, useState } from 'react';
-import { get } from '../lib/api.js';
-import { Sheet, Loading, Icon } from './ui.jsx';
+import { get, post } from '../lib/api.js';
+import { Sheet, Loading, Icon, useToast } from './ui.jsx';
+import { loadLib, thumb, toExercise, norm, CATS, MUSCLES_APP } from '../lib/exlib.js';
+import { ExerciseInfo } from './ExerciseDemo.jsx';
 
-const norm = (t) => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
-// Choix d'un exercice de la bibliothèque, avec en tête ceux qui travaillent les mêmes muscles
-export default function ExercisePicker({ open, onClose, title, like, onPick }) {
-  const [lib, setLib] = useState(null); const [q, setQ] = useState('');
-  useEffect(() => { if (open && !lib) get('/exercises').then((r) => setLib(r.exercises)).catch(() => setLib([])); if (open) setQ(''); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+// Recherche dans tes exercices + la bibliothèque illustrée (900 exercices : muscu, crossfit, mobilité, cardio)
+export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
+  const [mine, setMine] = useState(mineGiven || null); const [lib, setLib] = useState(null);
+  const [q, setQ] = useState(''); const [cat, setCat] = useState(''); const [mus, setMus] = useState(''); const [more, setMore] = useState(1);
+  const [info, setInfo] = useState(null); const [busy, setBusy] = useState(null); const toast = useToast();
+  useEffect(() => { if (!mineGiven) get('/exercises').then((r) => setMine(r.exercises)).catch(() => setMine([])); loadLib().then(setLib).catch(() => setLib([])); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mineGiven) setMine(mineGiven); }, [mineGiven]);
+  useEffect(() => setMore(1), [q, cat, mus]);
   const list = useMemo(() => {
-    if (!lib) return [];
-    const nq = norm(q);
-    const score = (e) => {
-      if (!like) return 0;
-      if (e.id === like.exercise_id) return -1;
-      let s = e.pattern && e.pattern === like.pattern ? 10 : 0;
-      for (const [m, w] of Object.entries(e.muscles || {})) s += (like.muscles?.[m] || 0) * w * 3;
-      return s;
+    if (!mine) return [];
+    const nq = norm(q); const words = nq.split(/\s+/).filter(Boolean);
+    const libById = new Map((lib || []).map((x) => [x.id, x]));
+    const own = mine.map((e) => ({ key: `m${e.id}`, e, x: e.lib_id ? libById.get(e.lib_id) : null, name: e.name, sub: e.equipment, muscles: e.muscles || {}, pattern: e.pattern, c: e.lib_id ? libById.get(e.lib_id)?.c || 'muscu' : 'muscu', mine: true }));
+    const used = new Set(mine.map((e) => e.lib_id).filter(Boolean));
+    const fromLib = (lib || []).filter((x) => !used.has(x.id)).map((x) => ({ key: x.id, x, name: x.n, sub: x.q, en: x.en, muscles: x.c === 'mobilite' ? Object.fromEntries((x.t || []).map((m) => [m, 1])) : x.m, pattern: x.pt, c: x.c }));
+    const score = (it) => {
+      if (!like) return it.mine ? 1 : 0;
+      if (it.e && it.e.id === like.exercise_id) return -1;
+      let sc = it.pattern && it.pattern === like.pattern ? 10 : 0;
+      for (const [m, w] of Object.entries(it.muscles || {})) sc += (like.muscles?.[m] || 0) * w * 3;
+      return sc + (it.mine ? 2 : 0);
     };
-    return lib.filter((e) => !nq || norm(e.name).includes(nq) || norm(e.equipment).includes(nq))
-      .map((e) => ({ e, s: score(e) })).filter((x) => x.s >= 0)
-      .sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name)).map((x) => x.e);
-  }, [lib, q, like]);
-  return (
-    <Sheet open={open} onClose={onClose} title={title}>
-      <input className="mb" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher (nom, machine, haltères…)" />
-      {!lib ? <Loading /> : (
-        <ul className="pick-list">
-          {list.slice(0, 60).map((e, i) => (
-            <li key={e.id}>
-              <button onClick={() => onPick(e)}>
-                <span className="grow"><b className="small">{e.name}</b><span className="muted small">{e.equipment || '—'}{like && i < 5 && !q ? ' · mêmes muscles' : ''}</span></span>
+    return [...own, ...fromLib]
+      .filter((it) => (!cat || it.c === cat) && (!mus || (it.muscles?.[mus] || 0) >= 0.5))
+      .filter((it) => !words.length || words.every((w) => norm(`${it.name} ${it.sub} ${it.en || ''}`).includes(w)))
+      .map((it) => ({ it, s: score(it) })).filter((y) => y.s >= 0)
+      .sort((a, b) => b.s - a.s || a.it.name.localeCompare(b.it.name)).map((y) => y.it);
+  }, [mine, lib, q, cat, mus, like]);
+  const choose = async (it) => {
+    if (it.e) return onPick(it.e);
+    setBusy(it.key);
+    try { const e = await post('/exercises', toExercise(it.x)); onPick(e); } catch (err) { toast(err.message, 'err'); } finally { setBusy(null); }
+  };
+  return (<>
+    <div className="search-row"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : squat, poulie, étirement, burpee…" /></div>
+    <div className="chips scroll mt-s">
+      <button className={`chip ${!cat ? 'on' : ''}`} onClick={() => setCat('')}>Tout</button>
+      {Object.entries(CATS).map(([k, l]) => <button key={k} className={`chip ${cat === k ? 'on' : ''}`} onClick={() => setCat(cat === k ? '' : k)}>{l}</button>)}
+    </div>
+    <select className="mt-s" value={mus} onChange={(e) => setMus(e.target.value)}><option value="">Tous les muscles</option>{Object.entries(MUSCLES_APP).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+    {!mine || !lib ? <Loading /> : (<>
+      <p className="muted small mt-s">{list.length} exercice{list.length > 1 ? 's' : ''}</p>
+      <ul className="pick-list lib">
+        {list.slice(0, 50 * more).map((it, i) => {
+          const src = thumb(it.x?.id || it.e?.lib_id);
+          return (
+            <li key={it.key}>
+              <button className="pick-main" onClick={() => choose(it)} disabled={busy === it.key}>
+                {src ? <img className="pick-thumb" src={src} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /> : <span className="pick-thumb empty"><Icon name="dumbbell" size={16} /></span>}
+                <span className="grow"><b className="small">{it.name}</b><span className="muted small">{[it.sub, CATS[it.c]].filter(Boolean).join(' · ')}{it.mine ? ' · dans tes exercices' : ''}{like && i < 5 && !q ? ' · mêmes muscles' : ''}</span></span>
                 <Icon name="plus" size={16} />
               </button>
+              {it.x && <button className="pick-info" onClick={() => setInfo(it.x)} aria-label="Voir la démo"><Icon name="image" size={18} /></button>}
             </li>
-          ))}
-          {!list.length && <li className="muted small">Aucun exercice trouvé. Tu peux en créer un depuis Programme.</li>}
-        </ul>
-      )}
+          );
+        })}
+        {!list.length && <li className="muted small">Aucun exercice trouvé.</li>}
+      </ul>
+      {list.length > 50 * more && <button className="btn block ghost mt-s" onClick={() => setMore(more + 1)}>Afficher plus</button>}
+    </>)}
+    <ExerciseInfo open={!!info} x={info} onClose={() => setInfo(null)}
+      footer={info && <button className="btn primary" onClick={async () => { const it = list.find((y) => y.x === info); setInfo(null); if (it) await choose(it); }}>Choisir cet exercice</button>} />
+  </>);
+}
+
+// Choix d'un exercice (séance), avec en tête ceux qui travaillent les mêmes muscles
+export default function ExercisePicker({ open, onClose, title, like, onPick }) {
+  return (
+    <Sheet open={open} onClose={onClose} title={title}>
+      {open && <ExerciseBrowser like={like} onPick={onPick} />}
     </Sheet>
   );
 }

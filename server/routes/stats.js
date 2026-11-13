@@ -41,7 +41,7 @@ export default function statsRoutes(db) {
       workout: wEv ? { name: wEv.day_name, focus: wEv.focus, program_day_id: wEv.program_day_id, deload: !!wEv.deload, done: !!doneW || wEv.status === 'done', workout_id: doneW?.id || wEv.workout_id } : doneW ? { done: true, workout_id: doneW.id, extra: true } : null,
       rest: !wEv && !doneW && todayEv.some((e) => e.type === 'rest'),
       cardio: (cEv || progCardio) ? { minutes: (cEv?.planned_minutes || 0) + Math.round(progCardio), done: doneC.n > 0, done_minutes: Math.round(doneC.m) } : doneC.n ? { minutes: 0, done: true, done_minutes: Math.round(doneC.m) } : null,
-      weighed, kcal: nutrition?.kcal ?? null, protein_g: nutrition?.protein_g ?? null, steps: nutrition ? STEPS[nutrition.type] : null,
+      weighed, eaten_kcal: Math.round(db.one('SELECT COALESCE(SUM(kcal),0) k FROM food_logs WHERE user_id = ? AND date = ?', USER_ID, today).k), kcal: nutrition?.kcal ?? null, protein_g: nutrition?.protein_g ?? null, steps: nutrition ? STEPS[nutrition.type] : null,
     };
     // À valider : propositions en attente, jamais appliquées seules
     const pending = [];

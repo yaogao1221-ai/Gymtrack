@@ -56,6 +56,20 @@ export const EXERCISES = [
   ['nordic_curl', 'Leg curl nordique (assisté)', 'knee_flexion', { ischios: 1 }, 'Poids du corps', 'bodyweight', 'lbs', 'Descente lente, s’aider des mains.', 1],
 ];
 
+// Correspondance avec la bibliothèque illustrée (client/src/data/exlib.json)
+export const SEED_LIB = {
+  dev_incline: 'Incline_Dumbbell_Press', dev_couche: 'Dumbbell_Bench_Press', dips: 'Dip_Machine', pec_fly: 'Butterfly', skull_crushers: 'EZ-Bar_Skullcrusher',
+  ext_triceps_corde: 'Triceps_Pushdown_-_Rope_Attachment', ext_triceps_uni: 'Cable_One_Arm_Tricep_Extension', tractions_assistees: 'Band_Assisted_Pull-Up',
+  row: 'One-Arm_Dumbbell_Row', tirage_assis_serre: 'Seated_Cable_Rows', row_2: 'One-Arm_Dumbbell_Row', curl_classique: 'Dumbbell_Bicep_Curl', curl_marteau: 'Hammer_Curls',
+  rdl: 'Romanian_Deadlift', leg_press: 'Leg_Press', seated_leg_curl: 'Seated_Leg_Curl', abduction: 'Thigh_Abductor', hip_thrust: 'Barbell_Hip_Thrust',
+  mollets_machine: 'Standing_Calf_Raises', mollets_pdc: 'Calf_Raise_On_A_Dumbbell', dev_militaire: 'Dumbbell_Shoulder_Press', reverse_fly: 'Reverse_Machine_Flyes',
+  elev_laterales: 'Side_Lateral_Raise', elev_frontales: 'Front_Dumbbell_Raise', face_pull: 'Face_Pull', shrugs: 'Dumbbell_Shrug', squat: 'Barbell_Squat',
+  leg_curl_couche: 'Lying_Leg_Curls', leg_extension: 'Leg_Extensions', adduct_abduct: 'Thigh_Adductor', planche: 'Plank', crunch_poulie: 'Cable_Crunch',
+  releves_jambes: 'Hanging_Leg_Raise', pallof: 'Pallof_Press', hyperextension: 'Hyperextensions_Back_Extensions', fentes_bulgares: 'Split_Squat_with_Dumbbells',
+  tirage_vertical: 'Wide-Grip_Lat_Pulldown', pullover_poulie: 'Straight-Arm_Pulldown', rotation_externe: 'External_Rotation_with_Cable', farmer_walk: 'Farmers_Walk',
+  curl_incline: 'Incline_Dumbbell_Curl', nordic_curl: 'x_nordic',
+};
+
 // [slug, séries, reps, note reps, charge, charge max, unité, note charge, superset, repos]
 const PROGRAM = [
   ['D1', 'Jour 1', 'Pectoraux / Triceps', [

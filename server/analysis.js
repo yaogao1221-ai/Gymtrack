@@ -19,7 +19,7 @@ export const PAIN_AREAS = {
 
 const SMALL = new Set(['avant_bras', 'trapezes', 'abducteurs', 'adducteurs', 'epaules_ant', 'mollets']);
 const LOWER = new Set(['quadriceps', 'ischios', 'fessiers', 'adducteurs', 'abducteurs', 'mollets']);
-const RANGES = { debutant: [6, 8, 14], intermediaire: [8, 10, 18], avance: [10, 12, 22] };
+export const RANGES = { debutant: [6, 8, 14], intermediaire: [8, 10, 18], avance: [10, 12, 22] };
 const DAY_FR = { mon: 'lundi', tue: 'mardi', wed: 'mercredi', thu: 'jeudi', fri: 'vendredi', sat: 'samedi', sun: 'dimanche' };
 const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 

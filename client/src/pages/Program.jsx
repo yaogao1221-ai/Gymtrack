@@ -5,6 +5,10 @@ import { post, patch, put, del } from '../lib/api.js';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import { repsLabel, weightLabel, fmtDate, CARDIO, CARDIO_ICON } from '../lib/format.js';
 import { Chips } from '../components/ui.jsx';
+import { ExerciseBrowser } from '../components/ExercisePicker.jsx';
+import { DemoImages, ExerciseInfo } from '../components/ExerciseDemo.jsx';
+import { thumb } from '../lib/exlib.js';
+import ProgramTemplates from '../components/ProgramTemplates.jsx';
 
 export default function Program() {
   const { data, error, reload } = useApi('/program');
@@ -12,6 +16,7 @@ export default function Program() {
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
   const [wd, setWd] = useState(null);
   const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
+  const [demo, setDemo] = useState(null); const [tpl, setTpl] = useState(false);
   const nav = useNavigate(); const toast = useToast();
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
@@ -25,7 +30,7 @@ export default function Program() {
   };
   return (
     <Page tabs={<SectionTabs group="training" />} title="Programme" subtitle={data.program?.name}
-      actions={<button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button>}>
+      actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => setTpl(true)}>Programmes</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
       <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
         {data.days.map((d, i) => <button key={d.id} className={`tab ${i === sel ? 'on' : ''}`} onClick={() => setSel(i)}><b>{d.name}</b><span>{d.focus}</span>{d.next_date && <span className="tab-next">{fmtDate(d.next_date, { weekday: 'short', day: 'numeric' })}</span>}</button>)}
@@ -51,6 +56,7 @@ export default function Program() {
                   {e.last && <div className="ex-last">Dernière fois ({fmtDate(e.last.date, { day: 'numeric', month: 'short' })}) : {e.last.sets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ')}</div>}
                   {e.notes && <div className="ex-last">{e.notes}</div>}
                 </div>
+                {!edit && thumb(e.lib_id) && <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.parentElement.style.display = 'none'; }} /></button>}
                 {edit && <div className="reorder" onClick={(ev) => ev.stopPropagation()}>
                   <button className="icon-btn sm" aria-label="Monter" onClick={() => move(i, -1)} disabled={i === 0}><Icon name="up" size={16} /></button>
                   <button className="icon-btn sm" aria-label="Descendre" onClick={() => move(i, 1)} disabled={i === day.exercises.length - 1}><Icon name="down" size={16} /></button>
@@ -79,6 +85,8 @@ export default function Program() {
         </Card>
       )}
 
+      <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
+      <ProgramTemplates open={tpl} onClose={() => setTpl(false)} onDone={() => { setTpl(false); setSel(0); reload(); }} />
       <ExerciseSheet pe={pe} onClose={() => setPe(null)} lib={lib.data?.exercises || []}
         onSave={(body) => run(async () => { await patch(`/program/exercises/${pe.id}`, body); setPe(null); }, 'Exercice mis à jour')}
         onDelete={() => run(async () => { await del(`/program/exercises/${pe.id}`); setPe(null); }, 'Exercice retiré')} />
@@ -137,10 +145,9 @@ function ExerciseSheet({ pe, onClose, onSave, onDelete, lib }) {
 }
 
 function AddSheet({ open, onClose, onAdd, lib, reloadLib }) {
-  const [q, setQ] = useState(''); const [pick, setPick] = useState(null); const [cfg, setCfg] = useState({ sets: 2, reps: 8 });
+  const [pick, setPick] = useState(null); const [cfg, setCfg] = useState({ sets: 2, reps: 8 });
   const [custom, setCustom] = useState(null); const toast = useToast();
-  const list = lib.filter((e) => e.name.toLowerCase().includes(q.toLowerCase()));
-  const close = () => { setPick(null); setQ(''); setCustom(null); onClose(); };
+  const close = () => { setPick(null); setCustom(null); onClose(); };
   const createCustom = async () => {
     try { const ex = await post('/exercises', custom); await reloadLib(); setPick(ex); setCustom(null); }
     catch (e) { toast(e.message, 'err'); }
@@ -155,6 +162,7 @@ function AddSheet({ open, onClose, onAdd, lib, reloadLib }) {
           <option value="">—</option>{Object.entries(MUSCLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
         <div className="row gap"><button className="btn ghost" onClick={() => setCustom(null)}>Annuler</button><button className="btn primary" disabled={!custom.name} onClick={createCustom}>Créer</button></div>
       </>) : pick ? (<>
+        {pick.lib_id && <DemoImages x={{ id: pick.lib_id, img: pick.lib_id.startsWith('x_') ? 0 : 2 }} size="md" />}
         <div className="grid2">
           <Field label="Séries"><NumInput value={cfg.sets} onChange={(v) => setCfg({ ...cfg, sets: v })} /></Field>
           <Field label="Répétitions"><NumInput value={cfg.reps} onChange={(v) => setCfg({ ...cfg, reps: v })} /></Field>
@@ -163,11 +171,8 @@ function AddSheet({ open, onClose, onAdd, lib, reloadLib }) {
         {pick.technique && <p className="tip"><Icon name="info" size={14} />{pick.technique}</p>}
         <button className="btn ghost sm" onClick={() => setPick(null)}>Choisir un autre exercice</button>
       </>) : (<>
-        <input className="search" placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <ul className="pick-list">
-          {list.map((e) => <li key={e.id}><button onClick={() => setPick(e)}><b>{e.name}</b><span className="muted small">{e.equipment}</span></button></li>)}
-        </ul>
-        <button className="btn block dashed" onClick={() => setCustom({ name: q, kind: 'weighted', muscles: {} })}><Icon name="plus" size={16} />Créer un exercice personnalisé</button>
+        <ExerciseBrowser onPick={(e) => { reloadLib(); setPick(e); }} />
+        <button className="btn block dashed mt-s" onClick={() => setCustom({ name: '', kind: 'weighted', muscles: {} })}><Icon name="plus" size={16} />Créer un exercice personnalisé</button>
       </>)}
     </Sheet>
   );

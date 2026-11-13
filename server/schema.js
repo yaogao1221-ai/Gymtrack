@@ -1,5 +1,5 @@
 // Schéma et helpers partagés entre le serveur Node (node:sqlite) et la version autonome (sql.js dans le navigateur)
-import { seed } from './seed.js';
+import { seed, SEED_LIB } from './seed.js';
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   default_unit TEXT NOT NULL DEFAULT 'lbs',
   technique TEXT,
   in_library_only INTEGER NOT NULL DEFAULT 0,
+  lib_id TEXT,                  -- exercice de la bibliothèque (photos de démo)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -219,6 +220,24 @@ CREATE TABLE IF NOT EXISTS pain_reports (
   resolved INTEGER NOT NULL DEFAULT 0
 );
 
+-- Journal alimentaire : valeurs figées au moment de la saisie (table Ciqual ou aliment perso)
+CREATE TABLE IF NOT EXISTS food_logs (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  meal TEXT NOT NULL DEFAULT 'dejeuner',  -- petit_dej | dejeuner | collation | diner
+  food_code TEXT,
+  name TEXT NOT NULL,
+  grams REAL NOT NULL,
+  kcal REAL NOT NULL DEFAULT 0,
+  protein_g REAL NOT NULL DEFAULT 0,
+  carbs_g REAL NOT NULL DEFAULT 0,
+  fat_g REAL NOT NULL DEFAULT 0,
+  per100 TEXT,                  -- JSON {k,p,g,l} pour recalculer si la quantité change
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(user_id, date);
+
 -- Historique des recommandations validées / ignorées (aucune modification sans validation)
 CREATE TABLE IF NOT EXISTS recommendation_log (
   id INTEGER PRIMARY KEY,
@@ -255,6 +274,7 @@ export function setupDb(db) {
   if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
+  if (!cols('exercises').has('lib_id')) db.exec('ALTER TABLE exercises ADD COLUMN lib_id TEXT');
   // Transactions imbriquables : seule la plus externe ouvre et valide (une action composée reste atomique)
   let depth = 0;
   db.tx = (fn) => {
@@ -267,6 +287,8 @@ export function setupDb(db) {
   db.all = (sql, ...p) => db.prepare(sql).all(...p);
   db.run = (sql, ...p) => db.prepare(sql).run(...p);
   if (!db.one('SELECT id FROM users LIMIT 1')) db.tx(() => seed(db));
+  // Photos de démo pour les exercices de base
+  for (const [slug, lib] of Object.entries(SEED_LIB)) db.run('UPDATE exercises SET lib_id = ? WHERE slug = ? AND lib_id IS NULL', lib, slug);
   return db;
 }
 

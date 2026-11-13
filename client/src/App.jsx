@@ -24,20 +24,22 @@ const Recap = lazy(() => import('./pages/Recap.jsx'));
 const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
 const Plan = lazy(() => import('./pages/Plan.jsx'));
+const Care = lazy(() => import('./pages/Care.jsx'));
+const Meals = lazy(() => import('./pages/Meals.jsx'));
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
   ['/', 'home', 'Accueil', null],
   ['/programme', 'dumbbell', 'Entraînement', /^\/(programme|calendrier|cardio|historique)/],
   ['/demarrer', 'play', 'Séance', /^\/seance/, 'go'],
-  ['/corps', 'scale', 'Corps', /^\/(corps|plan)/],
+  ['/corps', 'scale', 'Corps', /^\/(corps|plan|repas|soins)/],
   ['/progres', 'chart', 'Progrès', /^\/(progres|objectifs|bilan|coach|ligue)/],
 ];
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
   ['/', 'home', "Aujourd'hui"],
   ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/calendrier', 'calendar', 'Calendrier'], ['/cardio', 'heart', 'Cardio'],
-  ['Corps'], ['/corps', 'scale', 'Poids, calories, cure'], ['/plan', 'target', 'Mon plan'],
+  ['Corps'], ['/corps', 'scale', 'Poids, calories, cure'], ['/repas', 'food', 'Repas'], ['/plan', 'target', 'Mon plan'], ['/soins', 'heal', 'Soins et mobilité'],
   ['Progrès'], ['/progres', 'chart', 'Progrès'], ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/coach', 'brain', 'Analyse'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
   ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Outils'],
@@ -167,6 +169,8 @@ export default function App() {
           <Route path="/corps" element={<Nutrition />} />
           <Route path="/outils" element={<Tools />} />
           <Route path="/plan" element={<Plan />} />
+          <Route path="/soins" element={<Care />} />
+          <Route path="/repas" element={<Meals />} />
           <Route path="/demarrer" element={<StartSession />} />
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />

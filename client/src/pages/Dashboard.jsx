@@ -136,7 +136,7 @@ function MyDay({ day, onWeigh }) {
           {x.done && x.to && <Link className="link small" to={x.to}>Voir</Link>}
         </li>
       ))}</ul>
-      {day.kcal ? <p className="day-targets small"><b>{Number(day.kcal).toLocaleString('fr-FR')} kcal</b> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/corps">cure</Link></p>
+      {day.kcal ? <p className="day-targets small"><Link to="/repas"><b>{Number(day.eaten_kcal || 0).toLocaleString('fr-FR')} / {Number(day.kcal).toLocaleString('fr-FR')} kcal</b> mangées</Link> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/repas">noter un repas</Link></p>
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/plan">calcule ton plan</Link></p>}
     </section>
   );

@@ -4,6 +4,7 @@ import { get, postOrQueue, store, uid, today } from '../lib/api.js';
 import { Icon, Loading, Sheet, Field, NumInput, Confirm, useToast, ErrorBox } from '../components/ui.jsx';
 import { clock, weightLabel, repsLabel, fmtDate, CARDIO_ICON } from '../lib/format.js';
 import ExercisePicker, { platesFor, warmupFor } from '../components/ExercisePicker.jsx';
+import { ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { e1rm, toLbs } from '../../../server/formulas.js';
 import { suggestNext } from '../lib/progression.js';
 
@@ -32,7 +33,7 @@ function buildSession(day, profile, deload = false) {
     const lastSets = pe.last?.sets || [];
     return {
       pe_id: pe.id, exercise_id: pe.exercise_id, name: pe.name, kind: pe.kind, unit: pe.weight_unit, technique: pe.technique, superset: pe.superset_group,
-      pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note,
+      pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note, lib_id: pe.lib_id,
       target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
       last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
       best: pe.best || null, sugg: deload ? null : suggestNext(pe),
@@ -60,7 +61,7 @@ export default function Workout() {
   const [s, setS] = useState(() => { const a = store.get(KEY); return a && String(a.dayId) === String(dayId) ? a : null; });
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
-  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null);
+  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [demo, setDemo] = useState(null);
   const blockRefs = useRef([]);
 
   useEffect(() => {
@@ -173,7 +174,7 @@ export default function Workout() {
   // Exercice hors programme : machine prise, envie d'ajouter un exercice…
   const fromLib = (e, base) => ({
     pe_id: null, exercise_id: e.id, name: e.name, kind: e.kind, unit: e.default_unit || base?.unit || 'lbs', technique: e.technique, superset: null,
-    pattern: e.pattern, muscles: e.muscles, equipment: e.equipment, wnote: null, extra: true, replaced: base?.name || null,
+    pattern: e.pattern, muscles: e.muscles, equipment: e.equipment, lib_id: e.lib_id, wnote: null, extra: true, replaced: base?.name || null,
     target: { sets: base?.target.sets || 3, reps: base?.target.reps || 10, label: `${base?.target.sets || 3} × ${base?.target.reps || 10} · hors programme` }, rest: base?.rest || 90, last: null,
     sets: Array.from({ length: base?.sets.length || 3 }, () => ({ weight: null, reps: base?.target.reps || 10, done: false })),
   });
@@ -239,6 +240,7 @@ export default function Workout() {
                     <div className="wk-last">
                       {it.last ? <>Dernière fois ({fmtDate(it.last.date, { day: 'numeric', month: 'short' })}) : <b>{it.last.text}</b></> : 'Première fois : choisis une charge confortable.'}
                       {it.technique && <button className="link small" onClick={() => setTips({ ...tips, [ii]: !tips[ii] })}>Technique</button>}
+                      {it.lib_id && <button className="link small" onClick={() => setDemo(it.lib_id)}>Démo</button>}
                     </div>
                     {it.sugg && !it.sets.some((x) => x.done) && (
                       <div className="sugg"><Icon name="up" size={16} /><span className="grow"><b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
@@ -311,6 +313,7 @@ export default function Workout() {
         <Field label="Notes (sensations, douleurs, technique…)"><textarea rows={3} value={s.notes} onChange={(e) => update((y) => { y.notes = e.target.value; })} /></Field>
         <p className="muted small">Les charges de ton programme ne changent pas automatiquement : l’onglet Analyse te proposera une progression que tu pourras valider.</p>
       </Sheet>
+      <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
       <ExercisePicker open={!!picker} onClose={() => setPicker(null)} title={picker?.title} like={picker?.like} onPick={pick} />
       <Confirm open={cancel} onClose={() => setCancel(false)} danger title="Abandonner la séance ?" confirmLabel="Abandonner" text="Les séries saisies seront perdues."
         onConfirm={() => { store.del(KEY); nav('/'); }} />
