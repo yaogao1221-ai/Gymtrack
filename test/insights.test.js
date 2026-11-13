@@ -76,3 +76,19 @@ test('historique : changer un exercice, ajouter/supprimer une série, retirer un
   r = await call('POST', `/workouts/${w.id}/exercises/remove`, { position: 1, exercise_id: a.exercise_id });
   assert.equal(r.body.exercises.length, 1);
 });
+
+test('créateur de programme : objectif → muscu + cardio intégrés, objectifs créés', async () => {
+  const pv = (await call('POST', '/builder/preview', { objective: 'perte_de_gras', days: 4, level: 'intermediaire' })).body;
+  assert.equal(pv.type, 'mixte'); assert.equal(pv.sessions.muscu, 3); assert.equal(pv.sessions.cardio, 1); assert.ok(pv.cardio_week >= 120);
+  assert.ok(pv.why.some((w) => /Schoenfeld/.test(w)));
+  const c = (await call('POST', '/builder/preview', { objective: 'endurance', days: 3, level: 'avance' })).body;
+  assert.equal(c.sessions.muscu, 0); assert.ok(c.days.some((d) => d.name === 'Cardio intervalles'));
+  const r = await call('POST', '/builder/apply', { objective: 'perte_de_gras', days: 4, cure: false });
+  assert.equal(r.status, 201);
+  const prog = (await call('GET', '/program')).body;
+  assert.equal(prog.days.length, 4); assert.ok(prog.days.some((d) => !d.exercises.length && d.cardio.length));
+  const goals = (await call('GET', '/goals')).body;
+  assert.ok(goals.some((g) => g.type === 'cardio_minutes_semaine' && g.status === 'actif' && g.target_value === pv.cardio_week));
+  const own = await call('POST', '/builder/apply', { custom: true, days: 3, name: 'Perso' });
+  assert.equal(own.status, 201); assert.equal((await call('GET', '/program')).body.days.length, 3);
+});

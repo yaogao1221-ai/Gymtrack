@@ -12,7 +12,6 @@ import Workout from './pages/Workout.jsx';
 import StartSession from './pages/StartSession.jsx';
 const WorkoutDetail = lazy(() => import('./pages/WorkoutDetail.jsx'));
 const Cardio = lazy(() => import('./pages/Cardio.jsx'));
-const Calendar = lazy(() => import('./pages/Calendar.jsx'));
 const Progress = lazy(() => import('./pages/Progress.jsx'));
 const Coach = lazy(() => import('./pages/Coach.jsx'));
 const Goals = lazy(() => import('./pages/Goals.jsx'));
@@ -24,13 +23,13 @@ const Reminders = lazy(() => import('./pages/Reminders.jsx'));
 const Recap = lazy(() => import('./pages/Recap.jsx'));
 const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
-const Plan = lazy(() => import('./pages/Plan.jsx'));
+const Builder = lazy(() => import('./pages/Builder.jsx'));
 const Care = lazy(() => import('./pages/Care.jsx'));
 const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
 const Meals = lazy(() => import('./pages/Meals.jsx'));
 // Écrans regroupés de l'espace Corps
 const PROGRESS_VIEWS = [['stats', 'Statistiques', Progress], ['objectifs', 'Objectifs', Goals], ['analyse', 'Analyse', Coach], ['bilan', 'Bilan de la semaine', Recap]];
-const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition], ['plan', 'Mon plan', Plan]];
+const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition]];
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
@@ -43,7 +42,7 @@ const NAV = [
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
   ['/', 'home', "Aujourd'hui"],
-  ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/calendrier', 'calendar', 'Calendrier'], ['/cardio', 'heart', 'Cardio'],
+  ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'],
   ['Corps'], ['/corps', 'body', 'Mon corps'], ['/progres', 'chart', 'Progrès'], ['/nutrition', 'food', 'Nutrition'], ['/soins', 'heal', 'Soins et mobilité'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
   ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Outils'],
@@ -156,12 +155,12 @@ export default function App() {
         <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/bienvenue" element={<Onboarding onDone={(p) => { setProfile(p); nav('/'); }} />} />
+          <Route path="/bienvenue" element={<Onboarding onDone={(p) => { setProfile(p); nav('/programme/creer'); }} />} />
           <Route path="/programme" element={<Program />} />
           <Route path="/seance/:dayId" element={<Workout />} />
           <Route path="/historique/:id" element={<WorkoutDetail />} />
           <Route path="/cardio" element={<Cardio />} />
-          <Route path="/calendrier" element={<Calendar />} />
+          <Route path="/calendrier" element={<CalRedirect />} />
           <Route path="/progres" element={<Hub title="Progrès" views={PROGRESS_VIEWS} />} />
           <Route path="/coach" element={<Navigate to="/progres?v=analyse" replace />} />
           <Route path="/objectifs" element={<Navigate to="/progres?v=objectifs" replace />} />
@@ -173,7 +172,8 @@ export default function App() {
           <Route path="/corps" element={<BodyHome />} />
           <Route path="/nutrition" element={<Hub title="Nutrition" views={NUTRITION_VIEWS} />} />
           <Route path="/outils" element={<Tools />} />
-          <Route path="/plan" element={<Navigate to="/nutrition?v=plan" replace />} />
+          <Route path="/plan" element={<Navigate to="/programme/creer" replace />} />
+          <Route path="/programme/creer" element={<Builder />} />
           <Route path="/soins" element={<Care />} />
           <Route path="/repas" element={<Navigate to="/nutrition" replace />} />
           <Route path="/demarrer" element={<StartSession />} />
@@ -190,3 +190,6 @@ export default function App() {
     </div>
   );
 }
+
+// Le calendrier vit sur l'accueil : les anciens liens y mènent
+function CalRedirect() { const loc = useLocation(); return <Navigate to={`/${loc.search}`} replace />; }

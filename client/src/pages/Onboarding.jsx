@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { get, put, post, today } from '../lib/api.js';
 import { Field, Icon, Loading, useToast } from '../components/ui.jsx';
-import { GoalsSection, AvailabilitySection, PreferencesSection, TrackingSection, CardioSection, pickProfile } from '../components/profileForm.jsx';
+import { AvailabilitySection, PreferencesSection, TrackingSection, pickProfile } from '../components/profileForm.jsx';
 import { weekStart } from '../lib/format.js';
 
-const STEPS = ['Bienvenue', 'Objectifs', 'Disponibilités', 'Préférences', 'Suivi', 'Cardio'];
+const STEPS = ['Bienvenue', 'Disponibilités', 'Préférences', 'Suivi'];
 
 export default function Onboarding({ onDone }) {
   const [p, setP] = useState(null); const [days, setDays] = useState([]); const [step, setStep] = useState(0);
@@ -31,20 +31,18 @@ export default function Onboarding({ onDone }) {
         <p className="eyebrow">Étape {step + 1} / {STEPS.length} · {STEPS[step]}</p>
         {step === 0 && (<>
           <h1 className="hero-title">Bienvenue sur GymTrack</h1>
-          <p className="muted">Ton programme 5 jours est déjà chargé. Quelques questions pour personnaliser l’analyse, le cardio et le calendrier (2 minutes, tout reste modifiable dans ton profil).</p>
+          <p className="muted">Ton programme 5 jours est déjà chargé. Quelques questions (1 minute), puis tu choisis ton objectif : l’appli te construit le programme, le cardio et la cure qui vont avec.</p>
           <Field label="Ton prénom"><input value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder="Prénom" autoFocus /></Field>
         </>)}
-        {step === 1 && <GoalsSection p={p} set={set} />}
-        {step === 2 && <AvailabilitySection p={p} set={set} days={days} />}
-        {step === 3 && <PreferencesSection p={p} set={set} />}
-        {step === 4 && <TrackingSection p={p} set={set} />}
-        {step === 5 && (<>
-          <CardioSection p={p} set={set} />
+        {step === 1 && <AvailabilitySection p={p} set={set} days={days} />}
+        {step === 2 && <PreferencesSection p={p} set={set} />}
+        {step === 3 && (<>
+          <TrackingSection p={p} set={set} />
           <label className="check"><input type="checkbox" checked={plan} onChange={(e) => setPlan(e.target.checked)} /> Planifier les 4 prochaines semaines dans le calendrier selon mon planning type</label>
         </>)}
         <div className="row-between mt">
           <button className="btn ghost" disabled={step === 0} onClick={() => setStep(step - 1)}><Icon name="left" size={16} />Retour</button>
-          {last ? <button className="btn primary" disabled={busy} onClick={finish}>{busy ? 'Enregistrement…' : 'Commencer'}<Icon name="check" size={16} /></button>
+          {last ? <button className="btn primary" disabled={busy} onClick={finish}>{busy ? 'Enregistrement…' : 'Choisir mon objectif'}<Icon name="check" size={16} /></button>
             : <button className="btn primary" onClick={() => setStep(step + 1)}>Suivant<Icon name="right" size={16} /></button>}
         </div>
       </div>

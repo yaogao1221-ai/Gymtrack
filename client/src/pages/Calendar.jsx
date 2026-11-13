@@ -6,8 +6,20 @@ import { post, patch, del, today } from '../lib/api.js';
 import { addDays, weekStart, fmtDay, iso, CARDIO, CARDIO_ICON, mins } from '../lib/format.js';
 
 const monthOf = (d) => d.slice(0, 7);
+// Libellé court et lisible d'une séance : « Pecs », « Dos », « Full A », « Push », « Cardio »
+const ABBR = { Pectoraux: 'Pecs', Quadriceps: 'Jambes', Ischios: 'Jambes', Corps: 'Full', Épaules: 'Épaules' };
+export const shortDay = (name = '', focus = '') => {
+  if (/^cardio/i.test(name)) return 'Cardio';
+  if (/^jour \d/i.test(name)) { const w = (focus || '').split(/[ /·,]+/)[0]; return ABBR[w] || w || name.replace('Jour ', 'J'); }
+  return name.replace(/^Full body /, 'Full ').replace(/^Haut /, 'Haut ').slice(0, 9);
+};
+const isCardioDay = (name = '') => /^cardio/i.test(name);
 
 export default function Calendar() {
+  return <Page tabs={<SectionTabs group="training" />} title="Calendrier"><CalendarView /></Page>;
+}
+
+export function CalendarView({ home }) {
   const [params] = useSearchParams();
   const t = today();
   const [month, setMonth] = useState(monthOf(params.get('d') || t));
@@ -41,21 +53,23 @@ export default function Calendar() {
   const title = new Date(first + 'T12:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const sel = selected && by(selected);
 
-  return (
-    <Page tabs={<SectionTabs group="training" />} title="Calendrier">
-      <div className="row gap-s wrap cal-actions">
+  const tools = (
+      <div className="row gap-s wrap cal-tools">
         <button className="btn sm primary" onClick={() => setReflow({ from: t, program_day_id: program.data?.days[0]?.id, weeks: 4 })}><Icon name="calendar" size={16} />Reprendre par…</button>
         <button className="btn sm" onClick={() => run(() => post('/calendar/plan', { from: weekStart(t), weeks: 4 }), (r) => `${r.created} jour(s) planifié(s)${r.skipped ? `, ${r.skipped} déjà occupé(s)` : ''}`)}><Icon name="sparkles" size={16} />Planifier 4 sem.</button>
-      </div>
-      <Segmented value={view} onChange={setView} options={[['month', 'Mois'], ['agenda', 'Agenda']]} />
-      {view === 'agenda' ? <Agenda from={t} by={by} data={data} onPick={setSelected} onGo={(id) => nav(`/seance/${id}`)} /> : <>
-      {sum && <div className="cal-sum"><span><b>{sum.done}</b> séance{sum.done > 1 ? 's' : ''} faite{sum.done > 1 ? 's' : ''}</span><span><b>{sum.planned}</b> à venir</span><span><b>{sum.cardio}</b> cardio</span><span><b>{sum.weigh}</b> pesée{sum.weigh > 1 ? 's' : ''}</span></div>}
-      <div className="cal card">
+      </div>);
+  return (
+    <>
+      <div className={`cal card ${home ? 'home' : ''}`}>
         <div className="cal-head">
-          <button className="icon-btn" onClick={() => shift(-1)} aria-label="Mois précédent"><Icon name="left" /></button>
-          <h2 className="cap">{title}</h2>
-          <button className="icon-btn" onClick={() => shift(1)} aria-label="Mois suivant"><Icon name="right" /></button>
+          <div className="cal-title"><h2 className="cap">{title}</h2>{sum && <span className="muted xs">{sum.done} faite{sum.done > 1 ? 's' : ''} · {sum.planned} à venir{sum.cardio ? ` · ${sum.cardio} cardio` : ''}</span>}</div>
+          <div className="row gap-s">
+            <button className={`icon-btn sm ${view === 'agenda' ? 'on' : ''}`} onClick={() => setView(view === 'agenda' ? 'month' : 'agenda')} aria-label={view === 'agenda' ? 'Vue mois' : 'Vue liste'}><Icon name={view === 'agenda' ? 'calendar' : 'menu'} size={16} /></button>
+            {view === 'month' && <><button className="icon-btn sm" onClick={() => shift(-1)} aria-label="Mois précédent"><Icon name="left" size={16} /></button>
+            <button className="icon-btn sm" onClick={() => shift(1)} aria-label="Mois suivant"><Icon name="right" size={16} /></button></>}
+          </div>
         </div>
+      {view === 'agenda' ? <Agenda from={t} by={by} data={data} onPick={setSelected} onGo={(id) => nav(`/seance/${id}`)} /> : <>
         <div className="cal-grid">
           {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <div key={i} className="cal-dow">{d}</div>)}
           {!data ? <div className="cal-loading"><Loading /></div> : cells.map((date) => {
@@ -66,12 +80,12 @@ export default function Calendar() {
                 onDrop={() => dragId && run(() => patch(`/calendar/${dragId}`, { date }), 'Séance déplacée')}>
                 <span className="cal-num">{Number(date.slice(8))}</span>
                 <span className="cal-items">
-                  {x.workouts.map((w) => <i key={`w${w.id}`} className="cal-chip done">{w.name.replace('Jour ', 'J')}</i>)}
+                  {x.workouts.map((w) => <i key={`w${w.id}`} className="cal-chip done">{shortDay(w.name, w.focus)}</i>)}
                   {x.events.filter((e) => e.type === 'workout' && e.status === 'planned').map((e) => (
-                    <i key={e.id} className="cal-chip planned" draggable onDragStart={() => setDragId(e.id)} onDragEnd={() => setDragId(null)}>{(e.day_name || '').replace('Jour ', 'J')}</i>
+                    <i key={e.id} className={`cal-chip planned ${isCardioDay(e.day_name) ? 'car' : ''}`} draggable onDragStart={() => setDragId(e.id)} onDragEnd={() => setDragId(null)}>{shortDay(e.day_name, e.focus)}</i>
                   ))}
-                  {x.events.filter((e) => e.type === 'workout' && e.status === 'skipped').map((e) => <i key={e.id} className="cal-chip skipped">{(e.day_name || '').replace('Jour ', 'J')}</i>)}
-                  {x.events.some((e) => e.type === 'rest') && !x.workouts.length && !x.cardio.length && <i className="cal-rest">repos</i>}
+                  {x.events.filter((e) => e.type === 'workout' && e.status === 'skipped').map((e) => <i key={e.id} className="cal-chip skipped">{shortDay(e.day_name, e.focus)}</i>)}
+                  {!x.workouts.length && x.cardio.length > 0 && <i className="cal-chip done car">Cardio</i>}
                 </span>
                 <span className="cal-marks">
                   {x.cardio.length > 0 ? <i className="mk cardio" title="Cardio fait" /> : (x.blocks.length || x.events.some((e) => e.type === 'cardio' && e.status === 'planned')) ? <i className="mk cardio ring" title="Cardio prévu" /> : null}
@@ -83,9 +97,10 @@ export default function Calendar() {
             );
           })}
         </div>
-        <div className="legend small muted cal-legend"><span><i className="cal-chip done">J1</i>faite</span><span><i className="cal-chip planned">J2</i>prévue</span><span><i className="mk cardio" />cardio</span><span><i className="mk cardio ring" />cardio prévu</span><span><i className="mk body" />pesée</span><span><i className="mk goal" />échéance</span>{data?.plans?.length > 0 && <span><i className="cal-plan-key" />cure</span>}<span className="hide-mobile">Glisse une séance prévue pour la déplacer</span></div>
-      </div>
+        <div className="legend xs muted cal-legend"><span><i className="lg done" />faite</span><span><i className="lg planned" />prévue</span><span><i className="lg car" />cardio</span><span><i className="mk body" />pesée</span>{data?.plans?.length > 0 && <span><i className="cal-plan-key" />cure</span>}</div>
       </>}
+      {tools}
+      </div>
 
       <Sheet open={!!reflow} onClose={() => setReflow(null)} title="Reprendre le programme"
         footer={<button className="btn primary" disabled={!reflow?.program_day_id} onClick={() => run(async () => { const r = await post('/calendar/reflow', reflow); setReflow(null); return r; }, (r) => `Programme recalé à partir du ${fmtDay(r.from)}`)}>Recaler le calendrier</button>}>
@@ -144,7 +159,7 @@ export default function Calendar() {
           </div>}
         </>)}
       </Sheet>
-    </Page>
+    </>
   );
 }
 

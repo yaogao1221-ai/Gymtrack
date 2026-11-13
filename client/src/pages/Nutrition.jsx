@@ -66,7 +66,7 @@ export default function Nutrition() {
         <p className="muted small mt-s">Pèse-toi le matin à jeun, 3 à 7 fois par semaine : l’appli raisonne sur la moyenne de la semaine.</p>
       </Card>
 
-      <Link to="/plan" className="card plan-link"><Icon name="target" /><span className="grow"><b>Mon plan selon mon objectif</b><span className="muted small">Fréquence, calories, cure et programme calculés pour toi</span></span><Icon name="right" size={18} /></Link>
+      <Link to="/programme/creer" className="card plan-link"><Icon name="target" /><span className="grow"><b>Changer d’objectif</b><span className="muted small">Le créateur de programme règle entraînement, cardio et cure ensemble</span></span><Icon name="right" size={18} /></Link>
 
       <Card title="Ma composition" icon="target">
         <div className="body-tiles">
@@ -112,7 +112,7 @@ export default function Nutrition() {
           <details className="rules"><summary className="small">Les règles de cette cure (études)</summary><ul>{st.types[p.type].rules.map((r) => <li key={r} className="small">{r}</li>)}</ul></details>
         </Card>
       ) : (
-        <Fold title="Choisir une cure moi-même" icon="target" hint="sinon, Mon plan la choisit">
+        <Fold title="Choisir une cure moi-même" icon="target" hint="sinon, le créateur de programme la choisit">
           {!st.tdee && <p className="muted small">Complète ton profil et ajoute une pesée pour voir les chiffres.</p>}
           <div className="plan-options">
             {Object.entries(st.types).map(([k, t]) => (

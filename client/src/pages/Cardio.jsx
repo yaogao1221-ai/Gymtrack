@@ -10,39 +10,34 @@ const EMPTY = () => ({ activity: 'marche_inclinee', date: today(), duration_min:
 
 export default function Cardio() {
   const list = useApi('/cardio?limit=60');
-  const plan = useApi('/analysis/cardio-plan');
+  const prog = useApi('/program');
   const stats = useApi('/stats/overview?weeks=8');
   const [form, setForm] = useState(null); const [confirm, setConfirm] = useState(null); const toast = useToast();
   const ws = weekStart(today());
   const week = (list.data || []).filter((c) => c.date >= ws && c.date <= addDays(ws, 6));
   const [sp, setSp] = useSearchParams();
   useEffect(() => { if (sp.get('ajout')) { setForm(EMPTY()); setSp({}, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const reloadAll = () => { list.reload(); plan.reload(); stats.reload(); };
-  const schedule = async () => { try { const r = await post('/analysis/cardio-plan/schedule'); toast(r.created ? `${r.created} séance(s) cardio ajoutée(s) au calendrier` : 'Déjà planifié dans le calendrier'); } catch (e) { toast(e.message, 'err'); } };
+  const reloadAll = () => { list.reload(); stats.reload(); };
+  const WDS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const planned = prog.data ? WDS.flatMap((wd) => { const day = prog.data.days.find((d) => d.code === prog.data.schedule?.[wd]); return day ? day.cardio.map((c) => ({ wd, day, c })) : []; }) : [];
+  const plannedMin = planned.reduce((a, x) => a + x.c.duration_min, 0);
   return (
     <Page tabs={<SectionTabs group="training" />} title="Cardio" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
       <div className="stats-grid">
         <Stat icon="timer" label="Cette semaine" value={mins(week.reduce((a, c) => a + c.duration_min, 0))} hint={`${week.length} séance(s)`} tone="mint" />
         <Stat icon="flame" label={week.every((c) => !c.calories_estimated) && week.length ? 'Calories (montre)' : week.some((c) => !c.calories_estimated) ? 'Calories (en partie estimées)' : 'Calories (estimées)'} value={`${week.some((c) => c.calories_estimated) ? '≈ ' : ''}${n0(week.reduce((a, c) => a + (c.calories || 0), 0))}`} unit="kcal" tone="orange" />
         <Stat icon="right" label="Distance" value={n1(week.reduce((a, c) => a + (c.distance_km || 0), 0))} unit="km" />
-        <Stat icon="target" label="Objectif hebdo" value={plan.data ? mins(plan.data.weeks[0]?.total) : '—'} hint={plan.data ? `${plan.data.weeks[0]?.sessions} × ${plan.data.weeks[0]?.minutes} min` : ''} />
+        <Stat icon="target" label="Prévu / semaine" value={prog.data ? mins(plannedMin) : '—'} hint={planned.length ? `${planned.length} séance(s) du programme` : 'aucun cardio prévu'} />
       </div>
 
-      <Card title="Plan cardio progressif" icon="sparkles" action={<Link className="link" to="/profil">Objectifs cardio</Link>}>
-        {!plan.data ? <Loading /> : (<>
-          <ul className="rationale">{plan.data.rationale.map((r, i) => <li key={i}>{r}</li>)}</ul>
-          <h3 className="sub">Cette semaine</h3>
-          {plan.data.this_week.length ? (
-            <ul className="plan-list">{plan.data.this_week.map((s, i) => (
-              <li key={i}><span className="plan-ic">{CARDIO_ICON[s.activity]}</span><div><b>{DAY_LONG[s.day]} · {CARDIO[s.activity]} {s.minutes} min</b><span className="muted small">{s.intensity} — {s.note}</span></div></li>
-            ))}</ul>
-          ) : <p className="muted small">{plan.data.done_this_week.sessions ? `Objectif de la semaine atteint (${plan.data.done_this_week.minutes} min)` : 'Plus de créneau disponible cette semaine.'}</p>}
-          <div className="weeks scroll-x">{plan.data.weeks.map((w) => (
-            <div key={w.week} className={`week-pill ${w.week === 1 ? 'on' : ''}`}><span className="muted small">Sem. {w.week}</span><b>{w.sessions} × {w.minutes}′</b><span className="small">{w.total} min</span></div>
-          ))}</div>
-          {plan.data.this_week.length > 0 && <button className="btn block mt" onClick={schedule}><Icon name="calendar" size={16} />Ajouter cette semaine au calendrier</button>}
-        </>)}
-      </Card>
+      {prog.data && (planned.length ? (
+        <Card title="Prévu dans ton programme" icon="calendar" action={<Link className="link" to="/programme">Programme</Link>}>
+          <ul className="plan-list">{planned.map((x, i) => (
+            <li key={i}><span className="plan-ic">{CARDIO_ICON[x.c.activity]}</span><div><b>{DAY_LONG[x.wd]} · {x.c.label} {x.c.duration_min} min</b><span className="muted small">{x.day.exercises.length ? `après ${x.day.name}` : x.day.name}{x.c.notes ? ` · ${x.c.notes}` : ''}</span></div></li>
+          ))}</ul>
+          <p className="muted small">Le cardio fait partie de tes séances : il se valide pendant la séance, comme un exercice.</p>
+        </Card>
+      ) : <Card title="Pas de cardio dans ton programme" icon="heart"><p className="small">Le créateur de programme peut l’intégrer à tes séances selon ton objectif.</p><Link className="btn sm" to="/programme/creer">Ajouter du cardio au programme</Link></Card>)}
 
       {stats.data && <Card title="Minutes de cardio par semaine" icon="chart">
         <BarChart height={160} labels={stats.data.weekly.map((w) => fmtDate(w.week, { day: 'numeric', month: 'short' }))} series={[{ label: 'Minutes', data: stats.data.weekly.map((w) => w.cardio_minutes), color: COLORS.mint }]} />

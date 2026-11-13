@@ -8,7 +8,6 @@ import { Chips } from '../components/ui.jsx';
 import { ExerciseBrowser } from '../components/ExercisePicker.jsx';
 import { DemoImages, ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { thumb } from '../lib/exlib.js';
-import ProgramTemplates from '../components/ProgramTemplates.jsx';
 
 export default function Program() {
   const { data, error, reload } = useApi('/program');
@@ -16,7 +15,7 @@ export default function Program() {
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
   const [wd, setWd] = useState(null);
   const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
-  const [demo, setDemo] = useState(null); const [tpl, setTpl] = useState(false);
+  const [demo, setDemo] = useState(null);
   const nav = useNavigate(); const toast = useToast();
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
@@ -28,65 +27,64 @@ export default function Program() {
     [ids[i], ids[j]] = [ids[j], ids[i]];
     run(() => post(`/program/days/${day.id}/order`, { ids }));
   };
+  const cardioRow = (c) => (
+    <li key={`c${c.id}`} className="ex-item cardio" onClick={() => edit && setPc({ ...c })}>
+      <span className="ex-cardio"><Icon name="heart" size={20} /></span>
+      <div className="ex-main">
+        <div className="ex-name">{c.label}<span className="tag aqua">Cardio</span></div>
+        <div className="ex-meta"><span className="pill-sets">{c.duration_min} min</span>{c.speed_kmh != null && <span>{c.speed_kmh} km/h</span>}{c.incline_pct != null && c.incline_pct > 0 && <span>{c.incline_pct} %</span>}<span className="muted">{c.placement === 'debut' ? 'échauffement' : 'fin de séance'}</span></div>
+        {c.notes && <div className="ex-last">{c.notes}</div>}
+        {c.last && <div className="ex-last">Dernière fois : {c.last.duration_min} min{c.last.speed_kmh ? ` · ${c.last.speed_kmh} km/h` : ''}</div>}
+      </div>
+      {edit && <Icon name="edit" size={16} />}
+    </li>
+  );
   return (
     <Page tabs={<SectionTabs group="training" />} title="Programme" subtitle={data.program?.name}
-      actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => setTpl(true)}>Programmes</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
+      actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => nav('/programme/creer')}><Icon name="sparkles" size={16} />Créer</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
       <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
         {data.days.map((d, i) => <button key={d.id} className={`tab ${i === sel ? 'on' : ''}`} onClick={() => setSel(i)}><b>{d.name}</b><span>{d.focus}</span>{d.next_date && <span className="tab-next">{fmtDate(d.next_date, { weekday: 'short', day: 'numeric' })}</span>}</button>)}
         {edit && <button className="tab add" onClick={() => run(async () => { await post('/program/days', {}); setSel(data.days.length); }, 'Jour ajouté')}><Icon name="plus" /><span>Ajouter un jour</span></button>}
       </div>
       {day && (
-        <Card title={`${day.name} — ${day.focus || ''}`} action={edit
+        <Card className="day-card" title={day.name} action={edit
           ? <div className="row gap-s"><button className="icon-btn" aria-label="Renommer" onClick={() => setDayEdit({ ...day })}><Icon name="edit" size={18} /></button>
               <button className="icon-btn danger" aria-label="Supprimer le jour" onClick={() => setConfirm(day)}><Icon name="trash" size={18} /></button></div>
           : <button className="btn primary sm" onClick={() => nav(`/seance/${day.id}`)}><Icon name="play" size={14} />Commencer</button>}>
           <div className="day-sum">
-            <span><b>{day.exercises.length}</b> exercices</span><span><b>{day.total_sets}</b> séries</span><span>≈ <b>{day.est_minutes}</b> min</span>
+            {day.exercises.length > 0 && <><span><b>{day.exercises.length}</b> exercices</span><span><b>{day.total_sets}</b> séries</span><span>≈ <b>{day.est_minutes}</b> min</span></>}{day.cardio.length > 0 && <span className="aqua-text"><b>{day.cardio.reduce((a, c) => a + c.duration_min, 0)}</b> min cardio</span>}
             {day.top_muscles?.length > 0 && <span className="muted">{day.top_muscles.join(' · ')}</span>}
           </div>
           <p className="muted small day-dates">{day.next_date ? `Prochaine fois : ${fmtDate(day.next_date, { weekday: 'long', day: 'numeric', month: 'short' })}` : 'Pas encore planifié dans le calendrier'}{day.last_date ? ` · dernière fois le ${fmtDate(day.last_date, { day: 'numeric', month: 'short' })}` : ''}</p>
           <ol className="ex-list">
+            {day.cardio.filter((c) => c.placement === 'debut').map((c) => cardioRow(c))}
             {day.exercises.map((e, i) => (
               <li key={e.id} className={`ex-item ${e.superset_group ? 'superset' : ''}`} onClick={() => edit && setPe({ ...e })}>
-                <span className="ex-num">{i + 1}</span>
+                {!edit && thumb(e.lib_id) ? <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /><span className="ex-n">{i + 1}</span></button>
+                  : <span className="ex-num">{i + 1}</span>}
                 <div className="ex-main">
                   <div className="ex-name">{e.name}{e.superset_group && <span className="tag">Superset {e.superset_group}</span>}</div>
-                  <div className="ex-meta"><span className="strong">{repsLabel(e)}</span><span className={e.target_weight == null && e.kind !== 'bodyweight' ? 'warn-text' : ''}>{weightLabel(e)}</span>{e.rest_seconds && <span>repos {e.rest_seconds}s</span>}</div>
-                  {e.last && <div className="ex-last">Dernière fois ({fmtDate(e.last.date, { day: 'numeric', month: 'short' })}) : {e.last.sets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ')}</div>}
+                  <div className="ex-meta"><span className="pill-sets">{repsLabel(e)}</span><span className={e.target_weight == null && e.kind !== 'bodyweight' ? 'warn-text' : ''}>{weightLabel(e)}</span>{e.rest_seconds && <span className="muted">repos {e.rest_seconds >= 120 ? `${e.rest_seconds / 60} min` : `${e.rest_seconds} s`}</span>}</div>
+                  {e.last && <div className="ex-last">Dernière fois : {e.last.sets.map((s) => `${s.weight != null ? Math.round(s.weight * 10) / 10 : 'PDC'}×${s.reps ?? '?'}`).join(' · ')}</div>}
                   {e.notes && <div className="ex-last">{e.notes}</div>}
                 </div>
-                {!edit && thumb(e.lib_id) && <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.parentElement.style.display = 'none'; }} /></button>}
                 {edit && <div className="reorder" onClick={(ev) => ev.stopPropagation()}>
                   <button className="icon-btn sm" aria-label="Monter" onClick={() => move(i, -1)} disabled={i === 0}><Icon name="up" size={16} /></button>
                   <button className="icon-btn sm" aria-label="Descendre" onClick={() => move(i, 1)} disabled={i === day.exercises.length - 1}><Icon name="down" size={16} /></button>
                 </div>}
               </li>
             ))}
+            {day.cardio.filter((c) => c.placement !== 'debut').map((c) => cardioRow(c))}
           </ol>
-          {edit && <button className="btn block dashed" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Ajouter un exercice</button>}
-          {(day.cardio.length > 0 || edit) && <div className="cardio-blocks">
-            <h3 className="sub-h">Cardio de la séance</h3>
-            {day.cardio.map((c) => (
-              <div key={c.id} className="cardio-block" onClick={() => edit && setPc({ ...c })}>
-                <i className="act">{CARDIO_ICON[c.activity] || '··'}</i>
-                <div className="grow">
-                  <b>{c.label}</b> <span className="muted small">{c.placement === 'debut' ? 'en échauffement' : 'en fin de séance'}</span>
-                  <div className="ex-meta"><span className="strong">{c.duration_min} min</span>{c.speed_kmh != null && <span>{c.speed_kmh} km/h</span>}{c.incline_pct != null && <span>{c.incline_pct} %</span>}</div>
-                  {c.last && <div className="ex-last">Dernière fois ({fmtDate(c.last.date, { day: 'numeric', month: 'short' })}) : {c.last.duration_min} min{c.last.speed_kmh ? ` · ${c.last.speed_kmh} km/h` : ''}{c.last.incline_pct != null ? ` · ${c.last.incline_pct} %` : ''}</div>}
-                </div>
-                {edit && <Icon name="edit" size={16} />}
-              </div>
-            ))}
-            {edit && <button className="btn block dashed" onClick={() => setPc({ activity: 'marche_inclinee', duration_min: 15, speed_kmh: 5, incline_pct: 8, placement: 'fin' })}><Icon name="plus" size={16} />Ajouter un cardio à ce jour</button>}
-            {!edit && <p className="muted small">Répété chaque fois que ce jour revient. L’Analyse propose d’augmenter la durée quand c’est acquis.</p>}
-          </div>}
+          {!day.exercises.length && !day.cardio.length && <p className="muted small center">Jour vide : touche « Modifier » pour ajouter des exercices ou du cardio.</p>}
+          {edit && <div className="grid2 add-row"><button className="btn dashed" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Exercice</button>
+            <button className="btn dashed" onClick={() => setPc({ activity: 'marche_inclinee', duration_min: 20, speed_kmh: 5, incline_pct: 8, placement: 'fin' })}><Icon name="heart" size={16} />Cardio</button></div>}
           {!edit && <p className="muted small mt">Touche « Modifier » pour changer les exercices, séries, répétitions, charges ou l’ordre.</p>}
         </Card>
       )}
 
       <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
-      <ProgramTemplates open={tpl} onClose={() => setTpl(false)} onDone={() => { setTpl(false); setSel(0); reload(); }} />
       <ExerciseSheet pe={pe} onClose={() => setPe(null)} lib={lib.data?.exercises || []}
         onSave={(body) => run(async () => { await patch(`/program/exercises/${pe.id}`, body); setPe(null); }, 'Exercice mis à jour')}
         onDelete={() => run(async () => { await del(`/program/exercises/${pe.id}`); setPe(null); }, 'Exercice retiré')} />
@@ -211,9 +209,9 @@ function WeekType({ schedule, days, onPick, onOpen }) {
       {WD.map((k) => {
         const code = schedule?.[k] || 'rest'; const i = days.findIndex((d) => d.code === code); const d = days[i];
         return (
-          <button key={k} className={`wt-day ${d ? 'train' : 'rest'} ${k === todayKey ? 'today' : ''}`} onClick={() => onPick(k)} onDoubleClick={() => d && onOpen(i)} title={d ? `${d.name} — ${d.focus}` : 'Repos'}>
+          <button key={k} className={`wt-day ${d ? (d.exercises.length ? 'train' : 'train cardio') : 'rest'} ${k === todayKey ? 'today' : ''}`} onClick={() => onPick(k)} onDoubleClick={() => d && onOpen(i)} title={d ? `${d.name} — ${d.focus}` : 'Repos'}>
             <span className="wt-dow">{WD_LABEL[k].slice(0, 3)}</span>
-            <b>{d ? d.name.replace('Jour ', 'J') : '—'}</b>
+            <b>{d ? d.code.replace('D', 'J') : '—'}</b>
             <span className="wt-focus">{d ? (d.focus || '').split(/[ /]+/)[0] : 'repos'}</span>
           </button>
         );

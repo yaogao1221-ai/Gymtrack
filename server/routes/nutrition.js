@@ -3,6 +3,7 @@ import { USER_ID, goalsWithProgress } from '../services.js';
 import { nutritionState, targets, PLAN_TYPES } from '../nutrition.js';
 import { strategy, applyStrategy, MODES } from '../strategy.js';
 import { replanFuture } from '../planning.js';
+import { buildPlan, applyPlan, OBJECTIVES, TYPES } from '../builder.js';
 import { num, oneOf, date, bad, notFound, addDays } from '../util.js';
 import { r1 } from '../formulas.js';
 
@@ -74,6 +75,11 @@ export default function nutritionRoutes(db) {
     });
     res.json({ applied, strategy: strategy(db, req.today) });
   });
+
+  // Créateur de programme : aperçu (rien n'est enregistré) puis création
+  r.get('/builder/options', (req, res) => res.json({ objectives: Object.entries(OBJECTIVES).map(([k, o]) => ({ key: k, label: o.label, type: o.type })), types: TYPES }));
+  r.post('/builder/preview', (req, res) => res.json(buildPlan(db, req.today, req.body || {})));
+  r.post('/builder/apply', (req, res) => res.status(201).json(applyPlan(db, req.today, req.body || {}, { startPlan: (b) => startPlan(b, req.today) })));
 
   // Ajustement validé par l'utilisateur (proposé par le contrôle de la semaine)
   r.post('/nutrition/plan/:id/adjust', (req, res) => {

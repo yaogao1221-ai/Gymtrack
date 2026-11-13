@@ -15,7 +15,7 @@ export default function profileRoutes(db) {
     const json = (fn) => (v) => JSON.stringify(fn(v));
     const fields = {
       onboarded: (v) => (v ? 1 : 0),
-      goal: (v) => oneOf(v, 'objectif', ['hypertrophie', 'force', 'perte_de_gras', 'recomposition', 'sante']),
+      goal: (v) => oneOf(v, 'objectif', ['hypertrophie', 'force', 'perte_de_gras', 'recomposition', 'endurance', 'sante']),
       goals_text: (v) => str(v, 'objectifs', { max: 1000 }),
       level: (v) => oneOf(v, 'niveau', ['debutant', 'intermediaire', 'avance']),
       sessions_per_week: (v) => num(v, 'séances', { min: 1, max: 7, int: true }),

@@ -4,7 +4,7 @@ export const CARDIO = {
   marche: 'Marche', marche_inclinee: 'Marche inclinée', course: 'Course', velo: 'Vélo', elliptique: 'Elliptique', rameur: 'Rameur', autre: 'Autre',
 };
 export const CARDIO_ICON = { marche: 'MA', marche_inclinee: 'MI', course: 'CO', velo: 'VÉ', elliptique: 'EL', rameur: 'RA', autre: '··' };
-export const GOALS = { hypertrophie: 'Prise de muscle', force: 'Force', perte_de_gras: 'Perte de gras', recomposition: 'Recomposition', sante: 'Santé / forme' };
+export const GOALS = { hypertrophie: 'Prise de muscle', force: 'Force', perte_de_gras: 'Perte de gras', recomposition: 'Recomposition', endurance: 'Endurance / cardio', sante: 'Santé / forme' };
 export const LEVELS = { debutant: 'Débutant', intermediaire: 'Intermédiaire', avance: 'Avancé' };
 export const CARDIO_GOALS = { perte_de_poids: 'Perte de poids', endurance: 'Endurance', sante_cardio: 'Santé cardio', recuperation: 'Récupération active' };
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty, Sheet, Field, NumInput, useToast } from '../components/ui.jsx';
 import { post, today } from '../lib/api.js';
@@ -6,6 +6,8 @@ import { Spark, COLORS } from '../components/charts.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
 import { BodyFigures } from '../components/BodyMap.jsx';
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
+
+const CalendarView = lazy(() => import('./Calendar.jsx').then((m) => ({ default: m.CalendarView })));
 
 export default function Dashboard() {
   const { data: d, error, reload } = useApi('/dashboard');
@@ -77,6 +79,8 @@ export default function Dashboard() {
         </ul>
       </section>
 
+      <section id="calendrier"><Suspense fallback={<Loading />}><CalendarView home /></Suspense></section>
+
       <div className="grid-2col">
         <BodyCard body={d.body} nutrition={d.nutrition} />
         <Card title="Objectifs" icon="target" action={<Link className="link" to="/objectifs">Gérer</Link>}>
@@ -139,7 +143,7 @@ function MyDay({ day, onWeigh }) {
         </li>
       ))}</ul>
       {day.kcal ? <p className="day-targets small"><Link to="/repas"><b>{Number(day.eaten_kcal || 0).toLocaleString('fr-FR')} / {Number(day.kcal).toLocaleString('fr-FR')} kcal</b> mangées</Link> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/repas">noter un repas</Link></p>
-        : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/plan">calcule ton plan</Link></p>}
+        : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/programme/creer">choisis ton objectif</Link></p>}
     </section>
   );
 }
