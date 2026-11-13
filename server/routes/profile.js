@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { USER_ID, getProfile, goalsWithProgress } from '../services.js';
+import { USER_ID, getProfile, goalsWithProgress, syncProfileWeight, currentBodyWeight } from '../services.js';
+import { replanFuture } from '../planning.js';
 import { PAIN_AREAS } from '../analysis.js';
 import { num, str, date, oneOf, bad, notFound, patchRow } from '../util.js';
 import { DAY_KEYS } from '../util.js';
@@ -40,9 +41,22 @@ export default function profileRoutes(db) {
       cardio_preferred: json((v) => { if (!Array.isArray(v)) throw bad('Activités invalides'); return v.slice(0, 7).map(String); }),
       limitations: (v) => str(v, 'limitations', { max: 1000 }),
     };
+    // Un nouveau poids saisi dans le profil devient une pesée datée (une seule source pour toutes les courbes)
+    const newWeight = Object.prototype.hasOwnProperty.call(b, 'body_weight_kg') ? fields.body_weight_kg(b.body_weight_kg) : null;
+    const before = Object.prototype.hasOwnProperty.call(b, 'schedule') ? getProfile(db).schedule : null;
     const sets = []; const vals = [];
     for (const [k, fn] of Object.entries(fields)) if (Object.prototype.hasOwnProperty.call(b, k)) { sets.push(`${k} = ?`); vals.push(fn(b[k])); }
-    if (sets.length) db.run(`UPDATE profiles SET ${sets.join(', ')}, updated_at = datetime('now') WHERE user_id = ?`, ...vals, USER_ID);
+    db.tx(() => {
+      if (sets.length) db.run(`UPDATE profiles SET ${sets.join(', ')}, updated_at = datetime('now') WHERE user_id = ?`, ...vals, USER_ID);
+      const cur = currentBodyWeight(db);
+      if (newWeight != null && db.one('SELECT COUNT(*) n FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL', USER_ID).n > 0 && Math.abs(newWeight - cur) >= 0.05) {
+        db.run('INSERT INTO body_metrics (user_id, date, weight_kg, notes) VALUES (?,?,?,?)', USER_ID, req.today, newWeight, 'Saisi dans le profil');
+      } else if (newWeight != null && !db.one('SELECT id FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL', USER_ID)) {
+        db.run('INSERT INTO body_metrics (user_id, date, weight_kg, notes) VALUES (?,?,?,?)', USER_ID, req.today, newWeight, 'Saisi dans le profil');
+      }
+      // Planning type modifié : les jours à venir du calendrier suivent (séances faites et déplacements manuels conservés)
+      if (before && JSON.stringify(before) !== JSON.stringify(getProfile(db).schedule)) replanFuture(db, req.today);
+    });
     res.json(getProfile(db));
   });
 
@@ -53,10 +67,11 @@ export default function profileRoutes(db) {
     const w = num(b.weight_kg, 'poids', { min: 30, max: 300 }), bf = num(b.body_fat_pct, 'masse grasse', { min: 2, max: 70 }), wc = num(b.waist_cm, 'tour de taille', { min: 40, max: 250 }); const nk = num(b.neck_cm, 'tour de cou', { min: 20, max: 80 }), hp = num(b.hip_cm, 'tour de hanches', { min: 50, max: 250 });
     if (w == null && bf == null && wc == null && nk == null && hp == null) throw bad('Renseigne au moins une mesure');
     const info = db.run('INSERT INTO body_metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, neck_cm, hip_cm, notes) VALUES (?,?,?,?,?,?,?,?)', USER_ID, date(b.date), w, bf, wc, nk, hp, str(b.notes, 'notes', { max: 300 }));
+    syncProfileWeight(db);
     res.status(201).json(db.one('SELECT * FROM body_metrics WHERE id = ?', info.lastInsertRowid));
   });
   r.delete('/body-metrics/:id', (req, res) => {
-    if (!db.run('DELETE FROM body_metrics WHERE id = ? AND user_id = ?', req.params.id, USER_ID).changes) throw notFound(); res.json({ ok: true });
+    if (!db.run('DELETE FROM body_metrics WHERE id = ? AND user_id = ?', req.params.id, USER_ID).changes) throw notFound(); syncProfileWeight(db); res.json({ ok: true });
   });
 
   // Douleurs
@@ -87,6 +102,11 @@ export default function profileRoutes(db) {
   r.post('/goals', (req, res) => {
     const b = { status: 'actif', ...req.body };
     if (b.type === 'charge' && !b.exercise_id) throw bad('Choisis l’exercice concerné');
+    // Point de départ figé à la création (sinon la progression se recalculerait sur une base mouvante)
+    if (b.start_value == null && (b.type === 'poids_corporel' || b.type === 'charge')) {
+      const probe = goalsWithProgress(db, req.today, { type: b.type, exercise_id: b.exercise_id, unit: b.unit, target_value: b.target_value });
+      if (probe?.current_value != null) b.start_value = probe.current_value;
+    }
     const keys = Object.keys(goalFields).filter((k) => b[k] !== undefined);
     const info = db.run(`INSERT INTO goals (user_id, ${keys.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})`, USER_ID, ...keys.map((k) => goalFields[k](b[k])));
     res.status(201).json(goalsWithProgress(db, req.today).find((g) => g.id === Number(info.lastInsertRowid)));

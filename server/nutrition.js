@@ -2,6 +2,7 @@
 // Repères tirés des revues et consensus récents, cités dans PLAN_TYPES.
 import { USER_ID, getProfile } from './services.js';
 import { addDays, weekStart, diffDays } from './util.js';
+import { smoothedWeight } from './formulas.js';
 
 const r0 = (x) => (x == null ? null : Math.round(x));
 const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
@@ -148,14 +149,18 @@ export function weeklyCheck(plan, trend) {
 export function nutritionState(db, today) {
   const p = getProfile(db);
   const rows = db.all('SELECT * FROM body_metrics WHERE user_id = ? ORDER BY date, id', USER_ID);
-  const lastW = [...rows].reverse().find((r) => r.weight_kg);
-  const kg = lastW?.weight_kg ?? p.body_weight_kg ?? null;
+  // Poids de calcul : moyenne des pesées de la dernière semaine (une pesée isolée varie de ±1 kg avec l'eau et le sel)
+  const sw = smoothedWeight(rows);
+  const kg = sw?.value ?? p.body_weight_kg ?? null;
   const lastWaist = [...rows].reverse().find((r) => r.waist_cm);
   const lastNeck = [...rows].reverse().find((r) => r.neck_cm);
   const lastHip = [...rows].reverse().find((r) => r.hip_cm);
   const lastBf = [...rows].reverse().find((r) => r.body_fat_pct);
   const navy = navyBodyFat({ sex: p.sex, height_cm: p.height_cm, waist_cm: lastWaist?.waist_cm, neck_cm: lastNeck?.neck_cm, hip_cm: lastHip?.hip_cm });
-  const bf = lastBf?.body_fat_pct ?? navy;
+  // La donnée la plus récente l'emporte : un % mesuré il y a 6 mois ne doit pas masquer des mensurations de cette semaine
+  const navyDate = [lastWaist?.date, lastNeck?.date].filter(Boolean).sort()[0];
+  const useMeasured = lastBf?.body_fat_pct != null && (navy == null || !navyDate || lastBf.date >= navyDate);
+  const bf = useMeasured ? lastBf.body_fat_pct : navy;
   const years = age(p, today);
   const h = p.height_cm ? p.height_cm / 100 : null;
   const lbm = kg && bf != null ? kg * (1 - bf / 100) : null;
@@ -180,7 +185,7 @@ export function nutritionState(db, today) {
   const missing = [!kg && 'poids', !p.height_cm && 'taille', !years && 'année de naissance', !p.sex && 'sexe'].filter(Boolean);
   return {
     profile: { sex: p.sex, height_cm: p.height_cm, birth_year: p.birth_year, age: years, level: p.level, activity_pal: pal },
-    weight_kg: kg, body_fat: bf != null ? { value: r1(bf), source: lastBf?.body_fat_pct ? 'mesure' : 'Méthode US Navy (tour de taille et de cou)' } : null,
+    weight_kg: kg, weight: sw ? { smoothed: sw.value, last: sw.last, date: sw.date, n: sw.n } : null, body_fat: bf != null ? { value: r1(bf), source: useMeasured ? 'mesure' : 'Méthode US Navy (tour de taille et de cou)', date: useMeasured ? lastBf.date : navyDate } : null,
     lbm_kg: r1(lbm), bmi: bmiInfo(kg, p.height_cm), ffmi, bmr: b, exercise: ex, tdee, trend, plan: active, missing,
     lifestyle: LIFESTYLE, types: Object.fromEntries(Object.entries(PLAN_TYPES).map(([k, v]) => [k, { label: v.label, verb: v.verb, weeks: v.weeks, rate: v.rate, rules: v.rules,
       preview: kg && tdee ? targets(k, { kg, tdee, bf, level: p.level }) : null }])),

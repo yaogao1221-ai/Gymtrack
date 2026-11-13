@@ -20,7 +20,7 @@ export default function Cardio() {
     <Page title="Cardio" subtitle="Séances, progression et plan adapté à ta récupération" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
       <div className="stats-grid">
         <Stat icon="timer" label="Cette semaine" value={mins(week.reduce((a, c) => a + c.duration_min, 0))} hint={`${week.length} séance(s)`} tone="mint" />
-        <Stat icon="flame" label="Calories (estim.)" value={n0(week.reduce((a, c) => a + (c.calories || 0), 0))} unit="kcal" tone="orange" />
+        <Stat icon="flame" label={week.every((c) => !c.calories_estimated) && week.length ? 'Calories (montre)' : week.some((c) => !c.calories_estimated) ? 'Calories (en partie estimées)' : 'Calories (estimées)'} value={`${week.some((c) => c.calories_estimated) ? '≈ ' : ''}${n0(week.reduce((a, c) => a + (c.calories || 0), 0))}`} unit="kcal" tone="orange" />
         <Stat icon="right" label="Distance" value={n1(week.reduce((a, c) => a + (c.distance_km || 0), 0))} unit="km" />
         <Stat icon="target" label="Objectif hebdo" value={plan.data ? mins(plan.data.weeks[0]?.total) : '—'} hint={plan.data ? `${plan.data.weeks[0]?.sessions} × ${plan.data.weeks[0]?.minutes} min` : ''} />
       </div>
@@ -52,7 +52,7 @@ export default function Cardio() {
               <span className="plan-ic">{CARDIO_ICON[c.activity]}</span>
               <div className="grow"><b>{c.custom_name || CARDIO[c.activity]}</b>
                 <span className="muted small">{fmtDate(c.date)} · {mins(c.duration_min)}{c.distance_km ? ` · ${n1(c.distance_km)} km` : ''}{c.speed_kmh ? ` · ${n1(c.speed_kmh)} km/h` : ''}{c.incline_pct ? ` · ${c.incline_pct} %` : ''}{c.avg_hr ? ` · ${c.avg_hr} bpm` : ''}</span></div>
-              <span className="kcal">{n0(c.calories)}<small> kcal</small></span>
+              <span className="kcal" title={c.calories_estimated ? 'Estimation (formules ACSM / MET), ±20 %' : 'Valeur saisie (montre, machine)'}>{c.calories_estimated ? '≈ ' : ''}{n0(c.calories)}<small> kcal</small></span>
             </li>
           ))}</ul>
         ) : <Empty icon="heart" title="Aucune séance cardio">Ajoute ta première séance avec le bouton « Ajouter ».</Empty>}

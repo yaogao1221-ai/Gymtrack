@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { get } from '../lib/api.js';
+import { get, onDataChange } from '../lib/api.js';
 
 const P = {
   home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
@@ -12,6 +12,7 @@ const P = {
   brain: 'M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a2 2 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1',
   target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  scale: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 10a4.5 4.5 0 0 1 7 0M12 10l1.5-2',
   database: 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3zM4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
   play: 'M7 4.5v15l12-7.5z',
   check: 'M5 12.5 10 17 19 7',
@@ -46,16 +47,27 @@ export function Icon({ name, size = 20, stroke = 2, className = '' }) {
   );
 }
 
+// Lecture d'une donnée de l'API, rechargée automatiquement quand une donnée change ailleurs dans l'appli
+// (séance terminée, pesée, objectif…) et quand on revient sur l'appli (nouveau jour, autre appareil).
 export function useApi(path, deps = []) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
+  const seq = useRef(0);
   const load = useCallback(async () => {
     if (!path) return;
+    const n = ++seq.current;
     setState((s) => ({ ...s, loading: true }));
-    try { setState({ data: await get(path), error: null, loading: false }); }
-    catch (e) { setState((s) => ({ ...s, error: e, loading: false })); }
+    try { const data = await get(path); if (n === seq.current) setState({ data, error: null, loading: false }); }
+    catch (e) { if (n === seq.current) setState((s) => ({ ...s, error: e, loading: false })); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, ...deps]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let t = null; const soon = () => { clearTimeout(t); t = setTimeout(load, 120); };
+    const off = onDataChange(soon);
+    const vis = () => { if (document.visibilityState === 'visible') soon(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => { off(); clearTimeout(t); document.removeEventListener('visibilitychange', vis); };
+  }, [load]);
   return { ...state, reload: load, setData: (d) => setState((s) => ({ ...s, data: typeof d === 'function' ? d(s.data) : d })) };
 }
 

@@ -1,5 +1,5 @@
 // Service worker GymTrack AI : coquille de l'app en cache + lectures API en « réseau d'abord, cache sinon »
-const VERSION = 'gymtrack-v4';
+const VERSION = 'gymtrack-v5';
 // Chemins relatifs au service worker : marche à la racine (serveur) comme dans un sous-dossier (GitHub Pages)
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match('./index.html')));
+    e.respondWith(fetch(req, { cache: 'no-store' }).catch(() => caches.match('./index.html')));
     return;
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {

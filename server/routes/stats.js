@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile, allRecords } from '../services.js';
+import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile, allRecords, bodyWeightInfo } from '../services.js';
+import { smoothedWeight, r1 } from '../formulas.js';
 import { recoveryScore } from '../analysis.js';
 import { MUSCLES } from '../seed.js';
 import { nutritionState } from '../nutrition.js';
@@ -24,7 +25,16 @@ export default function statsRoutes(db) {
     const events = db.all(`SELECT ce.*, pd.name day_name, pd.focus FROM calendar_events ce LEFT JOIN program_days pd ON pd.id = ce.program_day_id WHERE ce.user_id = ? AND ce.date BETWEEN ? AND ? ORDER BY ce.date, ce.id`, USER_ID, ws, addDays(ws, 13));
     const doneDates = db.all(`SELECT date, 'workout' t FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ? UNION ALL SELECT date, 'cardio' FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?`, USER_ID, ws, addDays(ws, 13), USER_ID, ws, addDays(ws, 13));
     let nutrition = null; try { const ns = nutritionState(db, today); if (ns.plan) nutrition = { label: ns.plan.label, kcal: ns.plan.in_break ? ns.tdee : ns.plan.kcal, protein_g: ns.plan.protein_g, week: ns.plan.week, weeks: ns.plan.weeks, check: ns.plan.check.status }; } catch { /* données incomplètes */ }
-    res.json({ nutrition,
+    // Corps : poids lissé, variation sur 4 semaines (même lissage des deux côtés), courbe des 60 derniers jours
+    const wRows = db.all('SELECT id, date, weight_kg, waist_cm FROM body_metrics WHERE user_id = ? AND date <= ? ORDER BY date, id', USER_ID, today);
+    const bwi = bodyWeightInfo(db);
+    const then = smoothedWeight(wRows.filter((x) => x.date <= addDays(today, -28)));
+    const lastWaist = [...wRows].reverse().find((x) => x.waist_cm);
+    const body = bwi ? { weight: bwi.value, last: bwi.last, date: bwi.date, source: bwi.source, days_ago: bwi.date ? diffDays(bwi.date, today) : null,
+      change_28d: then && bwi.source === 'pesee' ? r1(bwi.value - then.value) : null,
+      points: wRows.filter((x) => x.weight_kg != null && x.date >= addDays(today, -59)).map((x) => ({ date: x.date, value: x.weight_kg })),
+      waist: lastWaist ? { value: lastWaist.waist_cm, date: lastWaist.date } : null } : null;
+    res.json({ nutrition, body,
       today, name: profile.name, onboarded: profile.onboarded,
       next: nextSession(db, today),
       last_workout: last ? { ...workoutSummary(db, last), days_ago: diffDays(last.date, today) } : null,

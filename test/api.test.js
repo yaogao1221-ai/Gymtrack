@@ -167,7 +167,7 @@ test('corps & nutrition : IMC, % de gras US Navy, maintien, cure de sèche et co
   await call('POST', '/body-metrics', { date: '2026-11-09', waist_cm: 86, neck_cm: 39 });
   const { body: s } = await call('GET', '/nutrition');
   assert.deepEqual(s.missing, []);
-  assert.equal(s.bmi.value, 25.6);
+  assert.equal(s.bmi.value, 25.7); // poids lissé sur 7 jours : (81,7 + 81,2) / 2
   assert.ok(s.body_fat.value > 14 && s.body_fat.value < 19, String(s.body_fat.value));
   assert.ok(s.tdee > 2000 && s.tdee < 3200, String(s.tdee));
   assert.ok(s.types.seche.preview.kcal < s.tdee && s.types.masse.preview.kcal > s.tdee);

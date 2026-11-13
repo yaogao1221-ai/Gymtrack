@@ -54,6 +54,11 @@ export default function cardioRoutes(db) {
   });
   r.put('/cardio/:id', (req, res) => {
     const c = get(req.params.id); const x = norm(req.body);
+    if (x.date !== c.date) {
+      db.run("UPDATE calendar_events SET status = 'planned', cardio_id = NULL WHERE cardio_id = ?", c.id);
+      const ev = db.one("SELECT id FROM calendar_events WHERE user_id = ? AND type = 'cardio' AND status = 'planned' AND date = ? LIMIT 1", USER_ID, x.date);
+      if (ev) db.run("UPDATE calendar_events SET status = 'done', cardio_id = ? WHERE id = ?", c.id, ev.id);
+    }
     db.run(`UPDATE cardio_sessions SET activity=?, custom_name=?, date=?, duration_min=?, distance_km=?, speed_kmh=?, incline_pct=?, calories=?, calories_estimated=?, avg_hr=?, max_hr=?, rpe=?, notes=? WHERE id = ?`,
       x.activity, x.custom_name, x.date, x.duration_min, x.distance_km, x.speed_kmh, x.incline_pct, x.calories, x.calories_estimated, x.avg_hr, x.max_hr, x.rpe, x.notes, c.id);
     res.json(get(c.id));

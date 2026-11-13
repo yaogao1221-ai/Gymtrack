@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useApi, Card, Stat, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty } from '../components/ui.jsx';
-import { Spark, BarChart, COLORS } from '../components/charts.jsx';
+import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty } from '../components/ui.jsx';
+import { Spark, COLORS } from '../components/charts.jsx';
 import { fmtDate, fmtDay, relDay, dur, mins, n0, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
 
 export default function Dashboard() {
@@ -49,13 +49,21 @@ export default function Dashboard() {
             </li>
           ))}
         </ul>
+        <p className="muted small week-line">{n0(d.week.volume_lbs)} lbs soulevées · {dur(d.week.training_minutes * 60)} de muscu{d.week.cardio_sessions ? ` · ${d.week.cardio_sessions} cardio` : ''}{d.week.cardio_kcal ? ` · ≈ ${n0(d.week.cardio_kcal)} kcal en cardio` : ''}</p>
       </section>
 
-      <div className="stats-grid">
-        <Stat icon="timer" label="Temps d’entraînement" value={dur(d.week.training_minutes * 60)} hint={`${dur(d.totals.training_minutes * 60)} au total`} />
-        <Stat icon="heart" label="Cardio cette semaine" value={mins(d.week.cardio_minutes)} hint={`${mins(d.totals.cardio_minutes)} au total`} tone="mint" />
-        <Stat icon="flame" label="Volume semaine" value={n0(d.week.volume_lbs)} unit="lbs" hint={`${d.week.sets} séries validées`} tone="orange" />
-        <Stat icon="trophy" label="Séances au total" value={n0(d.totals.workouts)} hint={`${d.week.cardio_sessions} cardio cette semaine`} tone="violet" />
+      <div className="grid-2col">
+        <BodyCard body={d.body} nutrition={d.nutrition} />
+        <Card title="Objectifs" icon="target" action={<Link className="link" to="/objectifs">Gérer</Link>}>
+          {d.goals.length ? (
+            <ul className="goals">{d.goals.map((g) => (
+              <li key={g.id}>
+                <div className="row-between"><b>{g.title}</b><span className={`small ${g.reached ? 'ok-text' : 'muted'}`}>{g.reached ? 'Atteint' : `${g.current_value == null ? '—' : Number(g.current_value).toLocaleString('fr-FR')} / ${Number(g.target_value).toLocaleString('fr-FR')} ${g.unit || ''}`}</span></div>
+                <div className={`bar ${g.reached ? 'done' : ''}`}><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
+              </li>
+            ))}</ul>
+          ) : <Empty icon="target" title="Aucun objectif"><Link className="btn sm" to="/objectifs">Créer un objectif</Link></Empty>}
+        </Card>
       </div>
 
       <div className="grid-2col">
@@ -93,8 +101,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {d.nutrition && <Link to="/corps" className="recap-link card nut-link"><Icon name="flame" size={20} /><span className="grow"><b>{d.nutrition.label} · semaine {d.nutrition.week}/{d.nutrition.weeks}</b><span className="muted small">Aujourd’hui : {d.nutrition.kcal.toLocaleString('fr-FR')} kcal · {d.nutrition.protein_g} g de protéines{d.nutrition.check !== 'ok' && d.nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={18} /></Link>}
-      <Link to="/bilan" className="recap-link card"><Icon name="chart" size={20} /><span className="grow"><b>Bilan de la semaine</b><span className="muted small">Séances, volume, records, à partager en image</span></span><Icon name="right" size={18} /></Link>
+      <Link to="/bilan" className="recap-link card"><Icon name="chart" size={20} /><span className="grow"><b>Bilan de la semaine</b><span className="muted small">Séances, volume, records, à partager en story</span></span><Icon name="right" size={18} /></Link>
       <div className="grid-2col">
         <Card title="Progression des charges" icon="up" action={<Link className="link" to="/progres">Graphiques</Link>}>
           {d.progression.length ? (
@@ -122,20 +129,28 @@ export default function Dashboard() {
               <li key={w.id}><Link to={`/historique/${w.id}`}><span><b>{w.name}</b> <span className="muted">{w.focus}</span></span><span className="muted small">{fmtDate(w.date)} · {w.sets_done} séries · {n0(w.volume_lbs)} lbs</span></Link></li>
             ))}</ul>
           ) : <p className="muted small">Ton historique s’affichera ici.</p>}
-          <div className="mt"><BarChart height={120} labels={d.weekly.map((w) => fmtDate(w.week, { day: 'numeric', month: 'short' }))} series={[{ label: 'Séances', data: d.weekly.map((w) => w.workouts), color: COLORS.lime }]} /></div>
         </Card>
       </div>
 
-      <Card title="Objectifs personnels" icon="target" action={<Link className="link" to="/objectifs">Gérer</Link>}>
-        {d.goals.length ? (
-          <ul className="goals">{d.goals.map((g) => (
-            <li key={g.id}>
-              <div className="row-between"><b>{g.title}</b><span className="muted small">{g.current_value ?? '—'} / {g.target_value} {g.unit || ''}</span></div>
-              <div className="bar"><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
-            </li>
-          ))}</ul>
-        ) : <Empty icon="target" title="Aucun objectif"><Link className="btn sm" to="/objectifs">Créer un objectif</Link></Empty>}
-      </Card>
     </div>
+  );
+}
+
+// Corps : poids lissé (source : pesées), variation sur 4 semaines, cure en cours
+function BodyCard({ body, nutrition }) {
+  const f1 = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
+  return (
+    <Card title="Corps" icon="scale" action={<Link className="link" to="/corps">{body ? 'Détails' : 'Ajouter'}</Link>}>
+      {body ? (<>
+        <div className="body-line">
+          <div><b className="big">{f1(body.weight)}<small> kg</small></b>
+            <span className="muted small">{body.source === 'pesee' ? `moyenne 7 jours · dernière pesée ${f1(body.last)} kg${body.days_ago ? `, il y a ${body.days_ago} j` : ', aujourd’hui'}` : 'poids du profil, ajoute une pesée'}</span></div>
+          {body.change_28d != null && <span className={`delta ${body.change_28d === 0 ? '' : body.change_28d > 0 ? 'up' : 'down'}`}>{body.change_28d > 0 ? '+' : ''}{f1(body.change_28d)} kg <small>en 4 sem.</small></span>}
+        </div>
+        {body.points.length > 1 && <div className="spark wide"><Spark points={body.points} color={COLORS.mint} /></div>}
+        {body.waist && <p className="muted small">Tour de taille : {f1(body.waist.value)} cm ({fmtDate(body.waist.date, { day: 'numeric', month: 'short' })})</p>}
+      </>) : <Empty icon="user" title="Pas encore de pesée">Ta pesée alimente l’objectif de poids, les calories et l’analyse corporelle.</Empty>}
+      {nutrition && <Link to="/corps" className="nut-inline"><Icon name="flame" size={16} /><span className="grow"><b className="small">{nutrition.label} · semaine {nutrition.week}/{nutrition.weeks}</b><span className="muted small">{nutrition.kcal.toLocaleString('fr-FR')} kcal · {nutrition.protein_g} g de protéines{nutrition.check !== 'ok' && nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={16} /></Link>}
+    </Card>
   );
 }

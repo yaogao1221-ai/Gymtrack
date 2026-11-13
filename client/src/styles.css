@@ -58,7 +58,7 @@ textarea { resize: vertical; }
 @media (max-width: 899px) { .hide-mobile { display: none !important; } }
 
 .page { display: flex; flex-direction: column; gap: 14px; }
-.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 4px 0 4px; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 4px; }
 .page-title { display: flex; align-items: center; gap: 8px; }
 .page-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .fade-in { animation: fade .2s ease both; }
@@ -621,3 +621,26 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .recap-preview.story { width: min(100%, 300px); aspect-ratio: 9 / 16; }
 .recap-preview.post { width: min(100%, 360px); aspect-ratio: 4 / 5; }
 .recap-preview img { width: 100%; height: 100%; display: block; }
+
+/* v2.1 : tableau de bord relié (corps, objectifs), sources des données */
+.week-rings .week-line { flex-basis: 100%; margin: 0; }
+.body-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.body-line > div { display: flex; flex-direction: column; min-width: 0; }
+.body-line .big { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.1; }
+.body-line .big small { font-size: 14px; color: var(--muted); font-weight: 500; }
+.body-line .delta { color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; min-width: 0; white-space: nowrap; }
+.body-line .delta small { color: var(--muted); font-family: var(--font); font-weight: 500; }
+.spark.wide { width: 100%; height: 44px; margin: 10px 0 4px; }
+.spark.wide svg { width: 100%; height: 100%; }
+.nut-inline { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: var(--r-s); background: var(--bg2); border: 1px solid var(--line); }
+.nut-inline > span { display: flex; flex-direction: column; min-width: 0; }
+.bar.done span { background: var(--grad-aqua); }
+.ok-text { color: var(--accent2); font-weight: 600; }
+.tip.ok { color: var(--text); border-color: rgba(46,230,197,.35); }
+.tip.ok .icon { color: var(--accent2); }
+/* Origine d'une valeur : pesée/mesure réelle, estimation, calcul */
+.src { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 99px; margin-left: 4px; vertical-align: 1px; }
+.src.m { background: rgba(46,230,197,.14); color: var(--accent2); }
+.src.e { background: rgba(255,176,58,.14); color: var(--warn); }
+.src.c { background: rgba(167,139,250,.16); color: var(--violet); }
+.table-wrap { overflow-x: auto; margin: 0 -4px; }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE, LEAGUE_ON } from './lib/api.js';
+import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE, LEAGUE_ON, PAGES, onDataChange } from './lib/api.js';
 import { Icon, Loading, useToast } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import Onboarding from './pages/Onboarding.jsx';
@@ -24,9 +24,10 @@ import Nutrition from './pages/Nutrition.jsx';
 import Tools from './pages/Tools.jsx';
 
 const NAV = [
-  ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/progres', 'chart', 'Progrès'], ['/plus', 'menu', 'Plus'],
+  ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/corps', 'scale', 'Corps'], ['/plus', 'menu', 'Plus'],
 ];
-const SIDE = [...NAV.slice(0, 4), ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue']] : []), ['/objectifs', 'target', 'Objectifs'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
+// Barre du bas : les 4 écrans de tous les jours (s'entraîner, bouger, se peser) ; le reste est regroupé dans « Plus »
+const SIDE = [...NAV.slice(0, 4), ['/progres', 'chart', 'Progrès'], ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue']] : []), ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
 
 export default function App() {
   const [auth, setAuth] = useState(null); // null = vérification, false = connexion requise
@@ -61,6 +62,31 @@ export default function App() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); clearInterval(t); };
   }, [sync]);
   useEffect(() => { window.scrollTo(0, 0); setPending(outboxCount()); }, [loc.pathname]);
+
+  // Ligue : après une séance, un cardio ou une modification du programme, les totaux partent tout seuls (les amis voient le classement à jour)
+  useEffect(() => {
+    if (!LEAGUE_ON) return undefined;
+    let t = null;
+    const off = onDataChange((path) => {
+      if (!/^\/(workouts|cardio|program|body-metrics)/.test(path)) return;
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        try { const L = await import('./lib/league.js'); if (L.getMembership() && navigator.onLine) { await L.syncBoard(); await L.pushShare(); } } catch { /* réessayé à la prochaine modification ou à l'ouverture de la ligue */ }
+      }, 4000);
+    });
+    return () => { off(); clearTimeout(t); };
+  }, []);
+
+  // Mises à jour de l'appli : vérifiées à chaque retour sur l'appli, appliquées dès qu'aucune séance n'est en cours
+  useEffect(() => {
+    if (!PAGES || !('serviceWorker' in navigator)) return undefined;
+    let reloading = !navigator.serviceWorker.controller; // première installation : pas de rechargement
+    const onCtrl = () => { if (reloading || store.get('gt_active_workout')) return; reloading = true; window.location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', onCtrl);
+    const check = () => { if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {}); };
+    document.addEventListener('visibilitychange', check);
+    return () => { navigator.serviceWorker.removeEventListener('controllerchange', onCtrl); document.removeEventListener('visibilitychange', check); };
+  }, []);
 
   if (auth === null) return <Loading />;
   if (auth === false) return <Login onDone={check} />;

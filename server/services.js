@@ -1,6 +1,7 @@
 import { toJSON } from './schema.js';
 import { addDays, weekStart, monthStart, diffDays } from './util.js';
 import { DEFAULT_SCHEDULE } from './seed.js';
+import { e1rm, toLbs, smoothedWeight, goalProgress, goalReached, r1 } from './formulas.js';
 
 export const USER_ID = 1; // application personnelle mono-utilisateur (la table users permet d'évoluer)
 
@@ -10,7 +11,9 @@ export function exerciseRow(e) {
 
 export function getProfile(db) {
   const p = db.one('SELECT p.*, u.name FROM profiles p JOIN users u ON u.id = p.user_id WHERE p.user_id = ?', USER_ID);
-  return { ...p, onboarded: !!p.onboarded, schedule: toJSON(p.schedule, DEFAULT_SCHEDULE), available_days: toJSON(p.available_days, ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']), cardio_preferred: toJSON(p.cardio_preferred, []) };
+  // Le poids affiché partout est celui de la dernière pesée (le champ du profil sert de repli)
+  const lastW = db.one('SELECT weight_kg FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1', USER_ID);
+  return { ...p, body_weight_kg: lastW?.weight_kg ?? p.body_weight_kg, onboarded: !!p.onboarded, schedule: toJSON(p.schedule, DEFAULT_SCHEDULE), available_days: toJSON(p.available_days, ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']), cardio_preferred: toJSON(p.cardio_preferred, []) };
 }
 
 export function activeProgram(db) {
@@ -164,8 +167,9 @@ export function exerciseSeries(db, exerciseId) {
     const top = ex.kind === 'assisted' ? (ws.length ? Math.min(...ws.map((s) => s.weight)) : null) : (ws.length ? Math.max(...ws.map((s) => s.weight)) : null);
     const reps = done.map((s) => s.reps || 0);
     const vol = ex.kind === 'assisted' ? 0 : ws.reduce((a, s) => a + s.weight * (s.reps || 0), 0);
-    const e1rm = ex.kind === 'weighted' && ws.length ? Math.max(...ws.map((s) => s.weight * (1 + (s.reps || 0) / 30))) : null;
-    return { date, top_weight: top, unit: sets[0].weight_unit, total_reps: reps.reduce((a, b) => a + b, 0), best_reps: reps.length ? Math.max(...reps) : 0, avg_reps: reps.length ? Math.round(reps.reduce((a, b) => a + b, 0) / reps.length * 10) / 10 : 0, volume: Math.round(vol), e1rm: e1rm ? Math.round(e1rm * 10) / 10 : null, sets: sets.length };
+    const est = ex.kind === 'weighted' ? ws.map((s) => e1rm(s.weight, s.reps)).filter((v) => v != null) : [];
+    const e1 = est.length ? r1(Math.max(...est)) : null;
+    return { date, top_weight: top, unit: sets[0].weight_unit, total_reps: reps.reduce((a, b) => a + b, 0), best_reps: reps.length ? Math.max(...reps) : 0, avg_reps: reps.length ? Math.round(reps.reduce((a, b) => a + b, 0) / reps.length * 10) / 10 : 0, volume: Math.round(vol), e1rm: e1, sets: sets.length };
   });
   return { exercise: ex, points };
 }
@@ -173,44 +177,80 @@ export function exerciseSeries(db, exerciseId) {
 // Records personnels récents (meilleure charge battue)
 export function recentRecords(db, limit = 6) { return allRecords(db).reverse().slice(0, limit); }
 
-// Tous les records battus (charge max, ou assistance plus faible), dans l'ordre chronologique
+// Tous les records battus (charge max, ou assistance plus faible), dans l'ordre chronologique.
+// Les charges sont comparées en lbs pour qu'un changement d'unité (kg ↔ lbs) ne crée pas de faux record.
 export function allRecords(db) {
-  const rows = db.all(`SELECT s.exercise_id, e.name, e.kind, w.date, w.id wid, MAX(s.weight) w, MIN(s.weight) wmin, s.weight_unit unit
+  const rows = db.all(`SELECT s.exercise_id, e.name, e.kind, w.date, w.id wid, s.weight, s.weight_unit unit
     FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
-    WHERE w.user_id = ? AND s.completed = 1 AND s.weight IS NOT NULL GROUP BY s.exercise_id, w.id ORDER BY w.date, w.id`, USER_ID);
-  const best = new Map(); const records = [];
+    WHERE w.user_id = ? AND s.completed = 1 AND s.weight IS NOT NULL ORDER BY w.date, w.id`, USER_ID);
+  // Meilleure série de chaque séance pour chaque exercice
+  const per = new Map();
   for (const r of rows) {
-    const val = r.kind === 'assisted' ? r.wmin : r.w;
+    const k = `${r.exercise_id}|${r.wid}`; const v = toLbs(r.weight, r.unit); const cur = per.get(k);
+    const better = !cur || (r.kind === 'assisted' ? v < cur.v : v > cur.v);
+    if (better) per.set(k, { ...r, v });
+  }
+  const best = new Map(); const records = [];
+  for (const r of per.values()) {
     const prev = best.get(r.exercise_id);
-    const better = prev == null ? false : (r.kind === 'assisted' ? val < prev : val > prev);
-    if (better) records.push({ exercise_id: r.exercise_id, name: r.name, date: r.date, weight: val, previous: prev, unit: r.unit, assisted: r.kind === 'assisted' });
-    if (prev == null || better) best.set(r.exercise_id, val);
+    const better = prev != null && (r.kind === 'assisted' ? r.v < prev.v - 1e-9 : r.v > prev.v + 1e-9);
+    if (better) records.push({ exercise_id: r.exercise_id, name: r.name, date: r.date, weight: r.weight, previous: r1(prev.unit === r.unit ? prev.weight : (r.unit === 'kg' ? prev.v / 2.20462 : prev.v)), unit: r.unit, assisted: r.kind === 'assisted' });
+    if (prev == null || better) best.set(r.exercise_id, r);
   }
   return records;
 }
 
-export function goalsWithProgress(db, today) {
-  const goals = db.all('SELECT g.*, e.name exercise_name, e.kind exercise_kind FROM goals g LEFT JOIN exercises e ON e.id = g.exercise_id WHERE g.user_id = ? ORDER BY g.status, g.created_at DESC', USER_ID);
+// Poids corporel : la dernière pesée est la source de vérité, le poids du profil n'est qu'un repli
+export function bodyWeightInfo(db) {
+  const rows = db.all('SELECT id, date, weight_kg FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL ORDER BY date, id', USER_ID);
+  const sm = smoothedWeight(rows);
+  return sm ? { ...sm, source: 'pesee' } : (getProfile(db).body_weight_kg ? { value: getProfile(db).body_weight_kg, last: getProfile(db).body_weight_kg, n: 0, date: null, source: 'profil' } : null);
+}
+
+// Le poids du profil suit la dernière pesée (un seul chiffre affiché partout)
+export function syncProfileWeight(db) {
+  const m = db.one('SELECT weight_kg FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1', USER_ID);
+  if (m) db.run("UPDATE profiles SET body_weight_kg = ?, updated_at = datetime('now') WHERE user_id = ?", m.weight_kg, USER_ID);
+}
+
+// Avec `draft`, calcule la valeur actuelle d'un objectif pas encore enregistré (point de départ à la création)
+export function goalsWithProgress(db, today, draft = null) {
+  const goals = draft
+    ? [{ ...draft, start_value: null, current_value: null, created_at: today, exercise_kind: draft.exercise_id ? db.one('SELECT kind FROM exercises WHERE id = ?', draft.exercise_id)?.kind : null }]
+    : db.all('SELECT g.*, e.name exercise_name, e.kind exercise_kind FROM goals g LEFT JOIN exercises e ON e.id = g.exercise_id WHERE g.user_id = ? ORDER BY g.status, g.created_at DESC', USER_ID);
   const ws = weekStart(today);
-  return goals.map((g) => {
-    let current = g.current_value;
+  const bw = goals.some((g) => g.type === 'poids_corporel') ? bodyWeightInfo(db) : null;
+  const out = goals.map((g) => {
+    let current = g.current_value; let start = g.start_value; let lower = null; let basis = null;
     if (g.type === 'charge' && g.exercise_id) {
-      const agg = g.exercise_kind === 'assisted' ? 'MIN' : 'MAX';
-      current = db.one(`SELECT ${agg}(s.weight) v FROM workout_sets s JOIN workouts w ON w.id = s.workout_id WHERE w.user_id = ? AND s.exercise_id = ? AND s.completed = 1`, USER_ID, g.exercise_id).v;
+      // Meilleure charge, convertie dans l'unité de l'objectif
+      const assisted = g.exercise_kind === 'assisted'; lower = assisted;
+      const sets = db.all('SELECT s.weight, s.weight_unit FROM workout_sets s JOIN workouts w ON w.id = s.workout_id WHERE w.user_id = ? AND s.exercise_id = ? AND s.completed = 1 AND s.weight IS NOT NULL', USER_ID, g.exercise_id);
+      const vals = sets.map((x) => toLbs(x.weight, x.weight_unit));
+      const bestLbs = vals.length ? (assisted ? Math.min(...vals) : Math.max(...vals)) : null;
+      current = bestLbs == null ? null : r1(g.unit === 'kg' ? bestLbs / 2.20462 : bestLbs);
+      basis = 'Meilleure charge validée';
     } else if (g.type === 'seances_semaine') {
       current = db.one('SELECT COUNT(*) n FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, ws, addDays(ws, 6)).n;
+      start = 0; basis = 'Séances de la semaine en cours';
     } else if (g.type === 'cardio_minutes_semaine') {
       current = Math.round(db.one('SELECT COALESCE(SUM(duration_min),0) m FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, ws, addDays(ws, 6)).m);
+      start = 0; basis = 'Minutes de cardio de la semaine en cours';
     } else if (g.type === 'poids_corporel') {
-      current = currentBodyWeight(db);
+      current = bw?.value ?? null;
+      basis = bw?.source === 'pesee' ? `Moyenne des pesées sur 7 jours (${bw.n})` : 'Poids du profil';
+      // Départ : valeur saisie, sinon première pesée depuis la création de l'objectif
+      if (start == null) {
+        const first = db.one('SELECT weight_kg FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL AND date <= ? ORDER BY date DESC, id DESC LIMIT 1', USER_ID, String(g.created_at).slice(0, 10))
+          || db.one('SELECT weight_kg FROM body_metrics WHERE user_id = ? AND weight_kg IS NOT NULL ORDER BY date, id LIMIT 1', USER_ID);
+        start = first?.weight_kg ?? null;
+      }
     }
-    let progress = null;
-    if (current != null && g.target_value != null) {
-      const start = g.start_value ?? (g.type === 'seances_semaine' || g.type === 'cardio_minutes_semaine' ? 0 : null);
-      if (start != null && start !== g.target_value) progress = (current - start) / (g.target_value - start);
-      else if (start == null) progress = g.target_value ? (g.exercise_kind === 'assisted' ? g.target_value / current : current / g.target_value) : null;
-      if (progress != null) progress = Math.max(0, Math.min(1, progress));
-    }
-    return { ...g, current_value: current, progress };
+    if (lower == null && start != null && g.target_value != null) lower = g.target_value < start;
+    const reached = goalReached(start, current, g.target_value, lower ?? undefined);
+    let progress = goalProgress(start, current, g.target_value);
+    if (progress == null && current != null && g.target_value) progress = reached ? 1 : (lower ? null : Math.max(0, Math.min(1, current / g.target_value)));
+    return { ...g, current_value: current, start_used: start, progress, reached, lower_is_better: !!lower, basis };
   });
+  return draft ? out[0] : out;
 }

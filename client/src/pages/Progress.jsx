@@ -8,7 +8,8 @@ import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib
 export default function Progress() {
   const [tab, setTab] = useState('overview');
   return (
-    <Page title="Progrès" subtitle="Graphiques, comparaisons et historique complet">
+    <Page title="Progrès" subtitle="Graphiques, comparaisons et historique complet" back="/plus"
+      actions={<div className="row gap-s"><Link className="btn sm ghost" to="/objectifs"><Icon name="target" size={14} />Objectifs</Link><Link className="btn sm ghost" to="/bilan"><Icon name="upload" size={14} />Bilan</Link></div>}>
       <Segmented value={tab} onChange={setTab} options={[['overview', 'Vue globale'], ['exercise', 'Exercices'], ['compare', 'Comparer'], ['history', 'Historique']]} />
       <div className="mt">
         {tab === 'overview' && <Overview />}

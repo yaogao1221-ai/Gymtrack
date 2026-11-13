@@ -59,7 +59,7 @@ export function TrackingSection({ p, set }) {
       <Field label="Sexe"><select value={p.sex || ''} onChange={(e) => set({ sex: e.target.value || null })}><option value="">—</option><option value="homme">Homme</option><option value="femme">Femme</option><option value="autre">Autre</option></select></Field>
       <Field label="Année de naissance"><NumInput value={p.birth_year} onChange={(v) => set({ birth_year: v })} /></Field>
       <Field label="Taille (cm)"><NumInput value={p.height_cm} onChange={(v) => set({ height_cm: v })} /></Field>
-      <Field label="Poids (kg)"><NumInput value={p.body_weight_kg} onChange={(v) => set({ body_weight_kg: v })} /></Field>
+      <Field label="Poids (kg)" hint="Dernière pesée. Un nouveau chiffre est ajouté comme pesée du jour."><NumInput value={p.body_weight_kg} onChange={(v) => set({ body_weight_kg: v })} /></Field>
       <Field label="Sommeil moyen (h)"><NumInput value={p.sleep_hours} onChange={(v) => set({ sleep_hours: v })} /></Field>
     </div>
     <Field label="Blessures, douleurs ou limitations connues">

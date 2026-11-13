@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Field, Loading, ErrorBox, NumInput, Icon, Sheet, Segmented, Confirm, useToast } from '../components/ui.jsx';
 import { LineChart, COLORS } from '../components/charts.jsx';
-import { put, post, today } from '../lib/api.js';
+import { put, post, del, today } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
 
 const f1 = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
@@ -22,8 +22,8 @@ export default function Nutrition() {
   const { data: st, error, reload, setData } = useApi('/nutrition');
   const [w, setW] = useState({ date: today() }); const [more, setMore] = useState(false);
   const [start, setStart] = useState(null); const [stop, setStop] = useState(false); const [prof, setProf] = useState({});
-  if (error && !st) return <Page title="Corps & nutrition"><ErrorBox error={error} retry={reload} /></Page>;
-  if (!st) return <Page title="Corps & nutrition"><Loading /></Page>;
+  if (error && !st) return <Page title="Corps"><ErrorBox error={error} retry={reload} /></Page>;
+  if (!st) return <Page title="Corps"><Loading /></Page>;
   const set = (x) => (setData ? setData(x) : reload());
   const addMetric = async () => {
     try { await post('/body-metrics', w); setW({ date: today() }); setMore(false); toast('Mesure enregistrée'); reload(); } catch (e) { toast(e.message, 'err'); }
@@ -36,7 +36,7 @@ export default function Nutrition() {
   const p = st.plan;
 
   return (
-    <Page title="Corps & nutrition" subtitle="Composition, calories et cures" back="/plus">
+    <Page title="Corps" subtitle="Pesées, composition, calories et cures">
       {st.missing.length > 0 && (
         <Card title="Pour calculer tes besoins" icon="info">
           <p className="small">Il manque : <b>{st.missing.join(', ')}</b>.</p>
@@ -67,13 +67,14 @@ export default function Nutrition() {
 
       <Card title="Ma composition" icon="target">
         <div className="body-tiles">
-          <div><span className="muted small">Poids</span><b>{f1(st.weight_kg)}<small> kg</small></b><span className="small">{st.trend.rate_pct != null ? `${st.trend.rate_pct > 0 ? '+' : ''}${f1(st.trend.rate_pct)} % / sem.` : 'tendance après 2 semaines'}</span></div>
-          <div><span className="muted small">IMC</span><b>{f1(st.bmi?.value)}</b><span className="small">{st.bmi?.category || '—'}</span></div>
-          <div><span className="muted small">Masse grasse</span><b>{f1(st.body_fat?.value)}<small> %</small></b><span className="small">{st.body_fat ? (st.body_fat.source === 'mesure' ? 'mesurée' : 'estimée (US Navy)') : 'ajoute taille + cou'}</span></div>
-          <div><span className="muted small">FFMI</span><b>{f1(st.ffmi?.normalized)}</b><span className="small">{st.ffmi ? ffmiText(st.ffmi.normalized) : 'besoin du % de gras'}</span></div>
+          <div><span className="muted small">Poids <i className="src m">pesé</i></span><b>{f1(st.weight_kg)}<small> kg</small></b><span className="small">{st.weight ? `moyenne de ${st.weight.n} pesée${st.weight.n > 1 ? 's' : ''} sur 7 j · dernière ${f1(st.weight.last)} kg` : 'poids du profil'}</span><span className="small">{st.trend.rate_pct != null ? `tendance ${st.trend.rate_pct > 0 ? '+' : ''}${f1(st.trend.rate_pct)} % / sem.` : 'tendance après 2 semaines'}</span></div>
+          <div><span className="muted small">IMC <i className="src c">calculé</i></span><b>{f1(st.bmi?.value)}</b><span className="small">{st.bmi?.category || '—'}</span></div>
+          <div><span className="muted small">Masse grasse <i className={`src ${st.body_fat?.source === 'mesure' ? 'm' : 'e'}`}>{st.body_fat?.source === 'mesure' ? 'mesuré' : 'estimé'}</i></span><b>{st.body_fat?.source === 'mesure' ? '' : '≈ '}{f1(st.body_fat?.value)}<small> %</small></b><span className="small">{st.body_fat ? (st.body_fat.source === 'mesure' ? `appareil, le ${fmtDate(st.body_fat.date, { day: 'numeric', month: 'short' })}` : 'US Navy (taille + cou), ±3 à 4 points') : 'ajoute taille + cou'}</span></div>
+          <div><span className="muted small">FFMI <i className="src e">estimé</i></span><b>{f1(st.ffmi?.normalized)}</b><span className="small">{st.ffmi ? ffmiText(st.ffmi.normalized) : 'besoin du % de gras'}</span></div>
         </div>
         {st.bmi?.value >= 25 && st.ffmi?.normalized >= 21 && <p className="tip"><Icon name="info" size={14} />L’IMC ne fait pas la différence entre muscle et gras : avec ta masse musculaire, regarde plutôt ton % de gras et ton tour de taille.</p>}
-        {st.lbm_kg && <p className="muted small">Masse maigre : {f1(st.lbm_kg)} kg.</p>}
+        {st.lbm_kg && <p className="muted small">Masse maigre estimée : ≈ {f1(st.lbm_kg)} kg (poids × (1 − % de gras)). La masse maigre inclut eau, os et organes : ce n’est pas une mesure du muscle.</p>}
+        <p className="muted small">Une variation de poids sur quelques jours vient surtout de l’eau et du contenu digestif. Seule la tendance sur plusieurs semaines, croisée avec le tour de taille et les charges, renseigne sur le gras ou le muscle.</p>
         {pts.length > 1 && <LineChart height={150} labels={pts.map((x) => fmtDate(x.week, { day: 'numeric', month: 'short' }))} series={[{ label: 'Moyenne de la semaine (kg)', data: pts.map((x) => x.avg), color: COLORS.mint, fill: true }]} />}
       </Card>
 
@@ -119,6 +120,8 @@ export default function Nutrition() {
         </Card>
       )}
 
+      <MetricsHistory />
+
       <Card title="Bonnes pratiques" icon="sparkles">
         <ul className="tips-list">{st.tips.map((t) => <li key={t} className="small">{t}</li>)}</ul>
         <Link to="/outils" className="btn sm mt"><Icon name="target" size={14} />Calculateurs : 1RM, zones cardio, disques</Link>
@@ -159,5 +162,25 @@ function StartSheet({ start, setStart, st, onStarted }) {
       <Field label="Début"><input type="date" value={start.start_date} onChange={(e) => setStart({ ...start, start_date: e.target.value })} /></Field>
       <ul className="tips-list">{t.rules.map((r) => <li key={r} className="small">{r}</li>)}</ul>
     </Sheet>
+  );
+}
+
+// Toutes les mesures saisies (pesées, mensurations, % mesuré) : modifier ou supprimer ici recalcule tout l'appli
+function MetricsHistory() {
+  const toast = useToast(); const { data } = useApi('/body-metrics'); const [all, setAll] = useState(false);
+  if (!data?.length) return null;
+  const rows = all ? data : data.slice(0, 8);
+  const v = (x, u) => (x == null ? '—' : `${f1(x)}${u}`);
+  const remove = async (id) => { try { await del(`/body-metrics/${id}`); toast('Mesure supprimée'); } catch (e) { toast(e.message, 'err'); } };
+  return (
+    <Card title="Historique des mesures" icon="calendar">
+      <div className="table-wrap"><table className="sets-table">
+        <thead><tr><th>Date</th><th>Poids</th><th>Taille</th><th>Cou</th><th>% gras</th><th /></tr></thead>
+        <tbody>{rows.map((x) => <tr key={x.id}><td>{fmtDate(x.date, { day: 'numeric', month: 'short' })}</td><td>{v(x.weight_kg, ' kg')}</td><td>{v(x.waist_cm, '')}</td><td>{v(x.neck_cm, '')}</td><td>{v(x.body_fat_pct, ' %')}</td>
+          <td><button className="icon-btn sm danger" aria-label="Supprimer la mesure" onClick={() => remove(x.id)}><Icon name="trash" size={14} /></button></td></tr>)}</tbody>
+      </table></div>
+      {data.length > 8 && <button className="link small mt-s" onClick={() => setAll(!all)}>{all ? 'Réduire' : `Tout afficher (${data.length})`}</button>}
+      <p className="muted small mt-s">Mensurations en cm. Le % de gras de ce tableau est celui que tu as mesuré (appareil) ; l’estimation US Navy est calculée à part.</p>
+    </Card>
   );
 }

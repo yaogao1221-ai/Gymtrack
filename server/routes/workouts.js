@@ -16,6 +16,12 @@ export default function workoutRoutes(db) {
     return { ...workoutSummary(db, w), exercises };
   };
 
+  // Marque l'événement planifié du jour comme fait (de préférence celui du même jour de programme)
+  const linkEvent = (wid, d, dayId) => {
+    const ev = db.one(`SELECT id FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND date = ? ORDER BY (program_day_id = ?) DESC LIMIT 1`, USER_ID, d, dayId);
+    if (ev) db.run("UPDATE calendar_events SET status = 'done', workout_id = ? WHERE id = ?", wid, ev.id);
+  };
+
   r.get('/workouts', (req, res) => {
     const from = req.query.from || '0000-01-01', to = req.query.to || '9999-12-31';
     const limit = Math.min(500, Number(req.query.limit) || 100);
@@ -45,9 +51,7 @@ export default function workoutRoutes(db) {
           num(s.set_index, 'série', { int: true, min: 1, max: 50 }) || 1, num(s.weight, 'charge', { min: 0, max: 2000 }), s.weight_unit === 'kg' ? 'kg' : 'lbs',
           num(s.reps, 'répétitions', { int: true, min: 0, max: 500 }), num(s.target_reps, 'objectif', { int: true, min: 0, max: 500 }), s.completed === false ? 0 : 1);
       }
-      // Marquer l'événement planifié correspondant comme fait
-      const ev = db.one(`SELECT id FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND date = ? ORDER BY (program_day_id = ?) DESC LIMIT 1`, USER_ID, d, dayId);
-      if (ev) db.run("UPDATE calendar_events SET status = 'done', workout_id = ? WHERE id = ?", wid, ev.id);
+      linkEvent(wid, d, dayId);
       return wid;
     });
     res.status(201).json(full(get(id)));
@@ -55,6 +59,10 @@ export default function workoutRoutes(db) {
 
   r.patch('/workouts/:id', (req, res) => {
     const w = get(req.params.id);
+    if (req.body.date !== undefined && date(req.body.date) !== w.date) {
+      // Séance déplacée : l'ancien jour du calendrier redevient « prévu », le nouveau est marqué fait
+      db.tx(() => { db.run("UPDATE calendar_events SET status = 'planned', workout_id = NULL WHERE workout_id = ?", w.id); db.run('UPDATE workouts SET date = ? WHERE id = ?', date(req.body.date), w.id); linkEvent(w.id, date(req.body.date), w.program_day_id); });
+    }
     patchRow(db, 'workouts', w.id, req.body, { name: (v) => str(v, 'nom', { required: true, max: 80 }), notes: (v) => str(v, 'notes', { max: 2000 }), rpe: (v) => num(v, 'RPE', { min: 1, max: 10 }), date: (v) => date(v), duration_sec: (v) => num(v, 'durée', { min: 0, max: 86400, int: true }) || 0 });
     res.json(full(get(w.id)));
   });

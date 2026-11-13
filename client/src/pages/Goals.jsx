@@ -21,13 +21,15 @@ export default function Goals() {
   if (!data) return <Loading />;
   const active = data.filter((g) => g.status === 'actif'); const others = data.filter((g) => g.status !== 'actif');
   return (
-    <Page title="Objectifs" subtitle="Suivis automatiquement à partir de tes séances" actions={<button className="btn primary sm" onClick={() => setForm({ type: 'charge', title: '', target_value: null })}><Icon name="plus" size={16} />Nouveau</button>}>
+    <Page title="Objectifs" subtitle="Calculés automatiquement à partir de tes séances, de ton cardio et de tes pesées" back="/plus" actions={<button className="btn primary sm" onClick={() => setForm({ type: 'charge', title: '', target_value: null })}><Icon name="plus" size={16} />Nouveau</button>}>
       {active.length ? active.map((g) => (
         <Card key={g.id} className="goal-card">
           <div className="row-between"><div><b>{g.title}</b><p className="muted small">{TYPES[g.type]}{g.deadline ? ` · échéance ${fmtDate(g.deadline)}` : ''}</p></div>
             <div className="row gap-s"><button className="icon-btn sm" aria-label="Modifier" onClick={() => setForm({ ...g })}><Icon name="edit" size={16} /></button><button className="icon-btn sm danger" aria-label="Supprimer" onClick={() => setConfirm(g)}><Icon name="trash" size={16} /></button></div></div>
-          <div className="bar lg"><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
-          <div className="row-between small"><span>Actuel : <b>{g.current_value ?? '—'}</b> {g.unit || ''}</span><span>Cible : <b>{g.target_value}</b> {g.unit || ''} · {Math.round((g.progress || 0) * 100)} %</span></div>
+          <div className={`bar lg ${g.reached ? 'done' : ''}`}><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
+          <div className="row-between small"><span>Actuel : <b>{g.current_value ?? '—'}</b> {g.unit || ''}</span><span>Cible : <b>{g.target_value}</b> {g.unit || ''}{g.progress != null ? ` · ${Math.round(g.progress * 100)} %` : ''}</span></div>
+          <p className="muted small">{g.start_used != null ? `Départ ${g.start_used} ${g.unit || ''} · ` : ''}{g.basis || 'Valeur saisie à la main'}{g.lower_is_better ? ' · objectif à la baisse' : ''}</p>
+          {g.reached && <p className="tip ok"><Icon name="trophy" size={14} />Cible atteinte d’après tes données. Valide-le pour l’archiver dans tes réussites.</p>}
           <div className="row gap-s mt-s"><button className="btn xs" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'atteint' }), 'Objectif atteint')}><Icon name="trophy" size={14} />Atteint</button>
             <button className="btn xs ghost" onClick={() => run(() => patch(`/goals/${g.id}`, { status: 'abandonne' }), 'Objectif archivé')}>Archiver</button></div>
         </Card>

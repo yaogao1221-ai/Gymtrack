@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { USER_ID, getProfile, getProgram } from '../services.js';
 import { deloadStatus } from '../analysis.js';
+import { planDays } from '../planning.js';
 import { num, str, date, oneOf, bad, notFound, patchRow, addDays, dayKey } from '../util.js';
 
 export default function calendarRoutes(db) {
@@ -40,20 +41,7 @@ export default function calendarRoutes(db) {
   // Planifie N semaines à partir du modèle hebdomadaire du profil (n'écrase pas les jours déjà planifiés)
   r.post('/calendar/plan', (req, res) => {
     const from = date(req.body.from, 'from'); const weeks = num(req.body.weeks, 'semaines', { min: 1, max: 12, int: true }) || 4;
-    const { schedule } = getProfile(db);
-    const byCode = Object.fromEntries(getProgram(db, { withLast: false }).days.map((d) => [d.code, d]));
-    let created = 0, skipped = 0;
-    db.tx(() => {
-      for (let i = 0; i < weeks * 7; i++) {
-        const d = addDays(from, i); const code = schedule[dayKey(d)];
-        if (!code) continue;
-        if (db.one("SELECT id FROM calendar_events WHERE user_id = ? AND date = ? AND type IN ('workout','rest')", USER_ID, d)) { skipped++; continue; }
-        if (code === 'rest') db.run("INSERT INTO calendar_events (user_id, date, type, title) VALUES (?,?, 'rest', 'Repos')", USER_ID, d);
-        else if (byCode[code]) db.run("INSERT INTO calendar_events (user_id, date, type, program_day_id) VALUES (?,?, 'workout', ?)", USER_ID, d, byCode[code].id);
-        else continue;
-        created++;
-      }
-    });
+    const { created, skipped } = db.tx(() => planDays(db, from, weeks * 7));
     res.json({ created, skipped });
   });
   // Recaler le programme : « je reprends le <from> avec <jour> ». Les jours de repos du planning type restent à leur place,

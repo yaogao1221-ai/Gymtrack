@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Page, Card, Field, NumInput, Segmented, useApi } from '../components/ui.jsx';
 import { platesFor } from '../components/ExercisePicker.jsx';
+import { e1rm } from '../../../server/formulas.js';
 
 const n = (v, d = 0) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d }));
 // Pourcentage du 1RM selon répétitions et RIR (tableau de Helms / Zourdos, arrondi)
@@ -15,7 +16,7 @@ export default function Tools() {
   const age = hr.age ?? (prof.data?.birth_year ? new Date().getFullYear() - prof.data.birth_year : null);
   // 1RM : moyenne Epley / Brzycki sur les répétitions « possibles » (reps faites + réserve)
   const rTot = Number(rm.reps || 0) + Number(rm.rir || 0);
-  const oneRm = rm.w && rTot ? (rTot === 1 ? Number(rm.w) : (Number(rm.w) * (1 + rTot / 30) + Number(rm.w) * 36 / (37 - Math.min(rTot, 36))) / 2) : null;
+  const oneRm = e1rm(rm.w, rTot); // même formule que les courbes « 1RM estimé » de Progrès
   const step = unit === 'kg' ? 2.5 : 5; const round = (x) => Math.round(x / step) * step;
   const hrMax = age ? 208 - 0.7 * age : null; // Tanaka 2001
   const zones = [['Z1 récupération', 0.5, 0.6], ['Z2 endurance (fond, perte de gras)', 0.6, 0.7], ['Z3 tempo', 0.7, 0.8], ['Z4 seuil', 0.8, 0.9], ['Z5 VO2max', 0.9, 1]];
@@ -31,7 +32,7 @@ export default function Tools() {
           <Field label="Réserve (RIR)" hint="Reps encore possibles"><NumInput value={rm.rir} onChange={(v) => setRm({ ...rm, rir: v })} /></Field>
         </div>
         {oneRm && <>
-          <div className="kcal-target"><b>{n(round(oneRm))}</b><span>{unit} : 1RM estimé (Epley + Brzycki)</span></div>
+          <div className="kcal-target"><b>{n(round(oneRm))}</b><span>{unit} : 1RM estimé (Epley + Brzycki, Epley seul au-delà de 10 reps)</span></div>
           <table className="sets-table mt-s"><thead><tr><th>Reps</th><th>À l’échec</th><th>RIR 2</th></tr></thead>
             <tbody>{[1, 3, 5, 6, 8, 10, 12].map((r) => <tr key={r}><td>{r}</td><td className="mono">{n(round(oneRm * PCT[r] / 100))}</td><td className="mono">{PCT[r + 2] ? n(round(oneRm * PCT[r + 2] / 100)) : '—'}</td></tr>)}</tbody></table>
           <p className="muted small">Pour progresser en muscle, la plupart des séries entre 6 et 12 reps à 1 à 3 répétitions de l’échec suffisent (Refalo 2023).</p>

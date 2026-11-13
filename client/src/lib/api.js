@@ -30,7 +30,17 @@ async function localApi(path, method, body, raw) {
   return r.data;
 }
 
-export async function api(path, { method = 'GET', body, raw } = {}) {
+// Bus de données : toute écriture réussie prévient les écrans ouverts, qui se rechargent (une seule source : la base)
+const dataListeners = new Set();
+export const onDataChange = (fn) => { dataListeners.add(fn); return () => dataListeners.delete(fn); };
+export const emitDataChange = (path) => dataListeners.forEach((fn) => { try { fn(path); } catch { /* écouteur fautif ignoré */ } });
+
+export async function api(path, opts = {}) {
+  const r = await rawApi(path, opts);
+  if ((opts.method || 'GET') !== 'GET' && !opts.raw) emitDataChange(path);
+  return r;
+}
+async function rawApi(path, { method = 'GET', body, raw } = {}) {
   if (STANDALONE) return localApi(path, method, body, raw);
   const headers = { 'X-Local-Date': today() };
   const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`;

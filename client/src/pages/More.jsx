@@ -4,16 +4,16 @@ import { getToken, setToken, LEAGUE_ON } from '../lib/api.js';
 
 const GROUPS = [
   ['Suivi', [
-    ['/bilan', 'chart', 'Bilan de la semaine', 'Résumé à partager en image'],
-    ['/corps', 'flame', 'Corps & nutrition', 'Poids, IMC, % de gras, calories, cures'],
-    ['/coach', 'brain', 'Analyse', 'Progression, récupération, deload'],
-    ['/objectifs', 'target', 'Objectifs', 'Charges, régularité, cardio, poids'],
+    ['/progres', 'chart', 'Progrès', 'Graphiques, exercices, comparaisons, historique'],
+    ['/objectifs', 'target', 'Objectifs', 'Calculés tout seuls depuis tes séances et pesées'],
+    ['/bilan', 'upload', 'Bilan de la semaine', 'Résumé à partager en story'],
+    ['/coach', 'brain', 'Analyse', 'Récupération, programme, deload'],
   ]],
   ...(LEAGUE_ON ? [['Entre amis', [['/ligue', 'trophy', 'Ligue entre amis', 'Lobby, défis, podiums, messages']]]] : []),
   ['Organisation', [
     ['/calendrier', 'calendar', 'Calendrier', 'Planifier, déplacer, reprendre'],
     ...(LEAGUE_ON ? [['/rappels', 'timer', 'Rappels de séance', 'Alarmes dans ton calendrier']] : []),
-    ['/outils', 'dumbbell', 'Calculateurs', '1RM, zones cardio, disques'],
+    ['/outils', 'target', 'Calculateurs', '1RM, zones cardio, disques'],
   ]],
   ['Réglages', [
     ['/profil', 'user', 'Profil', 'Objectifs, disponibilités, préférences'],
@@ -35,7 +35,7 @@ export default function More() {
         </section>
       ))}
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack · v2.0</p>
+      <p className="muted small center mt">GymTrack · v2.1</p>
     </Page>
   );
 }
