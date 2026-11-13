@@ -4,6 +4,7 @@
 import { MUSCLES, EXERCISES } from './seed.js';
 import { USER_ID, getProgram, getProfile, lastPerformance, periodStats, exerciseRow } from './services.js';
 import { addDays, weekStart, dayKey, diffDays, DAY_KEYS } from './util.js';
+import { decide } from './coach/progression.js';
 
 export const PAIN_AREAS = {
   epaule: { label: 'Épaule', patterns: ['press_incline', 'press_horizontal', 'dip', 'press_vertical', 'lateral_raise', 'front_raise', 'chest_fly', 'triceps_extension'] },
@@ -154,58 +155,10 @@ function bestSchedule(days, available) {
   return best;
 }
 
-// Progression double : on ne propose une hausse que si TOUTES les séries prévues ont été réussies.
-const frDate = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : d);
-const grid = (x, unit) => { const g = unit === 'kg' ? 1.25 : 2.5; return Math.round(x / g) * g; };
+// Progression : moteur unique dans coach/progression.js (4 niveaux de confiance, effort ressenti pris en compte)
 function progressionFor(db, pe, painPatterns, recovery) {
-  const last = lastPerformance(db, pe.exercise_id);
-  const base = { program_exercise_id: pe.id, exercise_id: pe.exercise_id, exercise: pe.name, day_id: pe.day_id };
-  if (!last) {
-    if (pe.kind !== 'bodyweight' && pe.target_weight == null) return { ...base, key: `prog:${pe.id}:setup`, type: 'info', title: `${pe.name} : charge à définir`, reason: 'Aucune charge enregistrée. Choisis une charge qui laisse 2 répétitions en réserve à la dernière série ; elle sera mémorisée pour la prochaine séance.' };
-    return null;
-  }
-  const done = last.sets.filter((s) => s.completed);
-  const target = pe.reps;
-  const allHit = done.length >= pe.sets && (!target || done.every((s) => (s.reps || 0) >= target));
-  const weights = done.map((s) => s.weight).filter((w) => w != null);
-  const lastW = weights.length ? (pe.kind === 'assisted' ? Math.min(...weights) : Math.max(...weights)) : null;
-  const unit = pe.weight_unit;
-  if (pe.kind === 'weighted' && lastW == null) {
-    return { ...base, key: `prog:${pe.id}:setup`, type: 'info', title: `${pe.name} : charge à définir`, reason: 'Aucune charge saisie lors de la dernière séance. Renseigne la charge utilisée pour que le coach puisse suivre ta progression.' };
-  }
-  if (painPatterns.has(pe.pattern)) {
-    return { ...base, key: `prog:${pe.id}:pain`, type: 'hold', title: `${pe.name} : ne pas augmenter`, reason: 'Une douleur active concerne cet exercice. Garde la charge (ou baisse-la), réduis l’amplitude si besoin et privilégie une technique parfaite. Si la douleur persiste, consulte un professionnel de santé.' };
-  }
-  if (allHit && recovery.score < 55) {
-    return { ...base, key: `prog:${pe.id}:recovery`, type: 'hold', title: `${pe.name} : objectif atteint, progression en pause`, reason: `Toutes les séries sont réussies, mais ta récupération est « ${recovery.label.toLowerCase()} » (${recovery.score}/100). On consolide avant d’augmenter.` };
-  }
-  if (allHit) {
-    if (pe.kind === 'assisted' && lastW != null) {
-      const proposed = Math.max(0, grid(lastW - (unit === 'kg' ? 5 : 10), unit));
-      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : réduire l’assistance`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit} d’assistance`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Les ${pe.sets} × ${target} ont été réussies le ${frDate(last.date)} avec ${lastW} ${unit} d’assistance.` };
-    }
-    if (lastW != null && pe.kind !== 'bodyweight') {
-      let proposed = grid(lastW + (unit === 'kg' ? 2.5 : 5), unit);
-      if (pe.target_weight_max && lastW < pe.target_weight_max) proposed = pe.target_weight_max;
-      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : passer à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.weight_note ? ' ' + pe.weight_note : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Toutes les séries (${pe.sets} × ${target ?? '?'}) réussies le ${frDate(last.date)}. Petite hausse, à condition que la technique reste propre.` };
-    }
-    if (target && target < 15) {
-      const proposed = Math.min(15, target + 2);
-      return { ...base, key: `prog:${pe.id}:reps:${proposed}`, type: 'increase', title: `${pe.name} : viser ${proposed} répétitions`, current: `${target} reps`, proposed_label: `${pe.sets} × ${proposed}`, patch: { reps: proposed }, reason: `Toutes les séries réussies le ${frDate(last.date)}. Au poids du corps, on progresse d’abord en répétitions (ou en ajoutant du lest au-delà de 15).` };
-    }
-    return null;
-  }
-  // Échecs répétés : proposer de consolider ou baisser légèrement
-  if (target && lastW != null) {
-    const prevWorkout = db.one(`SELECT w.id, w.date FROM workouts w JOIN workout_sets s ON s.workout_id = w.id WHERE w.user_id = ? AND s.exercise_id = ? AND w.id <> ? AND w.date <= ? ORDER BY w.date DESC, w.id DESC LIMIT 1`, USER_ID, pe.exercise_id, last.workout_id, last.date);
-    const missBy = (sets) => sets.length ? sets.reduce((a, s) => a + Math.max(0, target - (s.reps || 0)), 0) / sets.length : 0;
-    const prevSets = prevWorkout ? db.all('SELECT * FROM workout_sets WHERE workout_id = ? AND exercise_id = ? AND completed = 1', prevWorkout.id, pe.exercise_id) : [];
-    if (missBy(done) >= 2 && prevSets.length && missBy(prevSets) >= 2) {
-      const proposed = pe.kind === 'assisted' ? lastW + (unit === 'kg' ? 5 : 10) : Math.max(0, Math.round(lastW * 0.9 / 5) * 5);
-      return { ...base, key: `prog:${pe.id}:dec:${proposed}`, type: 'decrease', title: `${pe.name} : consolider à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.kind === 'assisted' ? ' d’assistance' : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Répétitions manquées sur les deux dernières séances (${frDate(prevWorkout.date)} et ${frDate(last.date)}). Une baisse d’environ 10 % permet de retrouver une technique propre et de repartir.` };
-    }
-  }
-  return null;
+  const d = decide(db, pe, { painPatterns, recovery });
+  return d && !d.silent && d.type !== 'keep' ? d : null;
 }
 
 // Progression d'un bloc cardio du programme : +5 min, puis +1 % d'inclinaison ou +0,3 km/h. Jamais appliquée sans validation.

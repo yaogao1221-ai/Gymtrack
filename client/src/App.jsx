@@ -26,6 +26,7 @@ const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
 const Builder = lazy(() => import('./pages/Builder.jsx'));
 const Care = lazy(() => import('./pages/Care.jsx'));
+const CoachSpace = lazy(() => import('./pages/CoachSpace.jsx'));
 const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
 const Meals = lazy(() => import('./pages/Meals.jsx'));
 // Écrans regroupés de l'espace Corps
@@ -35,14 +36,15 @@ const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
   ['/', 'home', 'Accueil', null],
-  ['/programme', 'dumbbell', 'Entraînement', /^\/(programme|calendrier|cardio|historique)/],
+  ['/programme', 'dumbbell', 'Programme', /^\/(programme|calendrier|cardio|historique)/],
   ['/demarrer', 'play', 'Séance', /^\/seance/, 'go'],
-  ['/corps', 'scale', 'Corps', /^\/(corps|nutrition|plan|repas|soins|coach|progres|objectifs|bilan)/],
+  ['/coach', 'brain', 'Coach', /^\/coach/],
+  ['/corps', 'scale', 'Corps', /^\/(corps|nutrition|plan|repas|soins|progres|objectifs|bilan)/],
   ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue', /^\/ligue/]] : [['/plus', 'menu', 'Outils', /^\/(plus|outils|profil|donnees|rappels)/]]),
 ];
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
-  ['/', 'home', "Aujourd'hui"],
+  ['/', 'home', "Aujourd'hui"], ['/coach', 'brain', 'Coach'],
   ['Entraînement'], ['/programme', 'dumbbell', 'Programme'],
   ['Corps'], ['/corps', 'body', 'Mon corps'], ['/progres', 'chart', 'Progrès'], ['/nutrition', 'food', 'Nutrition'], ['/soins', 'heal', 'Soins et mobilité'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
@@ -164,7 +166,7 @@ export default function App() {
           <Route path="/cardio" element={<Cardio />} />
           <Route path="/calendrier" element={<CalRedirect />} />
           <Route path="/progres" element={<Hub title="Progrès" views={PROGRESS_VIEWS} coach="progress" />} />
-          <Route path="/coach" element={<Navigate to="/progres?v=analyse" replace />} />
+          <Route path="/coach" element={<CoachSpace />} />
           <Route path="/objectifs" element={<Navigate to="/progres?v=objectifs" replace />} />
           <Route path="/profil" element={<Profile onSaved={setProfile} />} />
           <Route path="/donnees" element={<Data />} />

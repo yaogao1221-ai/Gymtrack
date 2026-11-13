@@ -293,7 +293,7 @@ export default function Workout() {
                       {it.lib_id && <button className="link small" onClick={() => setDemo(it.lib_id)}>Démo</button>}
                     </div>
                     {it.sugg && !it.applied && !it.sets.some((x) => x.done) && (
-                      <div className="sugg"><Icon name="up" size={16} /><span className="grow"><b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
+                      <div className="sugg"><Icon name={it.sugg.down ? 'down' : it.sugg.hold ? 'info' : 'up'} size={16} /><span className="grow">{(it.sugg.up || it.sugg.down) && <span className="tag">{it.sugg.state_label}</span>}<b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
                         <button className="btn xs" onClick={() => update((y) => { y.items[ii].sets.forEach((x) => { if (!x.done) { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; } }); })}>Appliquer</button></div>
                     )}
                     {it.replaced && <p className="muted small">Remplace {it.replaced} aujourd’hui (ton programme ne change pas).</p>}
@@ -392,7 +392,7 @@ function Briefing({ s, bm, painOf, onApply, onGo }) {
   const items = s.items.filter((it) => !it.removed);
   const cardioMin = (s.cardio || []).reduce((a, c) => a + (Number(c.duration_min) || 0), 0);
   const est = Math.round(items.reduce((a, it) => a + it.sets.length * (40 + it.rest), 0) / 60 + cardioMin);
-  const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && !painOf(it) && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
+  const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && (it.sugg.up || it.sugg.down) && !painOf(it) && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
   const mus = new Set(items.flatMap((it) => Object.entries(it.muscles || {}).filter(([, c]) => c >= 1).map(([k]) => k)));
   const tired = bm ? [...mus].filter((k) => bm.muscles[k]?.status === 'fatigue').map((k) => bm.muscles[k].label) : [];
   const first = items.find((it) => it.kind === 'weighted' && it.sets.some((x) => Number(x.weight) > 0));
@@ -416,7 +416,7 @@ function Briefing({ s, bm, painOf, onApply, onGo }) {
       <h3>2. Charges du jour</h3>
       <ul className="brief-list ex">
         {items.map((it) => { const ii = s.items.indexOf(it); const up = ups.includes(ii); return (
-          <li key={ii} className={up ? 'up' : painOf(it) ? 'pain' : ''}><span className="grow"><b>{it.name}</b>{painOf(it) && <span className="tag warn">À adapter · {painOf(it).toLowerCase()}</span>}<br /><span className="muted small">{painOf(it) ? 'Pas de hausse : amplitude confortable, arrête si la douleur dépasse 3/10. ' : ''}{up ? `Proposé : ${it.sugg.text}${lastTxt(it)}` : `${setsText(it)}${lastTxt(it)}`}</span></span>{up && <Icon name="up" size={16} />}</li>
+          <li key={ii} className={up ? 'up' : painOf(it) ? 'pain' : ''}><span className="grow"><b>{it.name}</b>{painOf(it) && <span className="tag warn">À adapter · {painOf(it).toLowerCase()}</span>}{up && <span className={`tag ${it.sugg.state === 'confirmee' ? 'good' : 'warn'}`}>{it.sugg.state_label}</span>}<br /><span className="muted small">{painOf(it) ? 'Pas de hausse : amplitude confortable, arrête si la douleur dépasse 3/10. ' : ''}{up ? `Proposé : ${it.sugg.text}${lastTxt(it)}` : `${setsText(it)}${lastTxt(it)}`}</span></span>{up && <Icon name="up" size={16} />}</li>
         ); })}
       </ul>
       {ups.length > 0 && <button className="btn block" onClick={() => onApply(ups)}><Icon name="up" size={16} />Appliquer {ups.length > 1 ? `les ${ups.length} hausses` : 'la hausse'} pour aujourd’hui</button>}

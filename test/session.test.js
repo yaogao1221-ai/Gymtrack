@@ -18,14 +18,13 @@ before(async () => {
   await new Promise((res) => { const s = app.listen(0, () => { base = `http://localhost:${s.address().port}/api`; s.unref(); res(); }); });
 });
 
-test('charge conseillée : double progression', () => {
-  const pe = (sets, kind = 'weighted', unit = 'lbs') => ({ reps: 10, kind, weight_unit: unit, last: { sets } });
-  assert.equal(suggestNext(pe([{ weight: 60, reps: 10 }, { weight: 60, reps: 10 }])).weight, 65);
-  assert.equal(suggestNext(pe([{ weight: 60, reps: 10 }, { weight: 60, reps: 8 }])).weight, 60);
-  assert.equal(suggestNext(pe([{ weight: 60, reps: 7 }, { weight: 60, reps: 6 }])).reps, 8);
-  assert.equal(suggestNext(pe([{ weight: 120, reps: 10 }, { weight: 120, reps: 10 }], 'assisted')).weight, 115);
-  assert.equal(suggestNext(pe([{ weight: 20, reps: 10 }], 'weighted', 'kg')).weight, 22.5);
-  assert.equal(suggestNext({ reps: 10, kind: 'weighted', weight_unit: 'lbs', last: null }), null);
+test('charge conseillée : la séance affiche la décision du moteur unique', () => {
+  const inc = { type: 'increase', state: 'confirmee', state_label: 'Hausse confirmée', today: { weight: 65, reps: 10, text: '65 lbs × 10', why: 'x' } };
+  assert.equal(suggestNext({ coach: inc }).weight, 65); assert.equal(suggestNext({ coach: inc }).up, true);
+  assert.equal(suggestNext({ coach: { type: 'keep', today: { weight: 60, reps: 8 } } }).reps, 8);
+  assert.equal(suggestNext({ coach: { type: 'hold', today: { weight: 60 } } }).hold, true);
+  assert.equal(suggestNext({ coach: { type: 'info' } }), null);
+  assert.equal(suggestNext({ coach: null }), null);
 });
 
 test('records et bilan de séance', async () => {

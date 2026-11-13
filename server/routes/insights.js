@@ -28,7 +28,7 @@ function muscleSets(db, from, to) {
 // Charge par muscle et par jour : séries de muscu + cardio (marche inclinée, course… sollicitent mollets et jambes)
 const CARDIO_LOAD = { marche_inclinee: { mollets: 0.15, fessiers: 0.08, ischios: 0.05 }, course: { mollets: 0.15, quadriceps: 0.1, ischios: 0.05 }, marche: { mollets: 0.05 },
   velo: { quadriceps: 0.12, fessiers: 0.04 }, elliptique: { quadriceps: 0.06, fessiers: 0.05, mollets: 0.04 }, rameur: { dos_largeur: 0.08, quadriceps: 0.06, dos_epaisseur: 0.05 } };
-function dailyLoads(db, from, to) {
+export function dailyLoads(db, from, to) {
   const out = {}; const add = (d, m, v) => { (out[d] ||= {})[m] = (out[d][m] || 0) + v; };
   for (const r of db.all(`SELECT w.date, e.muscles, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
     WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ? GROUP BY w.date, e.id`, USER_ID, from, to)) for (const [m, c] of Object.entries(toJSON(r.muscles, {}))) add(r.date, m, r.n * c);
@@ -47,7 +47,7 @@ const GAP_FILL = { pectoraux: ['dev_couche', 1], dos_largeur: ['tirage_vertical'
 const LOWER_M = new Set(['quadriceps', 'ischios', 'fessiers', 'mollets', 'adducteurs', 'abducteurs', 'lombaires']);
 const BIG = new Set(['quadriceps', 'ischios', 'fessiers', 'adducteurs', 'pectoraux', 'dos_largeur', 'lombaires']);
 
-function bodyStatus(db, today) {
+export function bodyStatus(db, today) {
     const { sets, last } = muscleSets(db, addDays(today, -6), today);
     const older = muscleSets(db, addDays(today, -13), today).last;
     const level = getProfile(db).level || 'intermediaire'; const [minS, optLow, optHigh] = RANGES[level] || RANGES.intermediaire;
@@ -69,7 +69,7 @@ function bodyStatus(db, today) {
     return { muscles, range: { min: minS, low: optLow, high: optHigh } };
 }
 
-function programGaps(db, today) {
+export function programGaps(db, today) {
     const prog = activeProgram(db); if (!prog) return ({ gaps: [], low: [] });
     const items = db.all(`SELECT pe.id pe_id, pe.exercise_id, pd.id day_id, pd.name day_name, pe.sets, e.name, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
       WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { decide } from '../coach/progression.js';
+import { coachContext } from '../coach/context.js';
 import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfile, exerciseBests } from '../services.js';
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
@@ -88,8 +90,10 @@ export default function programRoutes(db) {
 
   // Programme + liens avec le calendrier (prochaine date prévue, dernière séance faite) et le planning type
   r.get('/program', (req, res) => {
-    const p = getProgram(db); const bests = exerciseBests(db);
+    const p = getProgram(db); const bests = exerciseBests(db); const ctx = coachContext(db, req.today);
     for (const d of p.days) {
+      // Décision du moteur de progression unique : la séance et le briefing l'affichent tels quels
+      for (const e of d.exercises) e.coach = ctx.deload ? null : decide(db, e, ctx);
       // Meilleures perfs de chaque exercice : la séance détecte les records en direct
       for (const e of d.exercises) { const b = bests.get(e.exercise_id); e.best = b ? { top_lbs: b.top_lbs, e1rm_lbs: b.e1rm_lbs } : null; }
       d.next_date = db.one("SELECT MIN(date) d FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND program_day_id = ? AND date >= ?", USER_ID, d.id, req.today).d;
