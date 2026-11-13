@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE, LEAGUE_ON, PAGES, onDataChange } from './lib/api.js';
@@ -6,23 +6,23 @@ import { Icon, Loading, useToast } from './components/ui.jsx';
 import Login from './pages/Login.jsx';
 import Onboarding from './pages/Onboarding.jsx';
 import Dashboard from './pages/Dashboard.jsx';
-import Program from './pages/Program.jsx';
+const Program = lazy(() => import('./pages/Program.jsx'));
 import Workout from './pages/Workout.jsx';
-import WorkoutDetail from './pages/WorkoutDetail.jsx';
-import Cardio from './pages/Cardio.jsx';
-import Calendar from './pages/Calendar.jsx';
-import Progress from './pages/Progress.jsx';
-import Coach from './pages/Coach.jsx';
-import Goals from './pages/Goals.jsx';
-import Profile from './pages/Profile.jsx';
-import Data from './pages/Data.jsx';
-import More from './pages/More.jsx';
-import League from './pages/League.jsx';
-import Reminders from './pages/Reminders.jsx';
-import Recap from './pages/Recap.jsx';
-import Nutrition from './pages/Nutrition.jsx';
-import Tools from './pages/Tools.jsx';
-import Plan from './pages/Plan.jsx';
+const WorkoutDetail = lazy(() => import('./pages/WorkoutDetail.jsx'));
+const Cardio = lazy(() => import('./pages/Cardio.jsx'));
+const Calendar = lazy(() => import('./pages/Calendar.jsx'));
+const Progress = lazy(() => import('./pages/Progress.jsx'));
+const Coach = lazy(() => import('./pages/Coach.jsx'));
+const Goals = lazy(() => import('./pages/Goals.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+const Data = lazy(() => import('./pages/Data.jsx'));
+const More = lazy(() => import('./pages/More.jsx'));
+const League = lazy(() => import('./pages/League.jsx'));
+const Reminders = lazy(() => import('./pages/Reminders.jsx'));
+const Recap = lazy(() => import('./pages/Recap.jsx'));
+const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
+const Tools = lazy(() => import('./pages/Tools.jsx'));
+const Plan = lazy(() => import('./pages/Plan.jsx'));
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
@@ -117,6 +117,12 @@ export default function App() {
     return () => { navigator.serviceWorker.removeEventListener('controllerchange', onCtrl); document.removeEventListener('visibilitychange', check); };
   }, []);
 
+  // Une fois l'accueil affiché, les écrans les plus utilisés se chargent en arrière-plan : changer d'onglet reste instantané
+  useEffect(() => {
+    const t = setTimeout(() => { Promise.all([import('./pages/Program.jsx'), import('./pages/Cardio.jsx'), import('./pages/Calendar.jsx'), import('./pages/Nutrition.jsx'), import('./pages/Progress.jsx')]).catch(() => {}); }, 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   if (auth === null) return <Loading />;
   if (auth === false) return <Login onDone={check} />;
   if (!profile) return <Loading />;
@@ -140,6 +146,7 @@ export default function App() {
         {active && !inWorkout && (
           <button className="resume" onClick={() => nav(`/seance/${active.dayId}`)}><span className="pulse" />Séance en cours : {active.name} <b>Reprendre</b></button>
         )}
+        <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/bienvenue" element={<Onboarding onDone={(p) => { setProfile(p); nav('/'); }} />} />
@@ -162,6 +169,7 @@ export default function App() {
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </main>
       {!inWorkout && (
         <nav className="tabbar">{NAV.map(([to, icon, label, re]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || re?.test(loc.pathname) ? 'active' : '')}><Icon name={icon} size={22} /><span>{label}</span></NavLink>)}</nav>

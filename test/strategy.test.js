@@ -63,6 +63,9 @@ test('plan selon l’objectif : sèche, vitesse plafonnée, application validée
   // L'accueil suit l'objectif cardio
   const d = (await call('GET', '/dashboard')).body;
   assert.equal(d.week.cardio_target, 180);
+  // Ma journée : cibles de la cure, pesée du jour non faite (date du test sans pesée), séance du jour issue de la semaine type
+  assert.equal(d.day.kcal, n.plan.kcal); assert.equal(d.day.steps, 10000); assert.equal(d.day.weighed, false);
+  assert.ok(Array.isArray(d.pending));
   if (r.body.applied.includes('frequence')) {
     const p = (await call('GET', '/profile')).body;
     assert.equal(Object.values(p.schedule).filter((v) => v !== 'rest').length, r.body.strategy.frequency.sessions);

@@ -742,3 +742,16 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .apply-list label > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 @media (min-width: 900px) { .plan-tiles { grid-template-columns: repeat(4, 1fr); } }
 .seg-tight .segmented button { font-size: 12.5px; padding: 8px 1px; }
+.my-day ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.my-day li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); min-height: 44px; }
+.my-day li:first-child { border-top: 0; }
+.my-day li > .icon { color: var(--muted); flex: 0 0 auto; }
+.my-day .chk { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; border: 2px solid var(--line2); display: grid; place-items: center; }
+.my-day li.done .chk { background: var(--accent2); border-color: var(--accent2); color: #08251f; }
+.my-day li.done .grow { color: var(--muted); }
+.day-targets { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); }
+.day-targets b { font-family: var(--mono); }
+.pending { margin: 12px 0; padding: 12px 14px; border-radius: var(--r); border: 1px solid rgba(255,200,55,.4); background: rgba(255,200,55,.07); display: flex; flex-direction: column; gap: 8px; }
+.pending .eyebrow { color: var(--gold); margin: 0; }
+.pending-row { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 400px) { .section-tabs a .icon { display: none; } .section-tabs a { padding: 7px 11px; } }

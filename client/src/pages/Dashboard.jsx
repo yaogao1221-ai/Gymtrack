@@ -44,6 +44,17 @@ export default function Dashboard() {
         </>) : <p>Aucune séance au programme.</p>}
       </section>
 
+      {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
+      {d.pending?.length > 0 && (
+        <section className="pending">
+          <p className="eyebrow">À valider</p>
+          {d.pending.map((x) => (
+            <div key={x.key} className="pending-row"><span className="small grow">{x.text}</span>
+              {x.to ? <Link className="btn xs" to={x.to}>{x.action}</Link> : <button className="btn xs" onClick={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })}>{x.action}</button>}</div>
+          ))}
+        </section>
+      )}
+
       <div className="quick">
         <button onClick={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })}><Icon name="scale" /><span>Pesée</span></button>
         <Link to="/cardio?ajout=1"><Icon name="heart" /><span>Cardio</span></Link>
@@ -172,5 +183,32 @@ function BodyCard({ body, nutrition }) {
       </>) : <Empty icon="user" title="Pas encore de pesée">Ta pesée alimente l’objectif de poids, les calories et l’analyse corporelle.</Empty>}
       {nutrition && <Link to="/corps" className="nut-inline"><Icon name="flame" size={16} /><span className="grow"><b className="small">{nutrition.label} · semaine {nutrition.week}/{nutrition.weeks}</b><span className="muted small">{nutrition.kcal.toLocaleString('fr-FR')} kcal · {nutrition.protein_g} g de protéines{nutrition.check !== 'ok' && nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={16} /></Link>}
     </Card>
+  );
+}
+
+// Ma journée : ce qui est prévu aujourd'hui, coché automatiquement dès que c'est enregistré
+function MyDay({ day, onWeigh }) {
+  const items = [];
+  if (day.workout) items.push({ k: 'w', done: day.workout.done, icon: 'dumbbell', text: day.workout.extra ? 'Séance faite' : `${day.workout.name} — ${day.workout.focus}${day.workout.deload ? ' (deload)' : ''}`,
+    to: day.workout.done ? (day.workout.workout_id ? `/historique/${day.workout.workout_id}` : null) : `/seance/${day.workout.program_day_id}`, cta: 'Go' });
+  else if (day.rest) items.push({ k: 'r', done: true, icon: 'moon', text: 'Repos : la récupération fait partie du programme' });
+  if (day.cardio) items.push({ k: 'c', done: day.cardio.done && day.cardio.done_minutes >= day.cardio.minutes * 0.8, icon: 'heart', text: day.cardio.minutes ? `${day.cardio.minutes} min de cardio${day.cardio.done_minutes ? ` (${day.cardio.done_minutes} faites)` : ''}` : `${day.cardio.done_minutes} min de cardio faites`, to: '/cardio?ajout=1', cta: '+' });
+  items.push({ k: 'p', done: day.weighed, icon: 'scale', text: day.weighed ? 'Pesée du matin faite' : 'Pesée du matin, à jeun', onClick: day.weighed ? null : onWeigh, cta: 'Peser' });
+  const n = items.filter((x) => x.done).length;
+  return (
+    <section className="card my-day">
+      <div className="card-head"><h2><Icon name="check" size={16} />Ma journée</h2><span className="mono small">{n}/{items.length}</span></div>
+      <ul>{items.map((x) => (
+        <li key={x.k} className={x.done ? 'done' : ''}>
+          <span className="chk">{x.done ? <Icon name="check" size={14} /> : null}</span>
+          <Icon name={x.icon} size={16} /><span className="grow small">{x.text}</span>
+          {!x.done && x.to && <Link className="btn xs primary" to={x.to}>{x.cta}</Link>}
+          {!x.done && x.onClick && <button className="btn xs primary" onClick={x.onClick}>{x.cta}</button>}
+          {x.done && x.to && <Link className="link small" to={x.to}>Voir</Link>}
+        </li>
+      ))}</ul>
+      {day.kcal ? <p className="day-targets small"><b>{Number(day.kcal).toLocaleString('fr-FR')} kcal</b> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/corps">cure</Link></p>
+        : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/plan">calcule ton plan</Link></p>}
+    </section>
   );
 }

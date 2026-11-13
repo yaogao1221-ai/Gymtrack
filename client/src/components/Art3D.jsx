@@ -197,7 +197,8 @@ export function Badge3D({ unlocked = true, tone = 'violet', glyph = 'record', la
         <g transform="translate(0 1)">
           {unlocked ? <>
             <g transform="translate(1.4 1.6)">{(GLYPHS[glyph] || GLYPHS.record)(D)}</g>
-            {(GLYPHS[glyph] || GLYPHS.record)(L)}
+            {/* Contour foncé sous le glyphe : lisible même sur les teintes claires (corail, cyan) */}
+            <g stroke={D} strokeWidth="2.4" strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{(GLYPHS[glyph] || GLYPHS.record)(L)}</g>
           </> : (
             <g>
               <path d="M-6,-3 L-6,-8 A6,6 0 0 1 6,-8 L6,-3" fill="none" stroke={PAL.locked[0]} strokeWidth="3.2" />
