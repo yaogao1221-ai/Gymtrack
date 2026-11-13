@@ -22,7 +22,7 @@ export default function Profile({ onSaved }) {
       <Card title="Objectifs cardio" icon="heart"><CardioSection p={p} set={set} /></Card>
       {dirty && <button className="btn primary block sticky-save" disabled={busy} onClick={save}>Enregistrer les modifications</button>}
 
-      <Link to="/corps" className="recap-link card"><Icon name="user" size={20} /><span className="grow"><b>Pesées, mensurations et composition</b><span className="muted small">Regroupées dans Corps : une seule source pour les courbes, l’objectif de poids et les calories</span></span><Icon name="right" size={18} /></Link>
+      <Link to="/nutrition?v=poids" className="recap-link card"><Icon name="user" size={20} /><span className="grow"><b>Pesées, mensurations et composition</b><span className="muted small">Regroupées dans Corps : une seule source pour les courbes, l’objectif de poids et les calories</span></span><Icon name="right" size={18} /></Link>
     </Page>
   );
 }

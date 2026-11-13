@@ -23,7 +23,7 @@ export default function Tools() {
   const z = (p) => (hrMax ? Math.round(hr.rest ? Number(hr.rest) + (hrMax - hr.rest) * p : hrMax * p) : null);
   const bar = pl.bar ?? (unit === 'kg' ? 20 : 45); const plates = pl.total ? platesFor(Number(pl.total), unit, Number(bar)) : null;
   return (
-    <Page title="Calculateurs" subtitle="1RM, charges par répétitions, zones cardio, disques" back="/corps">
+    <Page title="Calculateurs" subtitle="1RM, charges par répétitions, zones cardio, disques" back="/plus">
       <Segmented value={unit} onChange={setUnit} options={[['lbs', 'lbs'], ['kg', 'kg']]} />
       <Card title="1RM estimé et charges de travail" icon="dumbbell">
         <div className="grid3">

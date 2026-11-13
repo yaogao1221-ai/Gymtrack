@@ -4,6 +4,7 @@ import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty, She
 import { post, today } from '../lib/api.js';
 import { Spark, COLORS } from '../components/charts.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
+import { BodyFigures } from '../components/BodyMap.jsx';
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 export default function Dashboard() {
@@ -44,6 +45,7 @@ export default function Dashboard() {
       </section>
 
       {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
+      <MiniMap />
       {d.pending?.length > 0 && (
         <section className="pending">
           <p className="eyebrow">À valider</p>
@@ -97,10 +99,10 @@ export default function Dashboard() {
 }
 
 // Corps : poids lissé (source : pesées), variation sur 4 semaines, cure en cours
-function BodyCard({ body, nutrition }) {
+export function BodyCard({ body, nutrition }) {
   const f1 = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
   return (
-    <Card title="Corps" icon="scale" action={<Link className="link" to="/corps">{body ? 'Détails' : 'Ajouter'}</Link>}>
+    <Card title="Corps" icon="scale" action={<Link className="link" to="/nutrition?v=poids">{body ? 'Détails' : 'Ajouter'}</Link>}>
       {body ? (<>
         <div className="body-line">
           <div><b className="big">{f1(body.weight)}<small> kg</small></b>
@@ -110,7 +112,7 @@ function BodyCard({ body, nutrition }) {
         {body.points.length > 1 && <div className="spark wide"><Spark points={body.points} color={COLORS.mint} /></div>}
         {body.waist && <p className="muted small">Tour de taille : {f1(body.waist.value)} cm ({fmtDate(body.waist.date, { day: 'numeric', month: 'short' })})</p>}
       </>) : <Empty icon="user" title="Pas encore de pesée">Ta pesée alimente l’objectif de poids, les calories et l’analyse corporelle.</Empty>}
-      {nutrition && <Link to="/corps" className="nut-inline"><Icon name="flame" size={16} /><span className="grow"><b className="small">{nutrition.label} · semaine {nutrition.week}/{nutrition.weeks}</b><span className="muted small">{nutrition.kcal.toLocaleString('fr-FR')} kcal · {nutrition.protein_g} g de protéines{nutrition.check !== 'ok' && nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={16} /></Link>}
+      {nutrition && <Link to="/nutrition?v=poids" className="nut-inline"><Icon name="flame" size={16} /><span className="grow"><b className="small">{nutrition.label} · semaine {nutrition.week}/{nutrition.weeks}</b><span className="muted small">{nutrition.kcal.toLocaleString('fr-FR')} kcal · {nutrition.protein_g} g de protéines{nutrition.check !== 'ok' && nutrition.check !== 'data' ? ' · ajustement proposé' : ''}</span></span><Icon name="right" size={16} /></Link>}
     </Card>
   );
 }
@@ -139,5 +141,24 @@ function MyDay({ day, onWeigh }) {
       {day.kcal ? <p className="day-targets small"><Link to="/repas"><b>{Number(day.eaten_kcal || 0).toLocaleString('fr-FR')} / {Number(day.kcal).toLocaleString('fr-FR')} kcal</b> mangées</Link> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/repas">noter un repas</Link></p>
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/plan">calcule ton plan</Link></p>}
     </section>
+  );
+}
+
+// Aperçu de la carte du corps sur l'accueil : un coup d'œil sur ce qui est prêt ou fatigué
+function MiniMap() {
+  const { data } = useApi('/bodymap');
+  if (!data) return null;
+  const m = Object.values(data.muscles);
+  const ready = m.filter((x) => x.status === 'pret').length; const tired = m.filter((x) => x.status === 'fatigue' || x.status === 'recup');
+  return (
+    <Link to="/corps" className="card minimap">
+      <BodyFigures data={data} small />
+      <div className="grow">
+        <h2 className="small-h"><Icon name="body" size={16} />Mon corps</h2>
+        <p className="small">{tired.length ? <><b>{tired.length} muscle{tired.length > 1 ? 's' : ''} en récupération</b> : {tired.slice(0, 3).map((x) => x.label.toLowerCase()).join(', ')}</> : <b>Tout est récupéré</b>}</p>
+        <p className="muted small">{ready} prêts{data.pains.length ? ` · ${data.pains.length} douleur${data.pains.length > 1 ? 's' : ''} suivie${data.pains.length > 1 ? 's' : ''}` : ''}</p>
+        <span className="link small">Voir la carte <Icon name="right" size={12} /></span>
+      </div>
+    </Link>
   );
 }

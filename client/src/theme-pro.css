@@ -175,11 +175,11 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .bm-base { fill: var(--bm-base); stroke: var(--line); stroke-width: .6; }
 .bm-m { stroke: var(--surface); stroke-width: .8; cursor: pointer; transition: opacity .15s; }
 .bm-m.on { stroke: var(--text); stroke-width: 1.4; }
-.bmc-legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; color: var(--muted); }
-.bmc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-.bmc-panel { border-top: 1px solid var(--line); padding-top: 12px; }
-.bmc-panel p { margin: 4px 0; }
-.bmc-pill { color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.bm-legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; color: var(--muted); }
+.bm-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.bm-panel { border-top: 1px solid var(--line); padding-top: 12px; }
+.bm-panel p { margin: 4px 0; }
+.bm-pill { color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
 .thumbs { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
 .thumbs button { width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; background: none; border: 0; padding: 0; color: var(--text); }
 .thumbs img, .thumbs .pick-thumb { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 10px; object-fit: cover; background: #fff; border: 1px solid var(--line); }
@@ -211,3 +211,24 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .pick-list.lib li button.pick-info { flex: 0 0 44px; width: 44px; padding: 0; flex-direction: row; justify-content: center; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); margin: 6px 0; }
 .pick-list li button { flex-direction: row; }
 .pick-list li .grow { flex: 1; min-width: 0; }
+/* v5.2 : espace Corps regroupé */
+.hub-chips { margin-bottom: 12px; }
+.embed-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; }
+.bm-hero { padding-top: 14px; }
+.bm-hero .bm-figs { max-width: 480px; }
+.bm-hero .bm-fig svg { max-height: 420px; }
+.minimap { display: flex; align-items: center; gap: 14px; color: var(--text); text-decoration: none; }
+.minimap .bm-figs.small { width: 132px; flex-shrink: 0; margin: 0; gap: 2px; }
+.minimap .bm-figs.small figcaption { display: none; }
+.minimap .bm-figs.small .bm-m { cursor: default; pointer-events: none; }
+.minimap .grow { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.minimap p { margin: 0; }
+.small-h { display: flex; align-items: center; gap: 6px; font-size: 15px; margin: 0; font-family: var(--display); }
+.nut-today { align-items: center; color: var(--text); text-decoration: none; }
+.nut-today .grow { display: flex; flex-direction: column; }
+.pick-list.lib li { align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 8px 0; }
+.pick-list.lib li:first-child { border-top: 0; }
+.pick-list.lib li button.pick-main { border: 0; padding: 4px 0; }
+.pick-list.lib li button.pick-photo { position: relative; flex: 0 0 96px; width: 96px; height: 76px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; display: grid; place-items: center; color: var(--muted); }
+.pick-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pick-play { position: absolute; right: 5px; bottom: 5px; width: 22px; height: 22px; border-radius: 50%; background: rgba(14,17,22,.75); color: #fff; display: grid; place-items: center; }

@@ -50,6 +50,16 @@ function Figure({ map, data, color, sel, onSel, label }) {
   );
 }
 
+// Les deux silhouettes seules (aperçu de l'accueil)
+export function BodyFigures({ data, small }) {
+  return (
+    <div className={`bm-figs ${small ? 'small' : ''}`}>
+      <Figure map={FRONT} data={data.muscles} color={(x) => (!x ? 'var(--map-0)' : COLORS_REC[x.status])} onSel={() => {}} label="Face" />
+      <Figure map={BACK} data={data.muscles} color={(x) => (!x ? 'var(--map-0)' : COLORS_REC[x.status])} onSel={() => {}} label="Dos" />
+    </div>
+  );
+}
+
 // Carte du corps : séries de la semaine ou récupération, muscle sélectionné avec exercices et étirements illustrés
 export default function BodyMap({ data }) {
   const [mode, setMode] = useState('rec'); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);

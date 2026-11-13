@@ -8,7 +8,6 @@ import { DAYS, fmtDate } from '../lib/format.js';
 import { RadarChart, COLORS } from '../components/charts.jsx';
 import { getMembership, getHealth, healthAdvice } from '../lib/league.js';
 import { LEAGUE_ON } from '../lib/api.js';
-import BodyMap from '../components/BodyMap.jsx';
 
 const SEV = { important: ['Important', 'danger'], attention: ['À revoir', 'warn'], info: ['Info', 'info'], ok: ['OK', 'ok'] };
 const CAT = { volume: 'Volume', redondance: 'Redondance', desequilibre: 'Équilibre', repartition: 'Répartition', douleur: 'Douleur', recuperation: 'Récupération', historique: 'Historique' };
@@ -16,7 +15,7 @@ const STATUS = { absent: ['Absent', 'danger'], faible: ['Faible', 'warn'], limit
 
 export default function Coach() {
   const { data: a, error, reload } = useApi('/analysis');
-  const pains = useApi('/pains'); const map = useApi('/bodymap');
+  const pains = useApi('/pains');
   const [pain, setPain] = useState(null); const [busy, setBusy] = useState(null); const toast = useToast();
   if (error && !a) return <ErrorBox error={error} retry={reload} />;
   if (!a) return <Loading />;
@@ -27,7 +26,6 @@ export default function Coach() {
   const activePains = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
     <Page tabs={<SectionTabs group="body" />} title="Analyse">
-      <Card title="Carte du corps" icon="body" action={<Link className="btn xs ghost" to="/soins">Soins</Link>}>{map.data ? <BodyMap data={map.data} /> : <Loading />}</Card>
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
           <div className="row gap">

@@ -3,6 +3,7 @@ import iconUrl from './icon.svg';
 import { Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { get, onAuthRequired, flushOutbox, outboxCount, store, STANDALONE, LEAGUE_ON, PAGES, onDataChange } from './lib/api.js';
 import { Icon, Loading, useToast } from './components/ui.jsx';
+import { Hub } from './components/SectionTabs.jsx';
 import Login from './pages/Login.jsx';
 import Onboarding from './pages/Onboarding.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -25,21 +26,25 @@ const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
 const Plan = lazy(() => import('./pages/Plan.jsx'));
 const Care = lazy(() => import('./pages/Care.jsx'));
+const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
 const Meals = lazy(() => import('./pages/Meals.jsx'));
+// Écrans regroupés de l'espace Corps
+const PROGRESS_VIEWS = [['stats', 'Statistiques', Progress], ['objectifs', 'Objectifs', Goals], ['analyse', 'Analyse', Coach], ['bilan', 'Bilan de la semaine', Recap]];
+const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition], ['plan', 'Mon plan', Plan]];
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
   ['/', 'home', 'Accueil', null],
   ['/programme', 'dumbbell', 'Entraînement', /^\/(programme|calendrier|cardio|historique)/],
   ['/demarrer', 'play', 'Séance', /^\/seance/, 'go'],
-  ['/corps', 'scale', 'Corps', /^\/(corps|plan|repas|soins|coach|progres|objectifs|bilan)/],
+  ['/corps', 'scale', 'Corps', /^\/(corps|nutrition|plan|repas|soins|coach|progres|objectifs|bilan)/],
   ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue', /^\/ligue/]] : [['/plus', 'menu', 'Outils', /^\/(plus|outils|profil|donnees|rappels)/]]),
 ];
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
   ['/', 'home', "Aujourd'hui"],
   ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/calendrier', 'calendar', 'Calendrier'], ['/cardio', 'heart', 'Cardio'],
-  ['Corps et progrès'], ['/corps', 'scale', 'Poids, calories, cure'], ['/progres', 'chart', 'Progrès'], ['/repas', 'food', 'Repas'], ['/coach', 'body', 'Analyse et carte du corps'], ['/objectifs', 'target', 'Objectifs'], ['/plan', 'target', 'Mon plan'], ['/bilan', 'upload', 'Bilan'], ['/soins', 'heal', 'Soins et mobilité'],
+  ['Corps'], ['/corps', 'body', 'Mon corps'], ['/progres', 'chart', 'Progrès'], ['/nutrition', 'food', 'Nutrition'], ['/soins', 'heal', 'Soins et mobilité'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
   ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Outils'],
 ];
@@ -157,19 +162,20 @@ export default function App() {
           <Route path="/historique/:id" element={<WorkoutDetail />} />
           <Route path="/cardio" element={<Cardio />} />
           <Route path="/calendrier" element={<Calendar />} />
-          <Route path="/progres" element={<Progress />} />
-          <Route path="/coach" element={<Coach />} />
-          <Route path="/objectifs" element={<Goals />} />
+          <Route path="/progres" element={<Hub title="Progrès" views={PROGRESS_VIEWS} />} />
+          <Route path="/coach" element={<Navigate to="/progres?v=analyse" replace />} />
+          <Route path="/objectifs" element={<Navigate to="/progres?v=objectifs" replace />} />
           <Route path="/profil" element={<Profile onSaved={setProfile} />} />
           <Route path="/donnees" element={<Data />} />
           <Route path="/plus" element={<More />} />
           <Route path="/rappels" element={<Reminders />} />
-          <Route path="/bilan" element={<Recap />} />
-          <Route path="/corps" element={<Nutrition />} />
+          <Route path="/bilan" element={<Navigate to="/progres?v=bilan" replace />} />
+          <Route path="/corps" element={<BodyHome />} />
+          <Route path="/nutrition" element={<Hub title="Nutrition" views={NUTRITION_VIEWS} />} />
           <Route path="/outils" element={<Tools />} />
-          <Route path="/plan" element={<Plan />} />
+          <Route path="/plan" element={<Navigate to="/nutrition?v=plan" replace />} />
           <Route path="/soins" element={<Care />} />
-          <Route path="/repas" element={<Meals />} />
+          <Route path="/repas" element={<Navigate to="/nutrition" replace />} />
           <Route path="/demarrer" element={<StartSession />} />
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />

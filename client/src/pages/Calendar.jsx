@@ -120,7 +120,7 @@ export default function Calendar() {
             </div>
           ))}
           {sel.blocks.length > 0 && <p className="small cal-blocks"><Icon name="heart" size={14} />Avec la séance : {sel.blocks.map((b) => `${b.label} ${Math.round(b.duration_min)} min ${b.placement === 'debut' ? 'en début' : 'en fin'}`).join(' · ')}</p>}
-          {sel.metrics.map((m) => <Link key={m.id} className="cal-row done body" to="/corps"><Icon name="scale" size={16} /><span className="grow"><b>{[m.weight_kg != null && `${String(m.weight_kg).replace('.', ',')} kg`, m.waist_cm != null && `taille ${m.waist_cm} cm`, m.body_fat_pct != null && `${m.body_fat_pct} % de gras`].filter(Boolean).join(' · ')}</b></span><span className="muted small">pesée</span></Link>)}
+          {sel.metrics.map((m) => <Link key={m.id} className="cal-row done body" to="/nutrition?v=poids"><Icon name="scale" size={16} /><span className="grow"><b>{[m.weight_kg != null && `${String(m.weight_kg).replace('.', ',')} kg`, m.waist_cm != null && `taille ${m.waist_cm} cm`, m.body_fat_pct != null && `${m.body_fat_pct} % de gras`].filter(Boolean).join(' · ')}</b></span><span className="muted small">pesée</span></Link>)}
           {sel.deadlines.map((g) => <Link key={g.id} className="cal-row" to="/objectifs"><Icon name="target" size={16} /><span className="grow"><b>Échéance : {g.title}</b></span></Link>)}
           {sel.plan && <p className="muted small">Cure {sel.plan.label.toLowerCase()} · semaine {Math.floor((new Date(selected) - new Date(sel.plan.start_date)) / 864e5 / 7) + 1} sur {sel.plan.weeks}</p>}
           {!sel.workouts.length && !sel.cardio.length && !sel.events.length && !sel.metrics.length && <p className="muted">Rien de prévu ce jour-là.</p>}
@@ -140,7 +140,7 @@ export default function Calendar() {
             <button className="btn sm" onClick={() => setAdding({ type: 'workout' })}>Séance muscu</button>
             <button className="btn sm" onClick={() => setAdding({ type: 'cardio', cardio_activity: 'marche_inclinee', planned_minutes: 20 })}>Cardio</button>
             <button className="btn sm" onClick={() => run(() => post('/calendar', { type: 'rest', date: selected, title: 'Repos' }), 'Jour de repos ajouté')}>Repos</button>
-            {selected <= t && <Link className="btn sm" to="/corps"><Icon name="scale" size={14} />Pesée</Link>}
+            {selected <= t && <Link className="btn sm" to="/nutrition?v=poids"><Icon name="scale" size={14} />Pesée</Link>}
           </div>}
         </>)}
       </Sheet>

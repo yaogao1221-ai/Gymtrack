@@ -94,8 +94,11 @@ export function ToastProvider({ children }) {
   );
 }
 
+// Page intégrée dans un écran regroupé (Progrès, Nutrition) : pas d'en-tête ni d'onglets en double
+export const EmbedCtx = createContext(false);
 export function Page({ title, subtitle, actions, children, back, tabs }) {
-  const nav = useNavigate();
+  const nav = useNavigate(); const embedded = useContext(EmbedCtx);
+  if (embedded) return <div className="embedded fade-in">{actions && <div className="embed-actions">{actions}</div>}{children}</div>;
   const goBack = typeof back === 'string' ? () => nav(back) : back;
   return (
     <div className="page fade-in">

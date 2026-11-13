@@ -51,12 +51,14 @@ export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
           const src = thumb(it.x?.id || it.e?.lib_id);
           return (
             <li key={it.key}>
-              <button className="pick-main" onClick={() => choose(it)} disabled={busy === it.key}>
-                {src ? <img className="pick-thumb" src={src} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /> : <span className="pick-thumb empty"><Icon name="dumbbell" size={16} /></span>}
-                <span className="grow"><b className="small">{it.name}</b><span className="muted small">{[it.sub, CATS[it.c]].filter(Boolean).join(' · ')}{it.mine ? ' · dans tes exercices' : ''}{like && i < 5 && !q ? ' · mêmes muscles' : ''}</span></span>
-                <Icon name="plus" size={16} />
+              <button className="pick-photo" onClick={() => (it.x ? setInfo(it.x) : choose(it))} aria-label={it.x ? 'Voir la démo' : 'Choisir'}>
+                {src ? <img src={src} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /> : <Icon name="dumbbell" size={22} />}
+                {it.x?.img > 0 && <span className="pick-play"><Icon name="play" size={12} /></span>}
               </button>
-              {it.x && <button className="pick-info" onClick={() => setInfo(it.x)} aria-label="Voir la démo"><Icon name="image" size={18} /></button>}
+              <button className="pick-main" onClick={() => choose(it)} disabled={busy === it.key}>
+                <span className="grow"><b className="small">{it.name}</b><span className="muted small">{[it.sub, CATS[it.c]].filter(Boolean).join(' · ')}{it.mine ? ' · dans tes exercices' : ''}{like && i < 5 && !q ? ' · mêmes muscles' : ''}</span></span>
+                <Icon name="plus" size={18} />
+              </button>
             </li>
           );
         })}

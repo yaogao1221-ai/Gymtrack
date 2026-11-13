@@ -56,7 +56,7 @@ export default function Plan() {
       {!s.ready ? (
         <Card title="Il manque des infos" icon="info">
           <p className="small">Pour calculer ton plan : <b>{s.missing.join(', ') || 'une pesée'}</b>.</p>
-          <Link className="btn sm primary" to="/corps">Compléter dans Corps</Link>
+          <Link className="btn sm primary" to="/nutrition?v=poids">Compléter dans Corps</Link>
         </Card>
       ) : (<>
         <section className="card plan-hero">

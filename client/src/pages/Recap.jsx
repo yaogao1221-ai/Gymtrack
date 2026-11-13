@@ -77,7 +77,7 @@ export default function Recap() {
         </Card>
       )}
       {(r.body?.weight != null || r.body?.waist != null || r.body?.plan || r.goals?.length > 0) && (
-        <Card title="Corps et objectifs" icon="scale" action={<Link className="link" to="/corps">Corps</Link>}>
+        <Card title="Corps et objectifs" icon="scale" action={<Link className="link" to="/nutrition?v=poids">Corps</Link>}>
           <ul className="plain-list">
             {r.body.weight != null && <li><span className="grow">Poids moyen ({r.body.weigh_ins} pesée{r.body.weigh_ins > 1 ? 's' : ''})</span><span className="mono small"><b>{n1(r.body.weight)} kg</b>{r.body.weight_change != null ? ` · ${r.body.weight_change > 0 ? '+' : ''}${n1(r.body.weight_change)} kg vs semaine d’avant` : ''}</span></li>}
             {r.body.waist != null && <li><span className="grow">Tour de taille</span><span className="mono small"><b>{n1(r.body.waist)} cm</b>{r.body.waist_change != null ? ` · ${r.body.waist_change > 0 ? '+' : ''}${n1(r.body.waist_change)} cm` : ''}</span></li>}
