@@ -55,10 +55,15 @@ export default function Dashboard() {
 
       <section className="card home-week">
         <div className="card-head"><h2>Ma semaine</h2><Link className="link small" to="/coach">Bilan du coach</Link></div>
-        <div className="hw-row">{rings.map((r) => (
-          <div key={r.label}><span className="eyebrow">{r.label}</span><b className="num-l">{r.text.split(' / ')[0]}<span className="unit-s">/ {r.text.split(' / ')[1]}</span></b>
-            <div className={`bar thin ${r.value >= 1 ? 'done' : ''}`}><span style={{ width: `${Math.min(100, Math.round(r.value * 100))}%` }} /></div></div>
-        ))}</div>
+        <div className="hw-rings">
+          <ActivityRings size={128} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))} />
+          <ul className="ring-legend">
+            <li className="ring-total"><span>Semaine</span><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)} %</b></li>
+            {rings.map((r) => (
+              <li key={r.label}><i style={{ background: GRADS[r.grad][0] }} /><span>{r.label}</span><b>{r.text}</b></li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section id="calendrier"><Suspense fallback={<Loading />}><CalendarView home /></Suspense></section>

@@ -1,14 +1,14 @@
 /* GymTrack v8 : style natif Apple (iOS 18 / macOS Sequoia).
-   Fonds système neutres (#F5F5F7 / #000), cartes élevées (#FFF / #1C1C1E), une seule couleur d'action (bleu système),
+   Fonds système neutres (#F5F5F7 / #000), cartes élevées (#FFF / #1C1C1E), couleurs du drapeau algérien (vert action, blanc, rouge),
    matières vitrées sur les barres et les feuilles, police système, coins continus, ombres ambiantes très douces. */
 :root, :root[data-theme="light"] {
   --bg: #F5F5F7; --bg2: #EDEDF0; --surface: #FFFFFF; --surface2: #F2F2F7; --surface3: #E5E5EA;
   --line: rgba(60,60,67,.12); --line2: rgba(60,60,67,.20);
   --text: #1D1D1F; --muted: rgba(60,60,67,.72); --faint: rgba(60,60,67,.45);
-  --accent: #0071E3; --accent-ink: #FFFFFF; --accent-soft: rgba(0,113,227,.10); --accent-line: rgba(0,113,227,.35);
-  --accent2: #248A3D; --green: #34C759; --gold: #B25000; --orange: #FF9500; --red: #D70015; --warn: #B25000; --danger: #D70015; --info: #0071E3;
-  --blue: #0071E3; --violet: #5E5CE6; --magenta: #AF52DE; --teal-soft: rgba(52,199,89,.12);
-  --grad-fire: linear-gradient(#0071E3, #0071E3); --grad-aqua: linear-gradient(#34C759, #34C759); --grad-violet: linear-gradient(#5E5CE6, #5E5CE6);
+  --accent: #006233; --accent-ink: #FFFFFF; --accent-soft: rgba(0,98,51,.10); --accent-line: rgba(0,98,51,.35);
+  --accent2: #248A3D; --green: #34C759; --gold: #B25000; --orange: #FF9500; --red: #D21034; --warn: #B25000; --danger: #D21034; --info: #006233;
+  --blue: #006233; --violet: #5E5CE6; --magenta: #AF52DE; --teal-soft: rgba(52,199,89,.12);
+  --grad-fire: linear-gradient(#006233, #006233); --grad-aqua: linear-gradient(#D21034, #D21034); --grad-violet: linear-gradient(#A1A1A6, #A1A1A6);
   --hero: #1D1D1F; --hero-text: #FFFFFF; --hero-muted: rgba(235,235,245,.68);
   --glass: rgba(245,245,247,.72); --glass-line: rgba(0,0,0,.08); --sheet-glass: rgba(255,255,255,.82);
   --shadow: 0 8px 30px rgba(0,0,0,.06); --shadow-s: 0 1px 3px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.04);
@@ -17,21 +17,21 @@
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
   --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
   --num: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "Inter", system-ui, sans-serif;
-  --map-0: #E5E5EA; --map-1: #BFDBFE; --map-2: #60A5FA; --map-3: #0071E3; --map-4: #003E8A; --bm-base: #EDEDF0;
+  --map-0: #E5E5EA; --map-1: #BFE6CC; --map-2: #5CBF85; --map-3: #006233; --map-4: #003A1E; --bm-base: #EDEDF0;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
   --bg: #000000; --bg2: #1C1C1E; --surface: #1C1C1E; --surface2: #2C2C2E; --surface3: #3A3A3C;
   --line: rgba(84,84,88,.55); --line2: rgba(84,84,88,.8);
   --text: #F5F5F7; --muted: rgba(235,235,245,.68); --faint: rgba(235,235,245,.38);
-  --accent: #0A84FF; --accent-soft: rgba(10,132,255,.18); --accent-line: rgba(10,132,255,.5);
-  --accent2: #30D158; --green: #30D158; --gold: #FFD60A; --orange: #FF9F0A; --red: #FF453A; --warn: #FF9F0A; --danger: #FF453A; --info: #0A84FF;
-  --blue: #0A84FF; --violet: #5E5CE6; --teal-soft: rgba(48,209,88,.16);
-  --grad-fire: linear-gradient(#0A84FF, #0A84FF); --grad-aqua: linear-gradient(#30D158, #30D158);
+  --accent: #0E8747; --accent-soft: rgba(14,135,71,.18); --accent-line: rgba(14,135,71,.5);
+  --accent2: #30D158; --green: #30D158; --gold: #FFD60A; --orange: #FF9F0A; --red: #FF4D5E; --warn: #FF9F0A; --danger: #FF4D5E; --info: #0E8747;
+  --blue: #0E8747; --violet: #5E5CE6; --teal-soft: rgba(48,209,88,.16);
+  --grad-fire: linear-gradient(#0E8747, #0E8747); --grad-aqua: linear-gradient(#FF4D5E, #FF4D5E);
   --hero: #1C1C1E; --hero-text: #FFFFFF; --hero-muted: rgba(235,235,245,.68);
   --glass: rgba(22,22,24,.72); --glass-line: rgba(255,255,255,.15); --sheet-glass: rgba(28,28,30,.86);
   --shadow: 0 8px 30px rgba(0,0,0,.35); --shadow-s: 0 1px 2px rgba(0,0,0,.3);
-  --map-0: #2C2C2E; --map-1: #0B3A6E; --map-2: #0A5FC2; --map-3: #0A84FF; --map-4: #9CCBFF; --bm-base: #2C2C2E;
+  --map-0: #2C2C2E; --map-1: #0B3A22; --map-2: #0B6435; --map-3: #0E8747; --map-4: #8FE0B0; --bm-base: #2C2C2E;
   color-scheme: dark;
 }
 body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; letter-spacing: -.003em; -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1; }
@@ -82,7 +82,7 @@ details[open] > summary .fold-chev { transform: rotate(90deg); }
 .btn { border-radius: var(--r-s); box-shadow: none; background: var(--surface2); border: 0; color: var(--accent); font-weight: 600; font-family: var(--font); letter-spacing: -.01em; text-transform: none; transition: transform .35s var(--spring), background-color .25s var(--spring), opacity .2s; }
 .btn:active, .icon-btn:active, .chip:active, .check-btn:active, .stepper button:active, .tabbar a:active, .cs-q > li > button:active { transform: scale(.97); }
 @media (hover: hover) { .btn:hover { filter: brightness(1.04); } }
-.btn.primary { background: var(--accent); border: 0; color: #fff; box-shadow: none; font-family: var(--font); font-size: 17px; font-weight: 600; letter-spacing: -.01em; text-transform: none; }
+.btn.primary { background: var(--accent-fill); border: 0; color: #fff; box-shadow: none; font-family: var(--font); font-size: 17px; font-weight: 600; letter-spacing: -.01em; text-transform: none; }
 .btn.primary.xs, .btn.primary.sm { font-size: 14px; }
 .btn.lg { border-radius: 14px; padding: 15px 22px; }
 .btn.lg.primary { font-size: 17px; }
@@ -92,12 +92,12 @@ details[open] > summary .fold-chev { transform: rotate(90deg); }
 .btn.danger { background: var(--danger); color: #fff; }
 .danger-text { color: var(--danger) !important; }
 .icon-btn { border-radius: var(--pill); background: var(--surface); border: 0; box-shadow: var(--shadow-s); color: var(--accent); transition: transform .35s var(--spring); }
-.hero .btn.primary { background: var(--accent); color: #fff; }
+.hero .btn.primary { background: var(--accent-fill); color: #fff; }
 .link { color: var(--accent); font-weight: 500; }
 
 /* ---------- Puces, étiquettes : pilules ---------- */
 .chip { border-radius: var(--pill); background: var(--surface); border: 0; color: var(--text); font-weight: 500; box-shadow: var(--shadow-s); transition: transform .35s var(--spring), background-color .25s; }
-.chip.on { background: var(--accent); color: #fff; }
+.chip.on { background: var(--accent-fill); color: #fff; }
 .chip.warn { box-shadow: inset 0 0 0 1.5px var(--orange); color: var(--warn); }
 .chip.on.warn { background: var(--orange); color: #fff; }
 .tag { background: var(--surface2); padding: 2px 8px; border-radius: var(--pill); font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
@@ -124,7 +124,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .tabbar a span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar a.active, .tabbar a.active .icon { color: var(--accent); }
 .tabbar a.go { color: var(--text); }
-.tabbar a.go .go-dot { border-radius: var(--pill); width: 50px; height: 50px; margin-top: -20px; border: 0; background: var(--accent); box-shadow: 0 6px 18px rgba(0,113,227,.35); }
+.tabbar a.go .go-dot { border-radius: var(--pill); width: 50px; height: 50px; margin-top: -20px; border: 0; background: var(--accent-fill); box-shadow: 0 6px 18px rgba(0,98,51,.35); }
 .tabbar a.go.live .go-dot { background: var(--green); box-shadow: 0 6px 18px rgba(52,199,89,.35); }
 .sidebar { background: var(--glass); border-right: 1px solid var(--glass-line); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
 .sidebar nav a { border-radius: 10px; }
@@ -140,10 +140,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 
 /* Barres et jauges */
 .bar { border-radius: var(--pill); background: var(--surface3); }
-.bar span { border-radius: var(--pill); background: var(--accent); }
+.bar span { border-radius: var(--pill); background: var(--accent-fill); }
 .bar.done span { background: var(--green); }
 .mb-track { border-radius: var(--pill); } .mb-bar { border-radius: var(--pill); }
-.mb-bar.correct { background: var(--accent); } .mb-bar.optimal { background: var(--green); } .mb-bar.bas { background: var(--orange); } .mb-bar.haut { background: var(--violet); }
+.mb-bar.correct { background: var(--accent-fill); } .mb-bar.optimal { background: var(--green); } .mb-bar.bas { background: var(--orange); } .mb-bar.haut { background: var(--violet); }
 
 /* Listes et vignettes */
 .food-list li button, .pick-list li { border-color: var(--line); }
@@ -165,12 +165,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .cs-today .eyebrow, .cs-today .muted { color: var(--muted); }
 .cs-head { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: -.025em; line-height: 1.15; margin: 4px 0 6px; }
 .cs-lines { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; font-size: 15px; }
-.cs-lines li { padding-left: 16px; position: relative; } .cs-lines li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.cs-lines li { padding-left: 16px; position: relative; } .cs-lines li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-fill); }
 .cs-today .btn:not(.primary) { color: var(--accent); background: var(--accent-soft); }
 .cs-sec { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px; border: 0; }
 .cs-sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .cs-sec-h h2 { font-size: 22px; text-transform: none; letter-spacing: -.02em; }
-.cs-count { font-family: var(--num); font-size: 15px; font-weight: 600; color: #fff; background: var(--accent); border-radius: var(--pill); padding: 2px 10px; line-height: 1.4; }
+.cs-count { font-family: var(--num); font-size: 15px; font-weight: 600; color: #fff; background: var(--accent-fill); border-radius: var(--pill); padding: 2px 10px; line-height: 1.4; }
 .cs-q { list-style: none; padding: 0; margin: 0 -20px; border: 0; }
 .cs-q > li { border-top: 1px solid var(--line); margin-left: 20px; }
 .cs-q > li:first-child { border-top: 0; }
@@ -219,11 +219,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .wk-title b { font-family: var(--display); font-size: 20px; font-weight: 700; text-transform: none; letter-spacing: -.02em; }
 .wk-clock { font-family: var(--num); font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .wk-progress { height: 4px; border-radius: var(--pill); background: var(--surface3); }
-.wk-progress span { background: var(--accent); border-radius: var(--pill); transition: width .5s var(--spring); }
+.wk-progress span { background: var(--accent-fill); border-radius: var(--pill); transition: width .5s var(--spring); }
 .wk-strip { position: sticky; top: calc(var(--safe-t, 0px) + 60px); z-index: 19; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 8px 16px; background: var(--glass); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--glass-line); }
 .wk-strip::-webkit-scrollbar { display: none; }
 .wk-strip button { flex: 0 0 auto; max-width: 170px; display: flex; align-items: center; gap: 6px; padding: 7px 12px; margin: 0; background: var(--surface); border: 0; border-radius: var(--pill); box-shadow: var(--shadow-s); color: var(--text); font-size: 13px; font-weight: 500; transition: transform .35s var(--spring), background-color .25s; }
-.wk-strip button.on { background: var(--accent); color: #fff; }
+.wk-strip button.on { background: var(--accent-fill); color: #fff; }
 .wk-strip button.on .ws-c, .wk-strip button.on .ws-n { color: rgba(255,255,255,.85); }
 .wk-strip button.ok { color: var(--accent2); }
 .ws-n { font-family: var(--num); font-size: 13px; font-weight: 700; color: var(--muted); }
@@ -232,7 +232,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .wk-block, .wk-block.open { background: var(--surface); border: 0; border-radius: var(--r); padding: 16px; box-shadow: var(--shadow-s); scroll-margin-top: 130px; transition: box-shadow .4s var(--spring); }
 .wk-block.open { box-shadow: var(--shadow); }
 .wk-block .ex-num { background: var(--surface2); color: var(--muted); font-family: var(--num); font-size: 13px; font-weight: 700; width: 28px; height: 28px; min-width: 28px; border-radius: 8px; }
-.wk-block.open .ex-num { background: var(--accent); color: #fff; }
+.wk-block.open .ex-num { background: var(--accent-fill); color: #fff; }
 .wk-block.finished .ex-num { background: var(--green); color: #fff; }
 .wk-block .ex-name { font-family: var(--display); font-size: 18px; font-weight: 650; text-transform: none; letter-spacing: -.02em; line-height: 1.2; }
 .wk-block:not(.open) .ex-name { font-size: 16px; }
@@ -256,7 +256,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .rest-bar { background: var(--sheet-glass); color: var(--text); border: 1px solid var(--glass-line); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.18); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); animation: sheetUp .5s var(--spring); }
 .rest-bar .muted { color: var(--muted); }
 .rest-time { font-family: var(--num); font-size: 56px; font-weight: 700; line-height: 1; letter-spacing: -.035em; }
-.rest-fill { background: var(--accent) !important; opacity: 1; height: 3px !important; }
+.rest-fill { background: var(--accent-fill) !important; opacity: 1; height: 3px !important; }
 .rest-bar .coach-cue { background: var(--surface2) !important; border: 0 !important; border-radius: 14px !important; color: var(--text) !important; }
 .briefing { border-top: 0 !important; }
 .briefing h2 { font-family: var(--display); font-size: 26px; text-transform: none; line-height: 1.15; letter-spacing: -.025em; }
@@ -273,7 +273,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .home-inbox .grow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .home-inbox b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-inbox .icon { color: var(--faint); }
-.hi-n { font-family: var(--num); font-size: 17px; font-weight: 700; color: #fff; background: var(--accent); min-width: 36px; height: 36px; border-radius: var(--pill); display: grid; place-items: center; line-height: 1; }
+.hi-n { font-family: var(--num); font-size: 17px; font-weight: 700; color: #fff; background: var(--accent-fill); min-width: 36px; height: 36px; border-radius: var(--pill); display: grid; place-items: center; line-height: 1; }
 .coach-hero .coach-mus span { border-radius: var(--pill); background: var(--surface2); color: var(--text); }
 .coach-hero .coach-mus span.tired { background: rgba(255,149,0,.16); color: var(--warn); }
 .coach-hero .coach-lines li svg { color: var(--accent); }
@@ -297,13 +297,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .wt-day.today { box-shadow: inset 0 0 0 2px var(--accent); }
 .wt-day.today b { color: var(--accent); }
 .tabs .tab { border-radius: var(--r-m) !important; background: var(--surface) !important; border: 0 !important; box-shadow: var(--shadow-s) !important; color: var(--muted); transition: transform .35s var(--spring); }
-.tabs .tab.on { background: var(--accent) !important; color: rgba(255,255,255,.85) !important; }
+.tabs .tab.on { background: var(--accent-fill) !important; color: rgba(255,255,255,.85) !important; }
 .tabs .tab.on span { color: rgba(255,255,255,.85) !important; }
 .tabs .tab b { font-family: var(--display); font-size: 16px; text-transform: none; letter-spacing: -.01em; color: var(--text) !important; }
 .tabs .tab.on b { color: #fff !important; }
 .card.rec { box-shadow: var(--shadow), inset 0 0 0 2px var(--green); }
 .rec { border-radius: var(--r-s); background: var(--surface2); border: 0; padding: 12px; }
-.cw-bar { height: 6px; border-radius: var(--pill); background: var(--surface3); } .cw-fill { background: var(--accent); border-radius: var(--pill); }
+.cw-bar { height: 6px; border-radius: var(--pill); background: var(--surface3); } .cw-fill { background: var(--accent-fill); border-radius: var(--pill); }
 .pain-int { border-radius: var(--pill); }
 .phase-bar span { border-radius: var(--pill); }
 .int-row .int { border-radius: 10px; }
@@ -366,5 +366,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .ex-muscles .h-sub { margin: 0 0 6px; }
 .ex-muscles p { margin: 3px 0; }
 .mdot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
-.mdot-main { background: var(--accent); } .mdot-sec { background: var(--accent-line); }
+.mdot-main { background: var(--accent-fill); } .mdot-sec { background: var(--accent-line); }
 .chip.on, .chip.on * { color: #fff !important; }
+
+/* ---------- v8.1 : couleurs du drapeau algérien ---------- */
+:root, :root[data-theme="light"] { --accent-fill: #006233; --ring1: #006233; --ring2: #D21034; --ring3: #A1A1A6; --flag-g: #006233; --flag-r: #D21034; }
+:root[data-theme="dark"] { --accent: #19B35C; --accent-soft: rgba(25,179,92,.16); --accent-line: rgba(25,179,92,.45); --accent-fill: #0B7A3E; --ring1: #19B35C; --ring2: #FF4D5E; --ring3: #FFFFFF; --flag-g: #12A150; --flag-r: #FF4D5E; }
+.tabbar a.go .go-dot { box-shadow: 0 6px 18px rgba(0,98,51,.4); }
+/* liseré du drapeau sous l'en-tête des pages */
+.page-head h1::after { content: ""; display: block; width: 54px; height: 4px; margin-top: 8px; border-radius: var(--pill);
+  background: linear-gradient(90deg, var(--flag-g) 0 33.3%, #FFFFFF 33.3% 66.6%, var(--flag-r) 66.6%); box-shadow: 0 0 0 1px var(--line); }
+/* sélection du programme actif lisible */
+.ps-chips .chip.on { background: var(--accent-fill); color: #fff; } .ps-chips .chip.on .muted { color: #fff; opacity: .8; }
+/* anneaux de la semaine */
+.home-week .hw-rings { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.home-week .ring-legend li { grid-template-columns: 12px 1fr auto; }
+.home-week .ring-legend i { border-radius: 50%; }
+.home-week .ring-legend li.ring-total { grid-template-columns: 1fr auto; }

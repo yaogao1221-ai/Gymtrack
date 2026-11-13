@@ -193,7 +193,7 @@ export function Chips({ value = [], onChange, options, single }) {
 }
 
 // Dégradés partagés (anneaux, barres) : [début, fin]
-export const GRADS = { fire: ['#F75A17', '#F75A17'], aqua: ['#1FAE57', '#1FAE57'], violet: ['#3B7BF2', '#3B7BF2'] };
+export const GRADS = { fire: ['var(--ring1)', 'var(--ring1)'], aqua: ['var(--ring2)', 'var(--ring2)'], violet: ['var(--ring3)', 'var(--ring3)'] };
 let gid = 0;
 export function Ring({ value = 0, size = 64, stroke = 7, label, color, grad = 'fire' }) {
   const [id] = useState(() => `rg${++gid}`);
@@ -201,7 +201,7 @@ export function Ring({ value = 0, size = 64, stroke = 7, label, color, grad = 'f
   return (
     <div className="ring" style={{ width: size, height: size }}>
       <svg width={size} height={size}>
-        <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={g[0]} /><stop offset="1" stopColor={g[1]} /></linearGradient></defs>
+        <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" style={{ stopColor: g[0] }} /><stop offset="1" style={{ stopColor: g[1] }} /></linearGradient></defs>
         <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--line)" strokeWidth={stroke} fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} stroke={color || `url(#${id})`} strokeWidth={stroke} fill="none" strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0.001, Math.min(1, value)))} transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dashoffset .8s ease' }} />
@@ -217,12 +217,12 @@ export function ActivityRings({ rings, size = 150, stroke = 13, gap = 4, center 
   return (
     <div className="ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} aria-hidden="true">
-        <defs>{rings.map((rg, i) => { const g = GRADS[rg.grad]; return <linearGradient key={i} id={ids[i]} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={g[0]} /><stop offset="1" stopColor={g[1]} /></linearGradient>; })}</defs>
+        <defs>{rings.map((rg, i) => { const g = GRADS[rg.grad]; return <linearGradient key={i} id={ids[i]} x1="0" y1="0" x2="1" y2="1"><stop offset="0" style={{ stopColor: g[0] }} /><stop offset="1" style={{ stopColor: g[1] }} /></linearGradient>; })}</defs>
         {rings.map((rg, i) => {
           const r = size / 2 - stroke / 2 - i * (stroke + gap); const c = 2 * Math.PI * r;
           return (
             <g key={i}>
-              <circle cx={size / 2} cy={size / 2} r={r} stroke={GRADS[rg.grad][0]} strokeOpacity=".14" strokeWidth={stroke} fill="none" />
+              <circle cx={size / 2} cy={size / 2} r={r} style={{ stroke: GRADS[rg.grad][0] }} strokeOpacity=".16" strokeWidth={stroke} fill="none" />
               <circle cx={size / 2} cy={size / 2} r={r} stroke={`url(#${ids[i]})`} strokeWidth={stroke} fill="none" strokeLinecap="round"
                 strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0.001, Math.min(1, rg.value)))} transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dashoffset 1s ease' }} />
             </g>
