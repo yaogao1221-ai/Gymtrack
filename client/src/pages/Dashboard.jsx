@@ -112,6 +112,7 @@ function CoachHero({ fallbackNext }) {
         {c.kind === 'empty' && <Link className="btn primary" to="/programme/creer"><Icon name="sparkles" size={16} />Créer mon programme</Link>}
         {c.kind !== 'empty' && <Link className="btn ghost" to="/programme">Programme</Link>}
       </div>
+      {dayId && <Link className="coach-forgot" to={`/noter-seance/${dayId}`}>Déjà faite mais pas enregistrée ? Confirme-la ici</Link>}
     </section>
   );
 }

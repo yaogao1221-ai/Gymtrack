@@ -423,3 +423,18 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .rest-bar .coach-cue { color: var(--hero-text, #fff); background: rgba(255,255,255,.08); }
 .rest-bar .coach-cue.good { background: rgba(34,197,94,.22); } .rest-bar .coach-cue.warn { background: rgba(245,158,11,.24); } .rest-bar .coach-cue.gold { background: rgba(234,179,8,.26); }
 .rest-bar .coach-cue.good svg { color: #4ADE80; } .rest-bar .coach-cue.warn svg { color: #FBBF24; }
+.coach-forgot { position: relative; display: inline-block; margin-top: 12px; font-size: 13px; color: var(--hero-muted); text-decoration: underline; }
+/* v6.7 Séance oubliée */
+.lp-ex { padding: 12px 14px; }
+.lp-ex.off { opacity: .6; }
+.lp-top { display: flex; gap: 12px; align-items: center; width: 100%; background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; }
+.lp-top img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.lp-chk { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line2, var(--line)); display: grid; place-items: center; flex-shrink: 0; }
+.lp-chk.on { background: var(--accent2, #16A34A); border-color: var(--accent2, #16A34A); color: #fff; }
+.lp-sets { display: grid; gap: 6px; margin-top: 10px; }
+.lp-set { display: grid; grid-template-columns: 18px 1fr 14px 1fr; gap: 8px; align-items: center; }
+.lp-set.cardio { grid-template-columns: 1fr auto; margin-top: 10px; }
+.lp-set input { text-align: center; }
+.fin-list { list-style: none; margin: 8px 0; padding: 0; }
+.fin-list li { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.fin-list li.miss { opacity: .55; }

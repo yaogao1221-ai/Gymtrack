@@ -133,6 +133,10 @@ export default function Workout() {
   const total = s.items.reduce((a, it) => a + (it.removed ? 0 : it.sets.length), 0);
   const done = s.items.filter((it) => !it.removed).reduce((a, it) => a + it.sets.filter((x) => x.done).length, 0);
   const elapsed = (now - new Date(s.startedAt).getTime()) / 1000;
+  // Séance restée ouverte (oubli d'enregistrer) : durée estimée d'après les séries plutôt que le chrono
+  const stale = elapsed > 3 * 3600;
+  const estMin = Math.round(s.items.filter((it) => !it.removed).reduce((a, it) => a + it.sets.filter((x) => x.done).length * (40 + it.rest), 0) / 60 + (s.cardio || []).filter((c) => c.done).reduce((a, c) => a + (Number(c.duration_min) || 0), 0));
+  const durMin = stale ? Math.max(10, estMin) : Math.round(elapsed / 60);
   const blockDone = (b) => b.items.every((i) => s.items[i].removed || s.items[i].sets.every((x) => x.done));
   const cardio = s.cardio || [];
   const cardioDone = cardio.filter((c) => c.done).length;
@@ -242,7 +246,7 @@ export default function Workout() {
     s.items.forEach((it, pos) => !it.removed && it.sets.forEach((x, i) => { if (x.done) sets.push({ exercise_id: it.exercise_id, program_exercise_id: it.pe_id, position: pos, set_index: i + 1, weight: x.weight === '' ? null : x.weight, weight_unit: it.unit, reps: x.reps, target_reps: it.target.reps, completed: true }); }));
     if (!sets.length && cardioDone) { store.del(KEY); toast('Séance cardio enregistrée'); nav('/cardio', { replace: true }); return; }
     if (!sets.length) { toast(cardio.length ? 'Valide au moins une série ou ton cardio avant d’enregistrer' : 'Valide au moins une série avant d’enregistrer', 'err'); setSaving(false); return; }
-    const body = { client_id: s.clientId, program_day_id: s.dayId, name: s.name, date: s.date, started_at: s.startedAt, ended_at: new Date().toISOString(), duration_sec: Math.round(elapsed), rpe: s.rpe, notes: s.notes, sets };
+    const body = { client_id: s.clientId, program_day_id: s.dayId, name: s.name, date: s.date, started_at: s.startedAt, ended_at: new Date().toISOString(), duration_sec: Math.round(Number(s.durationMin ?? durMin) * 60) || Math.round(elapsed), rpe: s.rpe, notes: s.notes, sets };
     try {
       const r = await postOrQueue('/workouts', body);
       store.del(KEY);
@@ -256,7 +260,7 @@ export default function Workout() {
       <header className="wk-head">
         <button className="icon-btn" onClick={() => nav('/')} aria-label="Réduire (la séance reste en cours)"><Icon name="left" /></button>
         <div className="wk-title"><b>{s.name}</b><span>{s.focus}</span></div>
-        <div className="wk-clock"><Icon name="timer" size={14} />{clock(elapsed)}</div>
+        <div className="wk-clock"><Icon name="timer" size={14} />{stale ? `${Math.round(elapsed / 3600)} h` : clock(elapsed)}</div>
         <button className="btn primary sm" onClick={() => setFinishing(true)}>Terminer</button>
       </header>
       <div className="wk-progress"><span style={{ width: `${total ? (done / total) * 100 : (cardio.length ? (cardioDone / cardio.length) * 100 : 0)}%` }} /></div>
@@ -351,9 +355,19 @@ export default function Workout() {
 
       <Sheet open={finishing} onClose={() => setFinishing(false)} title="Terminer la séance"
         footer={<><button className="btn ghost" onClick={() => setFinishing(false)}>Continuer</button><button className="btn primary" disabled={saving} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer la séance'}</button></>}>
-        <div className="summary"><div><b>{clock(elapsed)}</b><span>durée</span></div><div><b>{done}/{total}</b><span>séries</span></div>
+        <div className="summary"><div><b>{stale ? `${durMin} min` : clock(elapsed)}</b><span>durée</span></div><div><b>{done}/{total}</b><span>séries</span></div>
           <div><b>{s.items.filter((it) => !it.removed && it.sets.some((x) => x.done)).length}</b><span>exercices</span></div></div>
-        {done < total && <p className="warn-text small">{total - done} série(s) non validée(s) : elles ne seront pas enregistrées.</p>}
+        {stale && <p className="warn-text small">Séance ouverte depuis {Math.round(elapsed / 3600)} h : tu as sûrement oublié de l’enregistrer. Confirme la durée réelle et ce que tu as fait.</p>}
+        <div className="grid2">
+          <Field label="Durée réelle (min)"><NumInput value={s.durationMin ?? durMin} onChange={(v) => update((y) => { y.durationMin = v; })} /></Field>
+          <Field label="Date"><input type="date" value={s.date} max={today()} onChange={(e) => e.target.value && update((y) => { y.date = e.target.value; })} /></Field>
+        </div>
+        <p className="eyebrow mt">Ce que tu as fait</p>
+        <ul className="fin-list">{s.items.map((it, ii) => it.removed ? null : (
+          <li key={ii} className={it.sets.some((x) => x.done) ? '' : 'miss'}><span className="grow">{it.name}</span><span className="mono small">{it.sets.filter((x) => x.done).length}/{it.sets.length}</span>
+            {it.sets.some((x) => !x.done) && <button className="btn xs ghost" onClick={() => update((y) => { y.items[ii].sets.forEach((x) => { if (!x.done) { x.done = true; if (x.reps == null) x.reps = y.items[ii].target.reps; } }); })}>Tout fait</button>}</li>
+        ))}</ul>
+        {done < total && <p className="warn-text small">{total - done} série(s) non validée(s) : elles ne seront pas enregistrées. Touche « Tout fait » si tu les as faites.</p>}
         {cardio.some((c) => !c.done) && <p className="warn-text small">Cardio pas encore validé : touche « Cardio fait » avant de terminer pour qu’il compte.</p>}
         <Field label={`Effort ressenti global : ${s.rpe ?? '—'}/10`} hint="1 = très facile · 10 = effort maximal. Sert au calcul de ta récupération.">
           <input type="range" min="1" max="10" value={s.rpe ?? 7} onChange={(e) => update((y) => { y.rpe = Number(e.target.value); })} />

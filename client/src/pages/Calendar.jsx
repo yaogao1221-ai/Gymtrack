@@ -126,7 +126,8 @@ export function CalendarView({ home }) {
               <span className="grow"><b>{e.type === 'workout' ? `${e.day_name} — ${e.focus}` : e.type === 'cardio' ? `Cardio ${CARDIO[e.cardio_activity] || ''} ${e.planned_minutes ? `${e.planned_minutes} min` : ''}` : 'Repos'}</b>
                 {e.status === 'skipped' && <span className="muted small"> (sautée)</span>}{e.notes && <span className="muted small block">{e.notes}</span>}</span>
               <div className="cal-actions">
-                {e.type === 'workout' && e.status === 'planned' && <button className="btn xs primary" onClick={() => nav(`/seance/${e.program_day_id}`)}><Icon name="play" size={12} />Go</button>}
+                {e.type === 'workout' && e.status === 'planned' && e.date >= today() && <button className="btn xs primary" onClick={() => nav(`/seance/${e.program_day_id}`)}><Icon name="play" size={12} />Go</button>}
+                {e.type === 'workout' && e.status !== 'done' && e.date <= today() && <button className={`btn xs ${e.date < today() ? 'primary' : 'ghost'}`} onClick={() => nav(`/noter-seance/${e.program_day_id}?date=${e.date}`)}><Icon name="check" size={12} />Je l’ai faite</button>}
                 <label className="btn xs ghost date-move" title="Déplacer"><Icon name="calendar" size={14} /><input type="date" value={e.date} onChange={(ev) => ev.target.value && run(() => patch(`/calendar/${e.id}`, { date: ev.target.value }).then(() => setSelected(ev.target.value)), 'Déplacé')} /></label>
                 {e.status === 'planned' && e.type !== 'rest' && <button className="btn xs ghost" onClick={() => run(() => patch(`/calendar/${e.id}`, { status: 'skipped' }), 'Marquée comme sautée')}>Sauter</button>}
                 {e.status === 'skipped' && <button className="btn xs ghost" onClick={() => run(() => patch(`/calendar/${e.id}`, { status: 'planned' }))}>Rétablir</button>}

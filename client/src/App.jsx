@@ -11,6 +11,7 @@ const Program = lazy(() => import('./pages/Program.jsx'));
 import Workout from './pages/Workout.jsx';
 import StartSession from './pages/StartSession.jsx';
 const WorkoutDetail = lazy(() => import('./pages/WorkoutDetail.jsx'));
+const LogPast = lazy(() => import('./pages/LogPast.jsx'));
 const Cardio = lazy(() => import('./pages/Cardio.jsx'));
 const Progress = lazy(() => import('./pages/Progress.jsx'));
 const Coach = lazy(() => import('./pages/Coach.jsx'));
@@ -158,6 +159,7 @@ export default function App() {
           <Route path="/bienvenue" element={<Onboarding onDone={(p) => { setProfile(p); nav('/programme/creer'); }} />} />
           <Route path="/programme" element={<Program />} />
           <Route path="/seance/:dayId" element={<Workout />} />
+          <Route path="/noter-seance/:dayId" element={<LogPast />} />
           <Route path="/historique/:id" element={<WorkoutDetail />} />
           <Route path="/cardio" element={<Cardio />} />
           <Route path="/calendrier" element={<CalRedirect />} />

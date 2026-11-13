@@ -144,3 +144,14 @@ test('coach du jour : une consigne claire, puis « séance faite » une fois enr
   assert.ok(['workout', 'free', 'rest', 'done', 'empty'].includes(c.kind)); assert.ok(c.headline); assert.ok(Array.isArray(c.lines));
   if (c.day) { assert.ok(c.day.est_minutes > 0); assert.ok(Array.isArray(c.day.tired)); }
 });
+
+test('séance oubliée : enregistrée après coup avec sa date et sa durée, l’événement du calendrier passe à fait', async () => {
+  const prog = (await call('GET', '/program')).body; const day = prog.days[0];
+  const d = '2026-01-07';
+  await call('POST', '/calendar', { date: d, type: 'workout', program_day_id: day.id });
+  const sets = day.exercises.slice(0, 2).map((e, i) => ({ exercise_id: e.exercise_id, program_exercise_id: e.id, position: i, set_index: 1, weight: 50, weight_unit: 'lbs', reps: 8, target_reps: 8, completed: true }));
+  const r = await call('POST', '/workouts', { program_day_id: day.id, name: day.name, date: d, duration_sec: 2700, sets });
+  assert.equal(r.status, 201); assert.equal(r.body.duration_sec, 2700); assert.equal(r.body.date, d);
+  const cal = (await call('GET', `/calendar?from=${d}&to=${d}`)).body;
+  assert.ok(cal.events.some((e) => e.date === d && e.status === 'done'));
+});

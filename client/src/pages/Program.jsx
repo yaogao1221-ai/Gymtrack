@@ -75,7 +75,7 @@ export default function Program() {
         <Card className="day-card" title={day.name} action={edit
           ? <div className="row gap-s"><button className="icon-btn" aria-label="Renommer" onClick={() => setDayEdit({ ...day })}><Icon name="edit" size={18} /></button>
               <button className="icon-btn danger" aria-label="Supprimer le jour" onClick={() => setConfirm(day)}><Icon name="trash" size={18} /></button></div>
-          : <button className="btn primary sm" onClick={() => nav(`/seance/${day.id}`)}><Icon name="play" size={14} />Commencer</button>}>
+          : <div className="row gap-s"><button className="btn ghost sm" onClick={() => nav(`/noter-seance/${day.id}`)} title="Tu as oublié de l’enregistrer ?"><Icon name="check" size={14} />Déjà faite</button><button className="btn primary sm" onClick={() => nav(`/seance/${day.id}`)}><Icon name="play" size={14} />Commencer</button></div>}>
           <div className="day-sum">
             {day.exercises.length > 0 && <><span><b>{day.exercises.length}</b> exercices</span><span><b>{day.total_sets}</b> séries</span><span>≈ <b>{day.est_minutes}</b> min</span></>}{day.cardio.length > 0 && <span className="aqua-text"><b>{day.cardio.reduce((a, c) => a + c.duration_min, 0)}</b> min cardio</span>}
             {day.top_muscles?.length > 0 && <span className="muted">{day.top_muscles.join(' · ')}</span>}
