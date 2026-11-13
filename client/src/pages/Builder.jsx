@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, Card, Chips, Segmented, Field, NumInput, Icon, Loading, Confirm, useToast } from '../components/ui.jsx';
 import { get, post } from '../lib/api.js';
 
@@ -16,14 +16,14 @@ const rest = (s) => (s >= 120 ? `${s / 60} min` : `${s} s`);
 
 // Créateur de programme : objectif → programme (muscu, cardio ou les deux), cure et objectifs. Un seul endroit pour tout régler.
 export default function Builder() {
-  const nav = useNavigate(); const toast = useToast();
+  const nav = useNavigate(); const toast = useToast(); const [sp] = useSearchParams();
   const [f, setF] = useState(null); const [plan, setPlan] = useState(null); const [opts, setOpts] = useState({ cure: true, goals: true });
   const [mine, setMine] = useState(null); const [busy, setBusy] = useState(false); const [ask, setAsk] = useState(null); const [own, setOwn] = useState({ days: 4, name: '' });
   const seq = useRef(0);
   useEffect(() => {
     Promise.all([get('/profile'), get('/programs')]).then(([p, progs]) => {
       const goal = p.goal || 'hypertrophie';
-      setF({ objective: goal, type: DEF_TYPE[goal] || 'muscu', days: Math.min(6, Math.max(2, p.sessions_per_week || 3)), level: p.level || 'intermediaire', minutes: [45, 60, 75, 90].includes(p.session_minutes) ? p.session_minutes : 60, activity: (p.cardio_preferred || [])[0] || 'marche_inclinee', target_kg: null });
+      setF({ objective: goal, type: DEF_TYPE[goal] || 'muscu', days: Math.min(6, Math.max(2, p.sessions_per_week || 3)), level: p.level || 'intermediaire', minutes: [45, 60, 75, 90].includes(p.session_minutes) ? p.session_minutes : 60, activity: (p.cardio_preferred || [])[0] || 'marche_inclinee', target_kg: null, base_id: Number(sp.get('base')) || null });
       setMine(progs.programs || []);
     }).catch((e) => toast(e.message, 'err'));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -53,10 +53,15 @@ export default function Builder() {
 
       <section className="bd-step">
         <p className="bd-num">2</p><h2>Ton programme</h2>
-        <Field label="Type"><Segmented value={f.type} onChange={(type) => set({ type })} options={TYPES} /></Field>
-        <Field label="Séances par semaine"><Chips single value={f.days} onChange={(days) => set({ days })} options={[1, 2, 3, 4, 5, 6].map((n) => [n, String(n)])} /></Field>
+        {mine?.length > 0 && <Field label="Partir de" hint={f.base_id ? 'Tes exercices et tes charges sont gardés : séries, reps, repos et muscles oubliés sont ajustés à ton objectif.' : 'Un programme neuf, construit pour ton objectif.'}>
+          <div className="chips scroll">
+            <button className={`chip ${!f.base_id ? 'on' : ''}`} onClick={() => set({ base_id: null })}>Nouveau</button>
+            {mine.map((p) => <button key={p.id} className={`chip ${f.base_id === p.id ? 'on' : ''}`} onClick={() => set({ base_id: p.id, type: f.type === 'cardio' ? 'muscu' : f.type })}>Améliorer {p.name}</button>)}
+          </div></Field>}
+        <Field label="Type"><Segmented value={f.type} onChange={(type) => set({ type })} options={f.base_id ? TYPES.filter(([k]) => k !== 'cardio') : TYPES} /></Field>
+        {!f.base_id && <Field label="Séances par semaine"><Chips single value={f.days} onChange={(days) => set({ days })} options={[1, 2, 3, 4, 5, 6].map((n) => [n, String(n)])} /></Field>}
         <Field label="Niveau"><Segmented value={f.level} onChange={(level) => set({ level })} options={LEVELS} /></Field>
-        {f.type !== 'cardio' && <Field label="Temps par séance"><Chips single value={f.minutes} onChange={(minutes) => set({ minutes })} options={[[45, '45 min'], [60, '1 h'], [75, '1 h 15'], [90, '1 h 30']]} /></Field>}
+        {f.type !== 'cardio' && !f.base_id && <Field label="Temps par séance"><Chips single value={f.minutes} onChange={(minutes) => set({ minutes })} options={[[45, '45 min'], [60, '1 h'], [75, '1 h 15'], [90, '1 h 30']]} /></Field>}
         {f.type !== 'muscu' && <Field label="Cardio préféré"><Chips single value={f.activity} onChange={(activity) => set({ activity })} options={ACTS} /></Field>}
         {showWeight && <Field label="Poids visé (kg)" hint="facultatif, sert à la durée de la cure"><NumInput value={f.target_kg} onChange={(target_kg) => set({ target_kg })} step={0.5} placeholder="auto" /></Field>}
       </section>
@@ -79,14 +84,18 @@ export default function Builder() {
             <details key={d.code} className="bd-day">
               <summary><span className={`bd-dot ${d.exercises.length ? 'muscu' : 'cardio'}`} /><b>{d.name}</b><span className="muted small">{d.exercises.length ? `${d.exercises.length} exercices` : ''}{d.exercises.length && d.cardio.length ? ' + ' : ''}{d.cardio.length ? `${d.cardio.reduce((a, c) => a + c.duration_min, 0)} min cardio` : ''}</span><Icon name="down" size={16} /></summary>
               <ul>
-                {d.exercises.map((e) => <li key={e.slug}><span className="grow">{e.name}</span><span className="mono small">{e.sets} × {e.reps}</span><span className="muted xs">{rest(e.rest)}</span></li>)}
+                {d.exercises.map((e, j) => <li key={`${e.slug}${j}`} className={e.added ? 'added' : ''}><span className="grow">{e.name}{e.added && <span className="tag ok"> nouveau</span>}</span><span className="mono small">{e.sets} × {e.reps}</span><span className="muted xs">{rest(e.rest)}</span></li>)}
                 {d.cardio.map((c, i) => <li key={`c${i}`} className="cardio"><Icon name="heart" size={14} /><span className="grow">{c.label}{c.notes ? <small className="muted"> · {c.notes}</small> : null}</span><span className="mono small">{c.duration_min} min</span></li>)}
               </ul>
             </details>
           ))}</div>
         </section>
 
-        <Card title="Pourquoi ce programme" icon="info">
+        {plan.base && <Card title="Ce qui change" icon="sparkles">
+          <p className="small"><b>{plan.base.changes ? `${plan.base.changes} ajustement${plan.base.changes > 1 ? 's' : ''}` : 'Rien à changer'}</b> sur « {plan.base.name} ». Ton programme d’origine reste enregistré.</p>
+          <Field label="Nom du nouveau programme"><input value={f.name ?? ''} placeholder={`${plan.base.name} (amélioré)`} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+        </Card>}
+        <Card title={plan.base ? 'Détail et pourquoi' : 'Pourquoi ce programme'} icon="info">
           <ul className="why">{plan.why.map((w) => <li key={w} className="small">{w}</li>)}</ul>
           <p className="muted xs">Les charges se règlent à ta première séance : l’appli te proposera ensuite la progression, que tu valides.</p>
         </Card>

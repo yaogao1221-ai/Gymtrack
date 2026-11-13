@@ -59,6 +59,31 @@ export default function programRoutes(db) {
     programs: db.all('SELECT p.*, (SELECT COUNT(*) FROM program_days d WHERE d.program_id = p.id AND d.archived = 0) days FROM programs p WHERE user_id = ? ORDER BY active DESC, id DESC', USER_ID),
   }));
   r.post('/programs/template', (req, res) => { const id = applyTemplate(db, req.today, str(req.body.key, 'modèle', { required: true, max: 40 })); res.status(201).json({ id }); });
+  // Programmes enregistrés : renommer, dupliquer (« Programme B »), supprimer un programme inactif
+  const ownProg = (id) => { const p = db.one('SELECT * FROM programs WHERE id = ? AND user_id = ?', id, USER_ID); if (!p) throw notFound('Programme introuvable'); return p; };
+  r.patch('/programs/:id', (req, res) => { const p = ownProg(req.params.id); db.run('UPDATE programs SET name = ? WHERE id = ?', str(req.body.name, 'nom', { required: true, max: 60 }), p.id); res.json({ ok: true }); });
+  r.post('/programs/:id/duplicate', (req, res) => {
+    const p = ownProg(req.params.id);
+    const id = db.tx(() => {
+      const nid = Number(db.run('INSERT INTO programs (user_id, name, active) VALUES (?,?,0)', USER_ID, str(req.body.name, 'nom', { max: 60 }) || `${p.name} (copie)`).lastInsertRowid);
+      for (const d of db.all('SELECT * FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', p.id)) {
+        const did = Number(db.run('INSERT INTO program_days (program_id, code, position, name, focus) VALUES (?,?,?,?,?)', nid, d.code, d.position, d.name, d.focus).lastInsertRowid);
+        db.run(`INSERT INTO program_exercises (day_id, exercise_id, position, sets, reps, reps_note, target_weight, target_weight_max, weight_unit, weight_note, rest_seconds, superset_group, notes)
+          SELECT ?, exercise_id, position, sets, reps, reps_note, target_weight, target_weight_max, weight_unit, weight_note, rest_seconds, superset_group, notes FROM program_exercises WHERE day_id = ?`, did, d.id);
+        db.run('INSERT INTO program_cardio (day_id, activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes) SELECT ?, activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes FROM program_cardio WHERE day_id = ?', did, d.id);
+      }
+      return nid;
+    });
+    res.status(201).json({ id });
+  });
+  r.delete('/programs/:id', (req, res) => {
+    const p = ownProg(req.params.id); if (p.active) throw bad('C’est ton programme actuel : active-en un autre avant de le supprimer');
+    if (db.one('SELECT COUNT(*) n FROM workouts w JOIN program_days d ON d.id = w.program_day_id WHERE d.program_id = ?', p.id).n) {
+      throw bad('Des séances de ton historique utilisent ce programme : il est gardé pour ne pas les casser');
+    }
+    db.tx(() => { db.run('DELETE FROM calendar_events WHERE program_day_id IN (SELECT id FROM program_days WHERE program_id = ?)', p.id); db.run('DELETE FROM programs WHERE id = ?', p.id); });
+    res.json({ ok: true });
+  });
   r.post('/programs/:id/activate', (req, res) => { activateProgram(db, req.today, Number(req.params.id)); res.json({ ok: true }); });
 
   // Programme + liens avec le calendrier (prochaine date prévue, dernière séance faite) et le planning type

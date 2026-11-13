@@ -103,3 +103,20 @@ test('carte du corps : jambes 2 jours après = en récupération, marche inclin�
   m = (await call('GET', '/bodymap')).body.muscles; assert.equal(m.ischios.status, 'fatigue');
   await call('POST', '/soreness', { muscle: 'ischios', on: false });
 });
+
+test('programmes enregistrés : copie B, renommer, activer, améliorer en gardant les exercices et les charges', async () => {
+  const progs = (await call('GET', '/programs')).body.programs; const cur = progs.reduce((a, p) => (p.id < a.id ? p : a));
+  const b = await call('POST', `/programs/${cur.id}/duplicate`, { name: 'Programme B' }); assert.equal(b.status, 201);
+  await call('PATCH', `/programs/${b.body.id}`, { name: 'Programme B2' });
+  assert.equal((await call('POST', `/programs/${cur.id}/activate`)).status, 200);
+  const before = (await call('GET', '/program')).body;
+  const pv = (await call('POST', '/builder/preview', { objective: 'hypertrophie', base_id: cur.id })).body;
+  assert.equal(pv.days.length, before.days.length); assert.ok(pv.base && pv.why[0].includes('gardés'));
+  const firstOld = before.days[0].exercises[0]; const firstNew = pv.days[0].exercises[0];
+  assert.equal(firstNew.exercise_id, firstOld.exercise_id); assert.equal(firstNew.keep.target_weight, firstOld.target_weight);
+  const r = await call('POST', '/builder/apply', { objective: 'hypertrophie', base_id: cur.id, cure: false, goals: false, name: 'Mon prog amélioré' });
+  assert.equal(r.status, 201);
+  const after = (await call('GET', '/program')).body; assert.equal(after.program.name, 'Mon prog amélioré');
+  assert.equal(after.days[0].exercises[0].target_weight, firstOld.target_weight);
+  const del = await call('DELETE', `/programs/${b.body.id}`); assert.equal(del.status, 200);
+});

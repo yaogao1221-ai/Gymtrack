@@ -62,8 +62,9 @@ export default function Program() {
     </li>
   );
   return (
-    <Page title="Programme" subtitle={data.program?.name}
+    <Page title="Programme"
       actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => nav('/programme/creer')}><Icon name="sparkles" size={16} />Créer</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
+      <ProgramSwitcher current={data.program} onChanged={() => { setSel(0); reload(); }} />
       <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
         {data.days.map((d, i) => <button key={d.id} className={`tab ${i === sel ? 'on' : ''}`} onClick={() => setSel(i)}><b>{d.name}</b><span>{d.focus}</span>{d.next_date && <span className="tab-next">{fmtDate(d.next_date, { weekday: 'short', day: 'numeric' })}</span>}</button>)}
@@ -237,6 +238,51 @@ function WeekType({ schedule, days, onPick, onOpen }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// Programmes enregistrés : passer de A à B en un geste, renommer, enregistrer une copie, améliorer, supprimer
+function ProgramSwitcher({ current, onChanged }) {
+  const { data, reload } = useApi('/programs'); const nav = useNavigate(); const toast = useToast();
+  const [sheet, setSheet] = useState(false); const [ren, setRen] = useState(null); const [ask, setAsk] = useState(null); const [copy, setCopy] = useState(null);
+  const list = data?.programs || [];
+  const run = async (fn, msg) => { try { await fn(); toast(msg); reload(); onChanged(); } catch (e) { toast(e.message, 'err'); } };
+  const nextName = () => { const used = new Set(list.map((p) => p.name)); for (const l of 'BCDEFGH') if (!used.has(`Programme ${l}`)) return `Programme ${l}`; return `${current?.name || 'Programme'} (copie)`; };
+  return (
+    <div className="prog-switch">
+      <div className="chips scroll ps-chips">
+        {list.map((p) => (
+          <button key={p.id} className={`chip ${p.active ? 'on' : ''}`} onClick={() => (p.active ? setSheet(true) : setAsk(p))}>{p.active && <Icon name="check" size={14} />}{p.name}<span className="muted xs"> · {p.days} j</span></button>
+        ))}
+        <button className="chip ghost" onClick={() => setSheet(true)}><Icon name="menu" size={14} />Gérer</button>
+      </div>
+      <Confirm open={!!ask} onClose={() => setAsk(null)} title={`Passer à ${ask?.name || ''} ?`} confirmLabel="Activer"
+        text="Ta semaine type et le calendrier à venir suivent ce programme. L’autre reste enregistré, tu peux revenir dessus quand tu veux."
+        onConfirm={() => run(() => post(`/programs/${ask.id}/activate`), `${ask.name} activé`)} />
+      <Sheet open={sheet} onClose={() => { setSheet(false); setRen(null); setCopy(null); }} title="Mes programmes">
+        <ul className="ps-list">{list.map((p) => (
+          <li key={p.id} className={p.active ? 'on' : ''}>
+            {ren?.id === p.id ? (
+              <div className="row gap-s grow"><input autoFocus value={ren.name} onChange={(e) => setRen({ ...ren, name: e.target.value })} />
+                <button className="btn sm primary" disabled={!ren.name.trim()} onClick={() => run(async () => { await patch(`/programs/${p.id}`, { name: ren.name.trim() }); setRen(null); }, 'Programme renommé')}>OK</button></div>
+            ) : (<>
+              <div className="grow"><b>{p.name}</b><span className="muted xs">{p.days} jours{p.active ? ' · actuel' : ''}</span></div>
+              <div className="row gap-s wrap ps-actions">
+                {!p.active && <button className="btn xs primary" onClick={() => run(() => post(`/programs/${p.id}/activate`), `${p.name} activé`)}>Activer</button>}
+                <button className="btn xs" onClick={() => setRen({ id: p.id, name: p.name })}>Renommer</button>
+                <button className="btn xs" onClick={() => setCopy({ id: p.id, name: nextName() })}>Copier</button>
+                <button className="btn xs" onClick={() => nav(`/programme/creer?base=${p.id}`)}><Icon name="sparkles" size={12} />Améliorer</button>
+                {!p.active && <button className="icon-btn sm danger" aria-label="Supprimer" onClick={() => run(() => del(`/programs/${p.id}`), 'Programme supprimé')}><Icon name="trash" size={14} /></button>}
+              </div>
+            </>)}
+          </li>
+        ))}</ul>
+        {copy && <div className="add-box mt-s"><Field label="Nom de la copie"><input autoFocus value={copy.name} onChange={(e) => setCopy({ ...copy, name: e.target.value })} /></Field>
+          <div className="row gap-s"><button className="btn ghost" onClick={() => setCopy(null)}>Annuler</button><button className="btn primary" onClick={() => run(async () => { await post(`/programs/${copy.id}/duplicate`, { name: copy.name }); setCopy(null); }, `${copy.name} enregistré`)}>Enregistrer</button></div></div>}
+        <p className="muted small">Astuce : copie ton programme en « Programme B », modifie la copie, puis passe de l’un à l’autre ici. Tes séances passées restent dans l’historique.</p>
+        <button className="btn block" onClick={() => nav('/programme/creer')}><Icon name="sparkles" size={16} />Créer un nouveau programme</button>
+      </Sheet>
     </div>
   );
 }

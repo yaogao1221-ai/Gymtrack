@@ -44,6 +44,61 @@ function strengthDays(n) {
   return TEMPLATES.ppl6.days;
 }
 
+// Amélioration d'un programme enregistré : on garde tes exercices et tes charges, on ajuste séries / reps / repos à l'objectif,
+// on augmente d'abord les séries de tes exercices sur les muscles en manque, puis on ajoute un exercice seulement si besoin.
+const COMPOUND = new Set(['squat', 'hinge', 'press_horizontal', 'press_vertical', 'press_incline', 'vertical_pull', 'horizontal_row', 'leg_press', 'lunge', 'hip_extension', 'dip']);
+const KEY = { pectoraux: ['dev_couche', 10], dos_largeur: ['tirage_vertical', 10], dos_epaisseur: ['row', 8], quadriceps: ['leg_press', 10], ischios: ['leg_curl_couche', 8], fessiers: ['hip_thrust', 8],
+  epaules_lat: ['elev_laterales', 6], epaules_post: ['face_pull', 6], biceps: ['curl_classique', 6], triceps: ['ext_triceps_corde', 6], mollets: ['mollets_machine', 6], abdominaux: ['planche', 4] };
+const LOWER = new Set(['quadriceps', 'ischios', 'fessiers', 'mollets', 'adducteurs', 'abducteurs']);
+const MLABEL = { pectoraux: 'pectoraux', dos_largeur: 'grand dorsal', dos_epaisseur: 'milieu du dos', quadriceps: 'quadriceps', ischios: 'ischios', fessiers: 'fessiers', epaules_lat: 'deltoïdes latéraux', epaules_post: 'deltoïdes arrière', biceps: 'biceps', triceps: 'triceps', mollets: 'mollets', abdominaux: 'abdos' };
+function improveDays(db, baseId, style, level) {
+  const prog = db.one('SELECT * FROM programs WHERE id = ? AND user_id = ?', baseId, USER_ID); if (!prog) throw bad('Programme introuvable');
+  const changes = [];
+  const days = db.all('SELECT * FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', baseId).map((d) => ({
+    name: d.name, focus: d.focus,
+    cardio: db.all('SELECT activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes FROM program_cardio WHERE day_id = ?', d.id),
+    items: db.all(`SELECT pe.*, e.slug, e.name ex_name, e.pattern, e.muscles FROM program_exercises pe JOIN exercises e ON e.id = pe.exercise_id WHERE pe.day_id = ? ORDER BY pe.position`, d.id).map((e) => ({
+      exercise_id: e.exercise_id, slug: e.slug, name: e.ex_name, pattern: e.pattern, muscles: JSON.parse(e.muscles || '{}'), sets: e.sets, reps: e.reps, rest: e.rest_seconds,
+      keep: { reps_note: e.reps_note, target_weight: e.target_weight, target_weight_max: e.target_weight_max, weight_unit: e.weight_unit, weight_note: e.weight_note, superset_group: e.superset_group, notes: e.notes } })),
+  }));
+  // 1. Séries / reps / repos selon l'objectif
+  for (const d of days) {
+    let heavy = 0;
+    for (const e of d.items) {
+      const before = `${e.sets}×${e.reps ?? '?'}`; const comp = COMPOUND.has(e.pattern);
+      if (style === 'force' && comp && heavy < 2 && e.reps != null) { heavy++; e.sets = level === 'debutant' ? 3 : 4; e.reps = 5; e.rest = 180; }
+      else if (style === 'sante') { e.sets = Math.min(e.sets, 3); if (e.reps != null && e.reps < 10) e.reps = 12; e.rest = 60; }
+      else { if (e.reps != null && e.reps < 6 && style !== 'force') e.reps = 6; if (e.reps != null && e.reps > 20 && !/core/.test(e.pattern || '')) e.reps = 15; e.rest = e.rest || (comp ? 120 : 75); }
+      if (`${e.sets}×${e.reps ?? '?'}` !== before) changes.push(`${e.name} (${d.name}) : ${before} → ${e.sets}×${e.reps}`);
+    }
+  }
+  // 2. Volume par muscle et par semaine
+  const vol = () => { const v = {}; days.forEach((d) => d.items.forEach((e) => Object.entries(e.muscles).forEach(([m, c]) => { v[m] = (v[m] || 0) + e.sets * c; }))); return v; };
+  const factor = style === 'sante' ? 0.6 : 1;
+  for (const [m, [fill, min0]] of Object.entries(KEY)) {
+    const min = Math.round(min0 * factor); let v = vol()[m] || 0;
+    if (v >= min - 1) continue;
+    const label = MLABEL[m];
+    // a) plus de séries sur tes exercices qui travaillent déjà ce muscle (max 4 séries par exercice)
+    const mine = days.flatMap((d) => d.items.filter((e) => (e.muscles[m] || 0) >= 0.75).map((e) => ({ d, e })));
+    for (const { d, e } of mine) { while (v < min - 1 && e.sets < 4) { e.sets++; v += e.muscles[m]; e.bumped = true; } if (e.bumped) { changes.push(`${e.name} (${d.name}) : ${e.sets} séries (${label})`); delete e.bumped; } }
+    // b) sinon, on ajoute un exercice dans le jour le plus adapté
+    if (v < min - 2) {
+      const ex = db.one('SELECT id, slug, name, pattern, muscles FROM exercises WHERE slug = ?', fill); if (!ex) continue;
+      const lower = LOWER.has(m);
+      const score = (d) => d.items.reduce((a, e) => a + Object.keys(e.muscles).filter((k) => LOWER.has(k) === lower).length, 0) * 10 - d.items.length;
+      const host = [...days].filter((d) => d.items.length).sort((a, b) => score(b) - score(a))[0]; if (!host) continue;
+      const core = /core/.test(ex.pattern || '');
+      const sets = Math.min(core ? 3 : 4, Math.max(2, Math.ceil(min - v)));
+      host.items.push({ exercise_id: ex.id, slug: ex.slug, name: ex.name, pattern: ex.pattern, muscles: JSON.parse(ex.muscles || '{}'), sets, reps: core ? 30 : style === 'force' ? 8 : 12, rest: core ? 45 : 75, keep: {}, added: true });
+      changes.push(`Ajouté : ${ex.name} dans ${host.name} (${sets} séries) : ${label} à seulement ${String(Math.round(v * 10) / 10).replace('.', ',')} séries par semaine`);
+    }
+  }
+  const v = vol(); const high = Object.keys(KEY).filter((m) => (v[m] || 0) > 22);
+  if (high.length) changes.push(`Volume très élevé sur ${high.map((m) => MLABEL[m]).join(', ')} (plus de 22 séries par semaine) : garde-le seulement si tu récupères bien.`);
+  return { name: prog.name, days, changes };
+}
+
 // Séries / reps / repos selon l'objectif, le niveau et le temps disponible
 function shape(items, style, level, minutes) {
   const keep = minutes <= 45 ? 4 : minutes <= 60 ? 5 : 7;
@@ -62,20 +117,24 @@ export function buildPlan(db, today, input = {}) {
   const p = getProfile(db);
   const objective = oneOf(input.objective || p.goal || 'hypertrophie', 'objectif', Object.keys(OBJECTIVES), { required: true });
   const O = OBJECTIVES[objective];
-  const type = oneOf(input.type || O.type, 'type', Object.keys(TYPES), { required: true });
+  const type0 = oneOf(input.type || O.type, 'type', Object.keys(TYPES), { required: true });
   const level = oneOf(input.level || p.level || 'intermediaire', 'niveau', ['debutant', 'intermediaire', 'avance'], { required: true });
-  const n = num(input.days, 'jours', { int: true, min: 1, max: 6 }) ?? Math.min(6, Math.max(2, p.sessions_per_week || 3));
+  const n0 = num(input.days, 'jours', { int: true, min: 1, max: 7 }) ?? Math.min(6, Math.max(2, p.sessions_per_week || 3));
   const minutes = num(input.minutes, 'durée', { int: true, min: 30, max: 120 }) ?? p.session_minutes ?? 60;
   const prefs = (() => { try { return JSON.parse(p.cardio_preferred || '[]'); } catch { return []; } })();
   const activity = ACT[input.activity] ? input.activity : prefs.find((a) => ACT[a]) || 'marche_inclinee';
   const targetKg = num(input.target_kg, 'poids visé', { min: 30, max: 250 });
+  const baseId = num(input.base_id, 'programme de départ', { int: true });
+  const improved = baseId ? improveDays(db, baseId, O.style, level) : null;
+  const type = improved && type0 === 'cardio' ? 'mixte' : type0;
 
   // 1. Répartition muscu / cardio
-  const S = type === 'cardio' ? 0 : type === 'muscu' ? n : n <= 3 ? n : n === 6 ? 4 : n - 1;
+  const n = improved ? improved.days.length : n0;
+  const S = improved ? n : type === 'cardio' ? 0 : type === 'muscu' ? n : n <= 3 ? n : n === 6 ? 4 : n - 1;
   const C = n - S;
   const W = type === 'muscu' ? 0 : O.cardio[level];
   const why = [];
-  const days = strengthDays(S).map(([name, focus, items]) => ({ name, focus, items: shape(items, O.style, level, minutes), cardio: [] }));
+  const days = improved ? improved.days : strengthDays(S).map(([name, focus, items]) => ({ name, focus, items: shape(items, O.style, level, minutes).map(([slug, sets, reps, rest]) => ({ slug, sets, reps, rest })), cardio: [] }));
 
   // 2. Cardio : séances dédiées puis fin de séance des jours haut du corps / full body
   const base = { debutant: 25, intermediaire: 35, avance: 45 }[level];
@@ -90,7 +149,7 @@ export function buildPlan(db, today, input = {}) {
       cardio: [cardioBlock(act, dur, { notes: hard ? '10 min facile, puis 6 × 1 min soutenu / 2 min facile, 5 min de retour au calme' : 'Zone 2 : respiration plus rapide mais tu peux tenir une conversation' })],
     });
   }
-  if (W && S) {
+  if (W && S && !(improved && days.some((d) => d.cardio.length))) {
     const left = W - cardioDays.reduce((a, d) => a + d.cardio[0].duration_min, 0);
     const host = days.filter((d) => !legDay(d.name, d.focus));
     if (left > 0 && host.length) {
@@ -106,6 +165,7 @@ export function buildPlan(db, today, input = {}) {
   const cardioWeek = all.reduce((a, d) => a + d.cardio.reduce((b, c) => b + c.duration_min, 0), 0);
 
   // 3. Pourquoi
+  if (improved) why.push(`Basé sur « ${improved.name} » : tes exercices et tes charges sont gardés.`, ...(improved.changes.length ? improved.changes : ['Ton programme respecte déjà les repères de volume pour cet objectif : seules les séries / reps ont été vérifiées.']));
   if (S) {
     if (level === 'debutant' && S <= 3) why.push(WHY.beginner);
     why.push(WHY.freq, WHY.volume, O.style === 'force' ? WHY.force : WHY.hyper, WHY.rest);
@@ -127,11 +187,12 @@ export function buildPlan(db, today, input = {}) {
 
   const exName = (slug) => db.one('SELECT name FROM exercises WHERE slug = ?', slug)?.name || slug;
   return {
+    base: improved ? { id: baseId, name: improved.name, changes: improved.changes.length } : null,
     objective, objective_label: O.label, type, type_label: TYPES[type], level, days_per_week: n, minutes, activity,
     sessions: { muscu: S, cardio: C }, cardio_week: cardioWeek, schedule,
     days: all.map((d, i) => ({ code: codes[i], name: d.name, focus: d.focus,
-      exercises: d.items.map(([slug, sets, reps, rest]) => ({ slug, name: exName(slug), sets, reps, rest })),
-      cardio: d.cardio.map((c) => ({ ...c, label: ACT_FR[c.activity] || c.activity })) })),
+      exercises: d.items.map((e) => ({ slug: e.slug, exercise_id: e.exercise_id || null, name: e.name || exName(e.slug), sets: e.sets, reps: e.reps, rest: e.rest, keep: e.keep || null, added: !!e.added })),
+      cardio: d.cardio.map((c) => ({ ...c, label: c.custom_name || ACT_FR[c.activity] || c.activity })) })),
     why, cure, goals,
   };
 }
@@ -150,15 +211,18 @@ export function applyPlan(db, today, input, { startPlan }) {
       for (let i = 0; i < n; i++) { codes.push(`D${i + 1}`); db.run('INSERT INTO program_days (program_id, code, position, name, focus) VALUES (?,?,?,?,?)', pid, `D${i + 1}`, i + 1, `Jour ${i + 1}`, 'À composer'); }
     } else {
       n = plan.days.length; cardioWeek = plan.cardio_week;
-      pid = Number(db.run('INSERT INTO programs (user_id, name, active) VALUES (?,?,1)', USER_ID, `${plan.objective_label} · ${plan.type_label} · ${n} j`).lastInsertRowid);
+      const pname = String(input.name || '').trim().slice(0, 60) || (plan.base ? `${plan.base.name} (amélioré)` : `${plan.objective_label} · ${plan.type_label} · ${n} j`);
+      pid = Number(db.run('INSERT INTO programs (user_id, name, active) VALUES (?,?,1)', USER_ID, pname).lastInsertRowid);
       plan.days.forEach((d, i) => {
         codes.push(d.code);
         const did = Number(db.run('INSERT INTO program_days (program_id, code, position, name, focus) VALUES (?,?,?,?,?)', pid, d.code, i + 1, d.name, d.focus).lastInsertRowid);
         d.exercises.forEach((e, j) => {
-          const ex = db.one('SELECT id, default_unit FROM exercises WHERE slug = ?', e.slug); if (!ex) return;
-          db.run('INSERT INTO program_exercises (day_id, exercise_id, position, sets, reps, weight_unit, rest_seconds) VALUES (?,?,?,?,?,?,?)', did, ex.id, j + 1, e.sets, e.reps, ex.default_unit, e.rest);
+          const ex = e.exercise_id ? db.one('SELECT id, default_unit FROM exercises WHERE id = ?', e.exercise_id) : db.one('SELECT id, default_unit FROM exercises WHERE slug = ?', e.slug); if (!ex) return;
+          const k = e.keep || {};
+          db.run(`INSERT INTO program_exercises (day_id, exercise_id, position, sets, reps, reps_note, target_weight, target_weight_max, weight_unit, weight_note, rest_seconds, superset_group, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            did, ex.id, j + 1, e.sets, e.reps, k.reps_note ?? null, k.target_weight ?? null, k.target_weight_max ?? null, k.weight_unit || ex.default_unit, k.weight_note ?? null, e.rest, k.superset_group ?? null, k.notes ?? null);
         });
-        d.cardio.forEach((c) => db.run('INSERT INTO program_cardio (day_id, activity, duration_min, speed_kmh, incline_pct, placement, notes) VALUES (?,?,?,?,?,?,?)', did, c.activity, c.duration_min, c.speed_kmh ?? null, c.incline_pct ?? null, c.placement, c.notes || null));
+        d.cardio.forEach((c) => db.run('INSERT INTO program_cardio (day_id, activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes) VALUES (?,?,?,?,?,?,?,?)', did, c.activity, c.custom_name ?? null, c.duration_min, c.speed_kmh ?? null, c.incline_pct ?? null, c.placement, c.notes || null));
       });
       const cardioSessions = plan.days.filter((d) => d.cardio.length).length;
       db.run(`UPDATE profiles SET goal = ?, level = ?, session_minutes = ?, cardio_goal = ?, cardio_sessions_target = ?, cardio_minutes_target = ?, body_target = ? WHERE user_id = ?`,
