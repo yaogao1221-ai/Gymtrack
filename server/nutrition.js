@@ -1,6 +1,6 @@
 // Corps et nutrition : métabolisme, composition corporelle, cures (sèche, prise de masse, recomposition)
 // Repères tirés des revues et consensus récents, cités dans PLAN_TYPES.
-import { USER_ID, getProfile } from './services.js';
+import { USER_ID, getProfile, goalsWithProgress } from './services.js';
 import { addDays, weekStart, diffDays } from './util.js';
 import { smoothedWeight } from './formulas.js';
 
@@ -180,7 +180,8 @@ export function nutritionState(db, today) {
     const end_weight = r1(plan.start_weight_kg * (1 + PLAN_TYPES[plan.type].rate.sign * plan.rate_pct / 100 * plan.weeks));
     const brk = plan.type === 'seche' && plan.weeks > 8 ? Math.ceil(plan.weeks / 2) : null;
     active = { ...plan, ...t, kcal, carbs_g: carbs, week, end_weight, end_date: addDays(plan.start_date, plan.weeks * 7 - 1), diet_break_week: brk,
-      in_break: brk && week === brk, check: weeklyCheck(plan, trend), label: PLAN_TYPES[plan.type].label };
+      in_break: brk && week === brk, check: weeklyCheck(plan, trend), label: PLAN_TYPES[plan.type].label,
+      goal: goalsWithProgress(db, today).find((g) => g.nutrition_plan_id === plan.id && g.status === 'actif') || null };
   }
   const missing = [!kg && 'poids', !p.height_cm && 'taille', !years && 'année de naissance', !p.sex && 'sexe'].filter(Boolean);
   return {

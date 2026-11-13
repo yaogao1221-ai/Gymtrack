@@ -91,7 +91,7 @@ export default function profileRoutes(db) {
 
   // Objectifs
   const goalFields = {
-    type: (v) => oneOf(v, 'type', ['charge', 'seances_semaine', 'cardio_minutes_semaine', 'poids_corporel', 'libre'], { required: true }),
+    type: (v) => oneOf(v, 'type', ['charge', 'seances_semaine', 'cardio_minutes_semaine', 'cardio_km_semaine', 'poids_corporel', 'tour_de_taille', 'libre'], { required: true }),
     title: (v) => str(v, 'titre', { required: true, max: 100 }),
     exercise_id: (v) => num(v, 'exercice', { int: true }),
     start_value: (v) => num(v, 'valeur de départ'), target_value: (v) => num(v, 'cible'), current_value: (v) => num(v, 'valeur actuelle'),
@@ -103,7 +103,7 @@ export default function profileRoutes(db) {
     const b = { status: 'actif', ...req.body };
     if (b.type === 'charge' && !b.exercise_id) throw bad('Choisis l’exercice concerné');
     // Point de départ figé à la création (sinon la progression se recalculerait sur une base mouvante)
-    if (b.start_value == null && (b.type === 'poids_corporel' || b.type === 'charge')) {
+    if (b.start_value == null && ['poids_corporel', 'charge', 'tour_de_taille'].includes(b.type)) {
       const probe = goalsWithProgress(db, req.today, { type: b.type, exercise_id: b.exercise_id, unit: b.unit, target_value: b.target_value });
       if (probe?.current_value != null) b.start_value = probe.current_value;
     }

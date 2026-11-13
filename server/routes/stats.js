@@ -26,6 +26,8 @@ export default function statsRoutes(db) {
     const doneDates = db.all(`SELECT date, 'workout' t FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ? UNION ALL SELECT date, 'cardio' FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?`, USER_ID, ws, addDays(ws, 13), USER_ID, ws, addDays(ws, 13));
     let nutrition = null; try { const ns = nutritionState(db, today); if (ns.plan) nutrition = { label: ns.plan.label, kcal: ns.plan.in_break ? ns.tdee : ns.plan.kcal, protein_g: ns.plan.protein_g, week: ns.plan.week, weeks: ns.plan.weeks, check: ns.plan.check.status }; } catch { /* données incomplètes */ }
     // Corps : poids lissé, variation sur 4 semaines (même lissage des deux côtés), courbe des 60 derniers jours
+    const activeGoals = goalsWithProgress(db, today).filter((g) => g.status === 'actif');
+    const goalTarget = (type) => activeGoals.find((g) => g.type === type)?.target_value ?? null;
     const wRows = db.all('SELECT id, date, weight_kg, waist_cm FROM body_metrics WHERE user_id = ? AND date <= ? ORDER BY date, id', USER_ID, today);
     const bwi = bodyWeightInfo(db);
     const then = smoothedWeight(wRows.filter((x) => x.date <= addDays(today, -28)));
@@ -39,8 +41,10 @@ export default function statsRoutes(db) {
       next: nextSession(db, today),
       last_workout: last ? { ...workoutSummary(db, last), days_ago: diffDays(last.date, today) } : null,
       last_cardio: lastCardio,
-      week: { ...week, target: profile.sessions_per_week,
-        cardio_target: (profile.cardio_sessions_target || 0) * (profile.cardio_minutes_target || 0),
+      // Cibles de la semaine : un objectif actif l'emporte sur le profil (une seule cible affichée partout)
+      week: { ...week, target: goalTarget('seances_semaine') ?? profile.sessions_per_week,
+        cardio_target: goalTarget('cardio_minutes_semaine') ?? (profile.cardio_sessions_target || 0) * (profile.cardio_minutes_target || 0),
+        target_from_goal: goalTarget('seances_semaine') != null, cardio_from_goal: goalTarget('cardio_minutes_semaine') != null,
         sets_target: getProgram(db, { withLast: false }).days.reduce((a, d) => a + d.exercises.reduce((b, e) => b + e.sets, 0), 0) },
       totals: { workouts: all.workouts, training_minutes: all.training_minutes, cardio_minutes: all.cardio_minutes, volume_lbs: all.volume_lbs },
       recent_workouts: db.all('SELECT w.*, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? ORDER BY w.date DESC, w.id DESC LIMIT 5', USER_ID).map((w) => workoutSummary(db, w)),
@@ -48,7 +52,7 @@ export default function statsRoutes(db) {
       progression,
       weekly: weeklySeries(db, today, 8),
       calendar: { from: ws, events, done: doneDates },
-      goals: goalsWithProgress(db, today).filter((g) => g.status === 'actif').slice(0, 4),
+      goals: activeGoals.slice(0, 4),
       recovery: (({ score, label }) => ({ score, label }))(recoveryScore(db, profile, today)),
     });
   });
@@ -74,8 +78,17 @@ export default function statsRoutes(db) {
       const st = periodStats(db, ws, addDays(ws, 6));
       if (st.workouts + st.cardio_sessions > 0) streak++; else if (i > 0) break;
     }
-    res.json({ from, to, cur, prev, records: recs.map((x) => ({ name: x.name, weight: x.weight, previous: x.previous, unit: x.unit, assisted: x.assisted })),
-      muscles: top, active_days: days.sort(), target: profile.sessions_per_week || null, streak, name: profile.name && profile.name !== 'Athlète' ? profile.name : null });
+    // Corps sur la semaine : poids lissé en fin de semaine vs fin de semaine précédente, tour de taille, cure en cours
+    const bRows = db.all('SELECT id, date, weight_kg, waist_cm FROM body_metrics WHERE user_id = ? AND date <= ? ORDER BY date, id', USER_ID, to);
+    const wEnd = smoothedWeight(bRows.filter((x) => x.date >= from)); const wPrev = smoothedWeight(bRows.filter((x) => x.date >= pf && x.date <= pt));
+    const waistIn = bRows.filter((x) => x.waist_cm != null && x.date >= from).at(-1); const waistBefore = bRows.filter((x) => x.waist_cm != null && x.date < from).at(-1);
+    let plan = null; try { const ns = nutritionState(db, to < req.today ? to : req.today); if (ns.plan) plan = { label: ns.plan.label, week: ns.plan.week, weeks: ns.plan.weeks, check: ns.plan.check.text, status: ns.plan.check.status }; } catch { /* profil incomplet */ }
+    const body = { weight: wEnd?.value ?? null, weigh_ins: bRows.filter((x) => x.weight_kg != null && x.date >= from).length, weight_change: wEnd && wPrev ? r1(wEnd.value - wPrev.value) : null,
+      waist: waistIn?.waist_cm ?? null, waist_change: waistIn && waistBefore ? r1(waistIn.waist_cm - waistBefore.waist_cm) : null, plan };
+    const goals = goalsWithProgress(db, req.today).filter((g) => g.status === 'actif' || (g.status === 'atteint'));
+    const sessGoal = goals.find((g) => g.status === 'actif' && g.type === 'seances_semaine')?.target_value;
+    res.json({ body, goals: off === 0 ? goals.filter((g) => g.status === 'actif').map((g) => ({ title: g.title, progress: g.progress, reached: g.reached })) : [], from, to, cur, prev, records: recs.map((x) => ({ name: x.name, weight: x.weight, previous: x.previous, unit: x.unit, assisted: x.assisted })),
+      muscles: top, active_days: days.sort(), target: sessGoal ?? profile.sessions_per_week ?? null, streak, name: profile.name && profile.name !== 'Athlète' ? profile.name : null });
   });
 
   r.get('/stats/overview', (req, res) => {

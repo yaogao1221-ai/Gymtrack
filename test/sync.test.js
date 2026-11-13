@@ -99,3 +99,39 @@ test('records : un changement d’unité ne crée pas de faux record, objectif d
   const s = (await call('GET', `/stats/exercise/${ex.exercise_id}`)).body;
   assert.ok(s.points.every((p) => p.e1rm == null || p.e1rm > p.top_weight));
 });
+
+test('cure ↔ objectif, objectifs ↔ accueil et bilan, nouveaux types, cardio de la prochaine séance', async () => {
+  await call('PUT', '/profile', { sex: 'homme', height_cm: 178, birth_year: 1998 });
+  await call('POST', '/body-metrics', { date: '2026-11-09', weight_kg: 84, waist_cm: 90 });
+  // Cure de sèche → objectif de poids lié, avec départ, cible et échéance
+  const plan = await call('POST', '/nutrition/plan', { type: 'seche', start_date: '2026-11-09', weeks: 10, rate_pct: 0.5 });
+  assert.equal(plan.status, 201, JSON.stringify(plan.body));
+  assert.ok(plan.body.plan.goal, 'objectif créé avec la cure');
+  assert.equal(plan.body.plan.goal.target_value, 79.8); // 84 × (1 − 0,5 % × 10)
+  assert.equal(plan.body.plan.goal.deadline, '2027-01-17');
+  // Arrêter la cure archive son objectif (non atteint)
+  await call('POST', `/nutrition/plan/${plan.body.plan.id}/stop`, {});
+  let goals = (await call('GET', '/goals')).body;
+  assert.equal(goals.find((g) => g.nutrition_plan_id === plan.body.plan.id).status, 'abandonne');
+  // Recomposition → objectif de tour de taille
+  const rc = await call('POST', '/nutrition/plan', { type: 'recompo', start_date: '2026-11-09', weeks: 12 });
+  const wg = rc.body.plan.goal; assert.equal(wg.type, 'tour_de_taille'); assert.equal(wg.lower_is_better, true); assert.equal(wg.current_value, 90);
+  await call('POST', '/body-metrics', { date: '2026-11-09', waist_cm: 86.5 });
+  goals = (await call('GET', '/goals')).body;
+  assert.equal(goals.find((g) => g.id === wg.id).reached, true);
+  // Objectif de séances → cible des anneaux de l'accueil et du bilan
+  await call('POST', '/goals', { type: 'seances_semaine', title: '4 séances', target_value: 4 });
+  const d = (await call('GET', '/dashboard')).body;
+  assert.equal(d.week.target, 4); assert.equal(d.week.target_from_goal, true);
+  const r = (await call('GET', '/recap')).body;
+  assert.equal(r.target, 4); assert.equal(r.body.waist, 86.5); assert.ok(r.goals.length >= 2);
+  // Kilomètres de cardio par semaine
+  await call('POST', '/cardio', { activity: 'course', date: '2026-11-10', duration_min: 30, distance_km: 5.2 });
+  const km = await call('POST', '/goals', { type: 'cardio_km_semaine', title: '10 km', target_value: 10 });
+  assert.equal(km.body.current_value, 5.2); assert.equal(km.body.progress, 0.52);
+  // Le cardio prévu dans le jour de programme accompagne la prochaine séance
+  const prog = (await call('GET', '/program')).body; const next = d.next;
+  await call('POST', `/program/days/${next.program_day_id}/cardio`, { activity: 'marche_inclinee', duration_min: 15, placement: 'fin' });
+  const d2 = (await call('GET', '/dashboard')).body;
+  assert.equal(d2.next.cardio.length >= 1, true); assert.ok(prog.days.length);
+});

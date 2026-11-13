@@ -644,3 +644,4 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .src.e { background: rgba(255,176,58,.14); color: var(--warn); }
 .src.c { background: rgba(167,139,250,.16); color: var(--violet); }
 .table-wrap { overflow-x: auto; margin: 0 -4px; }
+.hero-cardio { display: flex; align-items: center; gap: 6px; margin-top: 6px; opacity: .92; }

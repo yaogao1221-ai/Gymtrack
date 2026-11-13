@@ -77,6 +77,22 @@ export default function App() {
     return () => { off(); clearTimeout(t); };
   }, []);
 
+  // Objectifs : dès qu'une donnée (séance, cardio, pesée…) fait atteindre un objectif, on le signale, d'où qu'elle vienne
+  useEffect(() => {
+    let t = null;
+    const check = async (announce) => {
+      try {
+        const goals = await get('/goals'); const seen = new Set(store.get('gt_goals_reached', []));
+        const now = goals.filter((g) => g.status === 'actif' && g.reached);
+        if (announce) now.filter((g) => !seen.has(g.id)).forEach((g) => toast(`Objectif atteint : ${g.title}`));
+        store.set('gt_goals_reached', now.map((g) => g.id));
+      } catch { /* hors ligne */ }
+    };
+    check(false);
+    const off = onDataChange((path) => { clearTimeout(t); t = setTimeout(() => check(!path.startsWith('/goals')), 600); });
+    return () => { off(); clearTimeout(t); };
+  }, [toast]);
+
   // Mises à jour de l'appli : vérifiées à chaque retour sur l'appli, appliquées dès qu'aucune séance n'est en cours
   useEffect(() => {
     if (!PAGES || !('serviceWorker' in navigator)) return undefined;

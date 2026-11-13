@@ -3,8 +3,8 @@ import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Loading, Empty, Confi
 import { post, patch, del } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
 
-const TYPES = { charge: 'Charge sur un exercice', seances_semaine: 'Séances par semaine', cardio_minutes_semaine: 'Minutes de cardio / semaine', poids_corporel: 'Poids corporel (kg)', libre: 'Objectif libre' };
-const UNITS = { seances_semaine: 'séances', cardio_minutes_semaine: 'min', poids_corporel: 'kg' };
+const TYPES = { charge: 'Charge sur un exercice', seances_semaine: 'Séances par semaine', cardio_minutes_semaine: 'Minutes de cardio / semaine', cardio_km_semaine: 'Kilomètres de cardio / semaine', poids_corporel: 'Poids corporel (kg)', tour_de_taille: 'Tour de taille (cm)', libre: 'Objectif libre' };
+const UNITS = { seances_semaine: 'séances', cardio_minutes_semaine: 'min', cardio_km_semaine: 'km', poids_corporel: 'kg', tour_de_taille: 'cm' };
 
 export default function Goals() {
   const { data, reload } = useApi('/goals'); const ex = useApi('/exercises');
@@ -17,7 +17,7 @@ export default function Goals() {
     else await post('/goals', body);
     setForm(null);
   }, 'Objectif enregistré');
-  const suggestTitle = (f) => f.type === 'charge' ? `${ex.data?.exercises.find((e) => e.id === Number(f.exercise_id))?.name || 'Exercice'} à ${f.target_value ?? '?'}` : f.type === 'seances_semaine' ? `${f.target_value ?? '?'} séances par semaine` : f.type === 'cardio_minutes_semaine' ? `${f.target_value ?? '?'} min de cardio / semaine` : f.type === 'poids_corporel' ? `Atteindre ${f.target_value ?? '?'} kg` : '';
+  const suggestTitle = (f) => f.type === 'charge' ? `${ex.data?.exercises.find((e) => e.id === Number(f.exercise_id))?.name || 'Exercice'} à ${f.target_value ?? '?'}` : f.type === 'seances_semaine' ? `${f.target_value ?? '?'} séances par semaine` : f.type === 'cardio_minutes_semaine' ? `${f.target_value ?? '?'} min de cardio / semaine` : f.type === 'cardio_km_semaine' ? `${f.target_value ?? '?'} km de cardio / semaine` : f.type === 'poids_corporel' ? `Atteindre ${f.target_value ?? '?'} kg` : f.type === 'tour_de_taille' ? `Tour de taille à ${f.target_value ?? '?'} cm` : '';
   if (!data) return <Loading />;
   const active = data.filter((g) => g.status === 'actif'); const others = data.filter((g) => g.status !== 'actif');
   return (

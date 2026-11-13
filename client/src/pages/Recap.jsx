@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Page, Card, Icon, Segmented, Loading, ErrorBox, useApi, useToast } from '../components/ui.jsx';
 import { addDays, n0, n1, mins } from '../lib/format.js';
@@ -72,6 +73,17 @@ export default function Recap() {
       {r.records.length > 0 && (
         <Card title="Records de la semaine" icon="trophy">
           <ul className="plain-list">{r.records.map((x, i) => <li key={i}><span className="grow">{x.name}</span><span className="mono small">{n1(x.previous)} → <b>{n1(x.weight)}</b> {x.unit}{x.assisted ? ' d’assistance' : ''}</span></li>)}</ul>
+        </Card>
+      )}
+      {(r.body?.weight != null || r.body?.waist != null || r.body?.plan || r.goals?.length > 0) && (
+        <Card title="Corps et objectifs" icon="scale" action={<Link className="link" to="/corps">Corps</Link>}>
+          <ul className="plain-list">
+            {r.body.weight != null && <li><span className="grow">Poids moyen ({r.body.weigh_ins} pesée{r.body.weigh_ins > 1 ? 's' : ''})</span><span className="mono small"><b>{n1(r.body.weight)} kg</b>{r.body.weight_change != null ? ` · ${r.body.weight_change > 0 ? '+' : ''}${n1(r.body.weight_change)} kg vs semaine d’avant` : ''}</span></li>}
+            {r.body.waist != null && <li><span className="grow">Tour de taille</span><span className="mono small"><b>{n1(r.body.waist)} cm</b>{r.body.waist_change != null ? ` · ${r.body.waist_change > 0 ? '+' : ''}${n1(r.body.waist_change)} cm` : ''}</span></li>}
+            {r.goals?.map((g) => <li key={g.title}><span className="grow">{g.title}</span><span className={`small ${g.reached ? 'ok-text' : 'mono'}`}>{g.reached ? 'Atteint' : g.progress != null ? `${Math.round(g.progress * 100)} %` : '—'}</span></li>)}
+          </ul>
+          {r.body.plan && <p className="muted small mt-s"><b>{r.body.plan.label}, semaine {r.body.plan.week}/{r.body.plan.weeks}.</b> {r.body.plan.check}</p>}
+          <p className="muted small">Ces chiffres restent privés : ils ne figurent pas sur l’image partagée.</p>
         </Card>
       )}
       {r.muscles.length > 0 && (

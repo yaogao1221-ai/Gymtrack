@@ -57,6 +57,15 @@ export function workoutSummary(db, w) {
 
 // Prochaine séance : 1) événement planifié à venir, 2) sinon jour suivant dans la rotation
 export function nextSession(db, today) {
+  const n = nextSessionCore(db, today);
+  if (!n) return n;
+  // Le cardio prévu dans ce jour de programme fait partie de la séance
+  const cardio = db.all('SELECT id, activity, custom_name, duration_min, speed_kmh, incline_pct, placement FROM program_cardio WHERE day_id = ? ORDER BY placement, id', n.program_day_id)
+    .map((c) => ({ ...c, label: c.custom_name || CARDIO_TYPES[c.activity]?.label || c.activity }));
+  const deload = n.event_id ? !!db.one('SELECT deload FROM calendar_events WHERE id = ?', n.event_id)?.deload : false;
+  return { ...n, cardio, deload };
+}
+function nextSessionCore(db, today) {
   const ev = db.one(`SELECT ce.*, pd.name day_name, pd.focus, pd.code FROM calendar_events ce
     LEFT JOIN program_days pd ON pd.id = ce.program_day_id
     WHERE ce.user_id = ? AND ce.type = 'workout' AND ce.status = 'planned' AND ce.date >= ? ORDER BY ce.date, ce.id LIMIT 1`, USER_ID, today);
@@ -236,6 +245,12 @@ export function goalsWithProgress(db, today, draft = null) {
     } else if (g.type === 'cardio_minutes_semaine') {
       current = Math.round(db.one('SELECT COALESCE(SUM(duration_min),0) m FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, ws, addDays(ws, 6)).m);
       start = 0; basis = 'Minutes de cardio de la semaine en cours';
+    } else if (g.type === 'cardio_km_semaine') {
+      current = Math.round(db.one('SELECT COALESCE(SUM(distance_km),0) k FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, ws, addDays(ws, 6)).k * 10) / 10;
+      start = 0; basis = 'Kilomètres de cardio de la semaine en cours';
+    } else if (g.type === 'tour_de_taille') {
+      current = db.one('SELECT waist_cm v FROM body_metrics WHERE user_id = ? AND waist_cm IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1', USER_ID)?.v ?? null;
+      basis = 'Dernier tour de taille mesuré';
     } else if (g.type === 'poids_corporel') {
       current = bw?.value ?? null;
       basis = bw?.source === 'pesee' ? `Moyenne des pesées sur 7 jours (${bw.n})` : 'Poids du profil';

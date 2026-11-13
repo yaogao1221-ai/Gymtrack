@@ -95,6 +95,7 @@ export default function Nutrition() {
         <Card title={`Cure : ${p.label}`} icon="target" className="plan-card" action={<button className="btn xs ghost" onClick={() => setStop(true)}>Arrêter</button>}>
           <div className="plan-head"><span className="small">Semaine <b>{p.week}</b> sur {p.weeks}</span><span className="muted small">fin le {fmtDate(p.end_date, { day: 'numeric', month: 'long' })} · objectif ≈ {f1(p.end_weight)} kg</span></div>
           <div className="bar"><span style={{ width: `${(p.week / p.weeks) * 100}%` }} /></div>
+          {p.goal && <Link to="/objectifs" className="nut-inline"><Icon name="target" size={16} /><span className="grow"><b className="small">Objectif lié : {p.goal.title}</b><span className="muted small">{p.goal.reached ? 'Atteint' : `Actuel ${f1(p.goal.current_value)} ${p.goal.unit} · ${Math.round((p.goal.progress || 0) * 100)} % du chemin`}</span></span><Icon name="right" size={16} /></Link>}
           {p.in_break && <p className="tip"><Icon name="moon" size={14} />Semaine de pause conseillée : mange au maintien (≈ {f0(st.tdee)} kcal) puis reprends.</p>}
           <div className="kcal-target"><b>{f0(p.in_break ? st.tdee : p.kcal)}</b><span>kcal par jour{p.kcal_adjust ? ` (ajusté ${p.kcal_adjust > 0 ? '+' : ''}${p.kcal_adjust})` : ''}</span></div>
           <Macros p={p} />

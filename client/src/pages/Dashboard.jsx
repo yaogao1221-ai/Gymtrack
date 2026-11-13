@@ -13,8 +13,8 @@ export default function Dashboard() {
   const days = Array.from({ length: 14 }, (_, i) => addDays(d.calendar.from, i));
   const target = d.week.target || 5;
   const rings = [
-    { label: 'Séances muscu', grad: 'fire', value: d.week.workouts / target, text: `${d.week.workouts} / ${target}` },
-    { label: 'Minutes de cardio', grad: 'aqua', value: d.week.cardio_target ? d.week.cardio_minutes / d.week.cardio_target : 0, text: `${d.week.cardio_minutes} / ${d.week.cardio_target || '—'} min` },
+    { label: d.week.target_from_goal ? 'Séances muscu (objectif)' : 'Séances muscu', grad: 'fire', value: d.week.workouts / target, text: `${d.week.workouts} / ${target}` },
+    { label: d.week.cardio_from_goal ? 'Minutes de cardio (objectif)' : 'Minutes de cardio', grad: 'aqua', value: d.week.cardio_target ? d.week.cardio_minutes / d.week.cardio_target : 0, text: `${d.week.cardio_minutes} / ${d.week.cardio_target || '—'} min` },
     { label: 'Séries validées', grad: 'violet', value: d.week.sets_target ? d.week.sets / d.week.sets_target : 0, text: `${d.week.sets} / ${d.week.sets_target}` },
   ];
   return (
@@ -29,7 +29,8 @@ export default function Dashboard() {
         <p className="eyebrow">Prochaine séance{d.next?.date ? ` · ${relDay(d.next.date, d.today)}` : ''}</p>
         {d.next ? (<>
           <h2 className="hero-title">{d.next.name} <span className="muted">—</span> {d.next.focus}</h2>
-          <p className="muted small">{d.next.date ? fmtDay(d.next.date) : 'Suivante dans ta rotation'}</p>
+          <p className="muted small">{d.next.date ? fmtDay(d.next.date) : 'Suivante dans ta rotation'}{d.next.deload ? ' · semaine de deload (charges −10 %, moitié des séries)' : ''}</p>
+          {d.next.cardio?.length > 0 && <p className="small hero-cardio"><Icon name="heart" size={14} />{d.next.cardio.map((c) => `${c.label} ${Math.round(c.duration_min)} min ${c.placement === 'debut' ? 'en début' : 'en fin'} de séance`).join(' · ')}</p>}
           <div className="row gap mt">
             <button className="btn primary lg" onClick={() => nav(`/seance/${d.next.program_day_id}`)}><Icon name="play" size={18} />Commencer</button>
             <Link className="btn ghost" to="/programme">Voir le programme</Link>
