@@ -1,7 +1,7 @@
 import { IconRecovery } from '../components/Art3D.jsx';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApi, Page, Card, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
+import { useApi, Page, Card, Fold, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import { post, patch, put, del, today } from '../lib/api.js';
 import { DAYS, fmtDate } from '../lib/format.js';
@@ -25,7 +25,7 @@ export default function Coach() {
   const maxSets = Math.max(...a.volume.muscles.map((m) => Math.max(m.sets, m.opt_high)), 1);
   const activePains = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
-    <Page tabs={<SectionTabs group="progress" />} title="Analyse" subtitle="Analyse de ton programme, de ta récupération et de ta progression">
+    <Page tabs={<SectionTabs group="progress" />} title="Analyse">
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
           <div className="row gap">
@@ -59,17 +59,17 @@ export default function Coach() {
         </Card>
       </div>
 
-      <Card title="Analyse du programme" icon="brain">
+      <Fold title="Analyse du programme" icon="brain">
         <ul className="findings">{a.findings.map((f) => (
           <li key={f.id} className={`finding ${SEV[f.severity][1]}`}>
             <div className="row gap-s"><span className={`badge ${SEV[f.severity][1]}`}>{SEV[f.severity][0]}</span><span className="muted small">{CAT[f.category]}</span></div>
             <b>{f.title}</b><p className="small">{f.detail}</p>
           </li>
         ))}</ul>
-      </Card>
+      </Fold>
 
       <div className="grid-2col">
-        <Card title="Volume hebdomadaire par muscle" icon="chart">
+        <Fold title="Volume hebdomadaire par muscle" icon="chart">
           <p className="muted small">Séries effectives / semaine (exercice principal = 1, muscle secondaire = 0,5), comparées au minimum conseillé pour ton niveau ({a.level}).</p>
           <RadarChart height={290} labels={a.volume.muscles.map((m) => m.label.replace(/ \(.*\)/, (x) => x.includes('avant') ? ' av.' : x.includes('latéral') ? ' lat.' : x.includes('arrière') ? ' arr.' : x.includes('grand') ? ' larg.' : x.includes('milieu') ? ' mil.' : '').replace(' / gainage', ''))}
             series={[{ label: 'Ton programme', data: a.volume.muscles.map((m) => m.sets), color: COLORS.lime }, { label: 'Minimum conseillé', data: a.volume.muscles.map((m) => m.opt_low), color: COLORS.mint, dash: [4, 4] }]} />
@@ -81,9 +81,9 @@ export default function Coach() {
             </li>
           ))}</ul>
           <p className="muted small mt-s">Total : {a.volume.total_sets} séries / semaine · {a.volume.per_day.map((d) => `${d.name.replace('Jour ', 'J')} ≈ ${d.est_minutes} min`).join(' · ')}</p>
-        </Card>
+        </Fold>
 
-        <Card title="Répartition & jours de récupération" icon="calendar">
+        <Fold title="Répartition & jours de récupération" icon="calendar">
           <div className="week-row">{DAYS.map(([k, l]) => { const c = a.schedule.current[k]; const d = a.volume.per_day.find((x) => x.code === c); return <div key={k} className={`wd ${c === 'rest' ? 'rest' : d?.lower ? 'lower' : 'upper'}`}><span>{l}</span><b>{c === 'rest' ? '—' : c.replace('D', 'J')}</b></div>; })}</div>
           {a.schedule.issues.length ? <ul className="small">{a.schedule.issues.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="small ok-text">Au moins 48 h entre deux sollicitations lourdes d’un même muscle, et des jours de repos bien placés.</p>}
           {a.schedule.proposed && (<>
@@ -92,7 +92,7 @@ export default function Coach() {
             <button className="btn sm primary mt-s" onClick={() => act(() => put('/profile', { schedule: a.schedule.proposed }), 'Planning type mis à jour', 'sched')}>Appliquer ce planning</button>
           </>)}
           <p className="muted small mt-s">J = jour du programme. Vert : bas du corps. Modifie ton planning et tes disponibilités dans le <Link className="link" to="/profil">profil</Link>.</p>
-        </Card>
+        </Fold>
       </div>
 
       {a.suggestions.length > 0 && <Card title="Exercices complémentaires suggérés" icon="plus">
@@ -106,9 +106,9 @@ export default function Coach() {
         ))}</ul>
       </Card>}
 
-      <Card title="Cardio" icon="heart" action={<Link className="link" to="/cardio">Voir le plan</Link>}>
+      <Fold title="Cardio" icon="heart">
         <p className="small">{a.cardio.rationale[0]} Semaine en cours : {a.cardio.weeks[0].sessions} × {a.cardio.weeks[0].minutes} min ({a.cardio.weeks[0].intensity}). Fait : {a.cardio.done_this_week.minutes} min.</p>
-      </Card>
+      </Fold>
       <p className="muted small center">Recommandations basées sur des principes de coaching reconnus (volume, récupération, progression). Elles ne remplacent pas l’avis d’un professionnel de santé en cas de douleur.</p>
 
       <Sheet open={!!pain} onClose={() => setPain(null)} title="Signaler une douleur"

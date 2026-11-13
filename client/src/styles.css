@@ -755,3 +755,15 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .pending .eyebrow { color: var(--gold); margin: 0; }
 .pending-row { display: flex; align-items: center; gap: 10px; }
 @media (max-width: 400px) { .section-tabs a .icon { display: none; } .section-tabs a { padding: 7px 11px; } }
+/* Cartes repliées */
+.fold { padding: 0; }
+.fold > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; flex: 0 0 auto; }
+.fold > summary .grow-text { flex: 1; text-align: right; }
+.fold .fold-chev { color: var(--muted); transition: transform .2s; flex: 0 0 auto; }
+.fold[open] .fold-chev { transform: rotate(90deg); }
+.fold .fold-body { padding: 0 16px 16px; }
+.fold > summary h2 { flex: 1 1 auto; min-width: 0; }
+.fold > summary .grow-text { flex: 0 1 auto; white-space: nowrap; }
+@media (max-width: 380px) { .fold > summary .grow-text { display: none; } }

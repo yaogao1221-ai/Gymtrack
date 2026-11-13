@@ -9,8 +9,7 @@ import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib
 export default function Progress() {
   const [tab, setTab] = useState('overview');
   return (
-    <Page tabs={<SectionTabs group="progress" />} title="Progrès" subtitle="Graphiques, comparaisons et historique complet"
-      actions={<div className="row gap-s"><Link className="btn sm ghost" to="/objectifs"><Icon name="target" size={14} />Objectifs</Link><Link className="btn sm ghost" to="/bilan"><Icon name="upload" size={14} />Bilan</Link></div>}>
+    <Page tabs={<SectionTabs group="progress" />} title="Progrès">
       <Segmented value={tab} onChange={setTab} options={[['overview', 'Vue globale'], ['exercise', 'Exercices'], ['compare', 'Comparer'], ['history', 'Historique']]} />
       <div className="mt">
         {tab === 'overview' && <Overview />}
@@ -33,7 +32,6 @@ function Overview() {
     <div className="grid-2col">
       <Card title="Séances par semaine" icon="dumbbell"><BarChart labels={wl} series={[{ label: 'Muscu', data: data.weekly.map((w) => w.workouts), color: COLORS.lime }]} /></Card>
       <Card title="Volume d’entraînement (lbs × reps)" icon="flame"><BarChart labels={wl} series={[{ label: 'Volume', data: data.weekly.map((w) => w.volume_lbs), color: COLORS.orange }]} /></Card>
-      <Card title="Temps consacré au cardio" icon="heart"><BarChart labels={wl} series={[{ label: 'Minutes', data: data.weekly.map((w) => w.cardio_minutes), color: COLORS.mint }]} /></Card>
       <Card title="Progression mensuelle" icon="chart"><LineChart labels={ml} beginAtZero series={[
         { label: 'Séries validées', data: data.monthly.map((m) => m.sets), color: COLORS.lime, fill: true },
         { label: 'Minutes cardio', data: data.monthly.map((m) => m.cardio_minutes), color: COLORS.mint, axis: 'y2' },

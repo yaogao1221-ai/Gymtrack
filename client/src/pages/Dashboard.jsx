@@ -4,7 +4,7 @@ import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty, She
 import { post, today } from '../lib/api.js';
 import { Spark, COLORS } from '../components/charts.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
-import { fmtDate, fmtDay, relDay, dur, mins, n0, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
+import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 export default function Dashboard() {
   const { data: d, error, reload } = useApi('/dashboard');
@@ -14,12 +14,11 @@ export default function Dashboard() {
   if (!d) return <Loading />;
   const hour = new Date().getHours();
   const hello = hour < 6 ? 'Bonne nuit' : hour < 18 ? 'Bonjour' : 'Bonsoir';
-  const days = Array.from({ length: 14 }, (_, i) => addDays(d.calendar.from, i));
   const target = d.week.target || 5;
   const rings = [
-    { label: d.week.target_from_goal ? 'Séances muscu (objectif)' : 'Séances muscu', grad: 'fire', value: d.week.workouts / target, text: `${d.week.workouts} / ${target}` },
-    { label: d.week.cardio_from_goal ? 'Minutes de cardio (objectif)' : 'Minutes de cardio', grad: 'aqua', value: d.week.cardio_target ? d.week.cardio_minutes / d.week.cardio_target : 0, text: `${d.week.cardio_minutes} / ${d.week.cardio_target || '—'} min` },
-    { label: 'Séries validées', grad: 'violet', value: d.week.sets_target ? d.week.sets / d.week.sets_target : 0, text: `${d.week.sets} / ${d.week.sets_target}` },
+    { label: 'Séances', grad: 'fire', value: d.week.workouts / target, text: `${d.week.workouts} / ${target}` },
+    { label: 'Cardio', grad: 'aqua', value: d.week.cardio_target ? d.week.cardio_minutes / d.week.cardio_target : 0, text: `${d.week.cardio_minutes} / ${d.week.cardio_target || '—'} min` },
+    { label: 'Séries', grad: 'violet', value: d.week.sets_target ? d.week.sets / d.week.sets_target : 0, text: `${d.week.sets} / ${d.week.sets_target}` },
   ];
   return (
     <div className="page fade-in">
@@ -55,12 +54,6 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="quick">
-        <button onClick={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })}><Icon name="scale" /><span>Pesée</span></button>
-        <Link to="/cardio?ajout=1"><Icon name="heart" /><span>Cardio</span></Link>
-        <Link to="/calendrier"><Icon name="calendar" /><span>Planning</span></Link>
-        <Link to="/plan"><Icon name="target" /><span>Mon plan</span></Link>
-      </div>
       <Sheet open={!!weigh} onClose={() => setWeigh(null)} title="Pesée du jour"
         footer={<button className="btn primary block" disabled={!weigh?.weight_kg} onClick={async () => {
           try { await post('/body-metrics', { date: weigh.date || today(), weight_kg: Number(weigh.weight_kg) }); setWeigh(null); toast('Pesée enregistrée : poids, objectifs et calories mis à jour'); } catch (e) { toast(e.message, 'err'); }
@@ -69,7 +62,7 @@ export default function Dashboard() {
       </Sheet>
 
       <section className="card week-rings">
-        <ActivityRings size={156} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))}
+        <ActivityRings size={120} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))}
           center={<><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)}%</b><small>semaine</small></>} />
         <ul className="ring-legend">
           {rings.map((r) => (
@@ -80,14 +73,13 @@ export default function Dashboard() {
             </li>
           ))}
         </ul>
-        <p className="muted small week-line">{n0(d.week.volume_lbs)} lbs soulevées · {dur(d.week.training_minutes * 60)} de muscu{d.week.cardio_sessions ? ` · ${d.week.cardio_sessions} cardio` : ''}{d.week.cardio_kcal ? ` · ≈ ${n0(d.week.cardio_kcal)} kcal en cardio` : ''}</p>
       </section>
 
       <div className="grid-2col">
         <BodyCard body={d.body} nutrition={d.nutrition} />
         <Card title="Objectifs" icon="target" action={<Link className="link" to="/objectifs">Gérer</Link>}>
           {d.goals.length ? (
-            <ul className="goals">{d.goals.map((g) => (
+            <ul className="goals">{d.goals.slice(0, 3).map((g) => (
               <li key={g.id}>
                 <div className="row-between"><b>{g.title}</b><span className={`small ${g.reached ? 'ok-text' : 'muted'}`}>{g.reached ? 'Atteint' : `${g.current_value == null ? '—' : Number(g.current_value).toLocaleString('fr-FR')} / ${Number(g.target_value).toLocaleString('fr-FR')} ${g.unit || ''}`}</span></div>
                 <div className={`bar ${g.reached ? 'done' : ''}`}><span style={{ width: `${Math.round((g.progress || 0) * 100)}%` }} /></div>
@@ -97,72 +89,9 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid-2col">
-        <Card title="Dernière séance" icon="dumbbell" action={d.last_workout && <Link className="link" to={`/historique/${d.last_workout.id}`}>Détails</Link>}>
-          {d.last_workout ? (
-            <div className="last">
-              <h3>{d.last_workout.name}{d.last_workout.focus ? ` — ${d.last_workout.focus}` : ''}</h3>
-              <p className="muted small">{fmtDay(d.last_workout.date)} · {relDay(d.last_workout.date, d.today)}</p>
-              <div className="kv"><span>{dur(d.last_workout.duration_sec)}</span><span>{d.last_workout.sets_done} séries</span><span>{n0(d.last_workout.volume_lbs)} lbs</span>{d.last_workout.rpe && <span>RPE {d.last_workout.rpe}</span>}</div>
-            </div>
-          ) : <Empty icon="dumbbell" title="Aucune séance pour l’instant">Lance ta première séance, elle apparaîtra ici.</Empty>}
-          {d.last_cardio && <p className="muted small mt">Dernier cardio : {d.last_cardio.custom_name || CARDIO[d.last_cardio.activity]}, {mins(d.last_cardio.duration_min)} · {fmtDate(d.last_cardio.date)}</p>}
-        </Card>
-
-        <Card title="Calendrier" icon="calendar" action={<Link className="link" to="/calendrier">Ouvrir</Link>}>
-          <div className="strip">
-            {days.map((day) => {
-              const ev = d.calendar.events.filter((e) => e.date === day);
-              const done = d.calendar.done.filter((x) => x.date === day);
-              const w = ev.find((e) => e.type === 'workout'); const rest = ev.find((e) => e.type === 'rest'); const c = ev.find((e) => e.type === 'cardio');
-              return (
-                <Link to={`/calendrier?d=${day}`} key={day} className={`strip-day ${day === d.today ? 'today' : ''} ${day < d.today ? 'past' : ''}`}>
-                  <span className="dow">{fmtDate(day, { weekday: 'narrow' })}</span>
-                  <span className="dom">{Number(day.slice(8))}</span>
-                  <span className="dots">
-                    {done.some((x) => x.t === 'workout') ? <i className="dot lime" /> : w ? <i className="dot ring-lime" title={w.day_name} /> : null}
-                    {done.some((x) => x.t === 'cardio') ? <i className="dot mint" /> : c ? <i className="dot ring-mint" /> : null}
-                    {rest && !w && <i className="dot grey" />}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="legend small muted"><span><i className="dot lime" />Muscu faite</span><span><i className="dot ring-lime" />Prévue</span><span><i className="dot mint" />Cardio</span><span><i className="dot grey" />Repos</span></div>
-        </Card>
-      </div>
-
-      <Link to="/bilan" className="recap-link card"><Icon name="chart" size={20} /><span className="grow"><b>Bilan de la semaine</b><span className="muted small">Séances, volume, records, à partager en story</span></span><Icon name="right" size={18} /></Link>
-      <div className="grid-2col">
-        <Card title="Progression des charges" icon="up" action={<Link className="link" to="/progres">Graphiques</Link>}>
-          {d.progression.length ? (
-            <ul className="prog-list">
-              {d.progression.map((p) => {
-                const delta = p.last - p.first; const good = p.assisted ? delta < 0 : delta > 0;
-                return (
-                  <li key={p.exercise_id}>
-                    <div><b>{p.name}</b><span className="muted small">{p.first} → {p.last} {p.unit}{p.assisted ? ' (assist.)' : ''}</span></div>
-                    <div className="spark"><Spark points={p.points} color={good ? COLORS.lime : COLORS.blue} /></div>
-                    <span className={`delta ${good ? 'pos' : delta === 0 ? '' : 'neg'}`}>{delta > 0 ? '+' : ''}{Math.round(delta * 10) / 10}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : <Empty icon="chart" title="Pas encore de données">Tes courbes apparaîtront après quelques séances.</Empty>}
-        </Card>
-
-        <Card title="Historique des performances" icon="trophy">
-          {d.records.length > 0 && (
-            <ul className="records">{d.records.map((r, i) => <li key={i}><Icon name="trophy" size={14} className="gold" /><span><b>{r.name}</b> : {r.previous} → {r.weight} {r.unit}{r.assisted ? ' d’assistance' : ''}</span><span className="muted small">{fmtDate(r.date)}</span></li>)}</ul>
-          )}
-          {d.recent_workouts.length ? (
-            <ul className="history">{d.recent_workouts.map((w) => (
-              <li key={w.id}><Link to={`/historique/${w.id}`}><span><b>{w.name}</b> <span className="muted">{w.focus}</span></span><span className="muted small">{fmtDate(w.date)} · {w.sets_done} séries · {n0(w.volume_lbs)} lbs</span></Link></li>
-            ))}</ul>
-          ) : <p className="muted small">Ton historique s’affichera ici.</p>}
-        </Card>
-      </div>
-
+      {d.last_workout && (
+        <Link to={`/historique/${d.last_workout.id}`} className="recap-link card"><Icon name="dumbbell" size={18} /><span className="grow"><b className="small">Dernière séance : {d.last_workout.name}{d.last_workout.focus ? ` — ${d.last_workout.focus}` : ''}</b><span className="muted small">{relDay(d.last_workout.date, d.today)} · {d.last_workout.sets_done} séries · {n0(d.last_workout.volume_lbs)} lbs</span></span><Icon name="right" size={18} /></Link>
+      )}
     </div>
   );
 }
@@ -189,7 +118,7 @@ function BodyCard({ body, nutrition }) {
 // Ma journée : ce qui est prévu aujourd'hui, coché automatiquement dès que c'est enregistré
 function MyDay({ day, onWeigh }) {
   const items = [];
-  if (day.workout) items.push({ k: 'w', done: day.workout.done, icon: 'dumbbell', text: day.workout.extra ? 'Séance faite' : `${day.workout.name} — ${day.workout.focus}${day.workout.deload ? ' (deload)' : ''}`,
+  if (day.workout?.done) items.push({ k: 'w', done: day.workout.done, icon: 'dumbbell', text: day.workout.extra ? 'Séance faite' : `${day.workout.name} — ${day.workout.focus}${day.workout.deload ? ' (deload)' : ''}`,
     to: day.workout.done ? (day.workout.workout_id ? `/historique/${day.workout.workout_id}` : null) : `/seance/${day.workout.program_day_id}`, cta: 'Go' });
   else if (day.rest) items.push({ k: 'r', done: true, icon: 'moon', text: 'Repos : la récupération fait partie du programme' });
   if (day.cardio) items.push({ k: 'c', done: day.cardio.done && day.cardio.done_minutes >= day.cardio.minutes * 0.8, icon: 'heart', text: day.cardio.minutes ? `${day.cardio.minutes} min de cardio${day.cardio.done_minutes ? ` (${day.cardio.done_minutes} faites)` : ''}` : `${day.cardio.done_minutes} min de cardio faites`, to: '/cardio?ajout=1', cta: '+' });

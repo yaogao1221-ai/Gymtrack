@@ -1,6 +1,6 @@
 import { TROPHY_BY_CAT, TrophyChampion, Badge3D, BADGE_ART } from '../components/Art3D.jsx';
 import { useCallback, useEffect, useState } from 'react';
-import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
+import { Page, Card, Fold, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
   ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen, getChallenges,
@@ -178,11 +178,11 @@ function Board({ m, onLeft }) {
         <p className="muted small mt">Série en cours : {summary.streak} semaine{summary.streak > 1 ? 's' : ''} d’affilée avec au moins une séance.</p>
       </Card>
 
-      <Card title="Barème" icon="info">
+      <Fold title="Barème" icon="info">
         <p className="small">Séance muscu {POINTS.workout} pts · 1 km de cardio {POINTS.km} pts · record battu {POINTS.record} pts · 1 000 pas {POINTS.steps1000} pt.</p>
         <p className="muted small">Iron : séances × {POINTS.workout} + séries validées + records × {POINTS.record}. Les records comptent ta progression à toi, donc un débutant peut battre un costaud.</p>
         <button className="btn xs ghost mt" onClick={() => setLeave(true)}>Quitter la ligue</button>
-      </Card>
+      </Fold>
       </>}
       <ComposeSheet draft={draft} onClose={() => setDraft(null)} board={board} me={m.member_id} curKey={weekKey} onSent={() => { loadFeed(); setView('feed'); }} />
       <MemberSheet member={member} onClose={() => setMember(null)} board={board} me={m.member_id} curKey={weekKey} monthKey={monthKey} rows={weekRows} feed={feed} onCompose={compose} onProgram={(x) => { setMember(null); setProg(x); }} onChat={(x) => { setMember(null); openChat(x); }} />

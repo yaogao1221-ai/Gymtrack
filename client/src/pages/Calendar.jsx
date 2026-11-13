@@ -42,7 +42,7 @@ export default function Calendar() {
   const sel = selected && by(selected);
 
   return (
-    <Page tabs={<SectionTabs group="training" />} title="Calendrier" subtitle="Planifie, déplace et consulte tes séances">
+    <Page tabs={<SectionTabs group="training" />} title="Calendrier">
       <div className="row gap-s wrap cal-actions">
         <button className="btn sm primary" onClick={() => setReflow({ from: t, program_day_id: program.data?.days[0]?.id, weeks: 4 })}><Icon name="calendar" size={16} />Reprendre par…</button>
         <button className="btn sm" onClick={() => run(() => post('/calendar/plan', { from: weekStart(t), weeks: 4 }), (r) => `${r.created} jour(s) planifié(s)${r.skipped ? `, ${r.skipped} déjà occupé(s)` : ''}`)}><Icon name="sparkles" size={16} />Planifier 4 sem.</button>

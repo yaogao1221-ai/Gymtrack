@@ -39,7 +39,7 @@ const SIDE = [
   ['Corps'], ['/corps', 'scale', 'Poids, calories, cure'], ['/plan', 'target', 'Mon plan'],
   ['Progrès'], ['/progres', 'chart', 'Progrès'], ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/coach', 'brain', 'Analyse'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
-  ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Tout le reste'],
+  ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Outils'],
 ];
 
 export default function App() {

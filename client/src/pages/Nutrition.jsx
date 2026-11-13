@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApi, Page, Card, Field, Loading, ErrorBox, NumInput, Icon, Sheet, Segmented, Confirm, useToast } from '../components/ui.jsx';
+import { useApi, Page, Card, Fold, Field, Loading, ErrorBox, NumInput, Icon, Sheet, Segmented, Confirm, useToast } from '../components/ui.jsx';
 import { LineChart, COLORS } from '../components/charts.jsx';
 import { put, post, del, today } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
@@ -37,7 +37,7 @@ export default function Nutrition() {
   const p = st.plan;
 
   return (
-    <Page tabs={<SectionTabs group="body" />} title="Corps" subtitle="Pesées, composition, calories et cures">
+    <Page tabs={<SectionTabs group="body" />} title="Corps">
       {st.missing.length > 0 && (
         <Card title="Pour calculer tes besoins" icon="info">
           <p className="small">Il manque : <b>{st.missing.join(', ')}</b>.</p>
@@ -50,8 +50,6 @@ export default function Nutrition() {
           {!st.weight_kg && <p className="muted small">Ajoute ton poids juste en dessous.</p>}
         </Card>
       )}
-
-      <Link to="/plan" className="card plan-link"><Icon name="target" /><span className="grow"><b>Mon plan selon mon objectif</b><span className="muted small">Fréquence, calories, cure et programme calculés pour toi</span></span><Icon name="right" size={18} /></Link>
 
       <Card title="Pesée et mensurations" icon="user" className="weigh-card">
         <div className="row gap-s">
@@ -68,6 +66,8 @@ export default function Nutrition() {
         <p className="muted small mt-s">Pèse-toi le matin à jeun, 3 à 7 fois par semaine : l’appli raisonne sur la moyenne de la semaine.</p>
       </Card>
 
+      <Link to="/plan" className="card plan-link"><Icon name="target" /><span className="grow"><b>Mon plan selon mon objectif</b><span className="muted small">Fréquence, calories, cure et programme calculés pour toi</span></span><Icon name="right" size={18} /></Link>
+
       <Card title="Ma composition" icon="target">
         <div className="body-tiles">
           <div><span className="muted small">Poids <i className="src m">pesé</i></span><b>{f1(st.weight_kg)}<small> kg</small></b><span className="small">{st.weight ? `moyenne de ${st.weight.n} pesée${st.weight.n > 1 ? 's' : ''} sur 7 j · dernière ${f1(st.weight.last)} kg` : 'poids du profil'}</span><span className="small">{st.trend.rate_pct != null ? `tendance ${st.trend.rate_pct > 0 ? '+' : ''}${f1(st.trend.rate_pct)} % / sem.` : 'tendance après 2 semaines'}</span></div>
@@ -76,12 +76,14 @@ export default function Nutrition() {
           <div><span className="muted small">FFMI <i className="src e">estimé</i></span><b>{f1(st.ffmi?.normalized)}</b><span className="small">{st.ffmi ? ffmiText(st.ffmi.normalized) : 'besoin du % de gras'}</span></div>
         </div>
         {st.bmi?.value >= 25 && st.ffmi?.normalized >= 21 && <p className="tip"><Icon name="info" size={14} />L’IMC ne fait pas la différence entre muscle et gras : avec ta masse musculaire, regarde plutôt ton % de gras et ton tour de taille.</p>}
+        <details className="rules"><summary className="small">Comment lire ces chiffres</summary>
         {st.lbm_kg && <p className="muted small">Masse maigre estimée : ≈ {f1(st.lbm_kg)} kg (poids × (1 − % de gras)). La masse maigre inclut eau, os et organes : ce n’est pas une mesure du muscle.</p>}
         <p className="muted small">Une variation de poids sur quelques jours vient surtout de l’eau et du contenu digestif. Seule la tendance sur plusieurs semaines, croisée avec le tour de taille et les charges, renseigne sur le gras ou le muscle.</p>
+        </details>
         {pts.length > 1 && <LineChart height={150} labels={pts.map((x) => fmtDate(x.week, { day: 'numeric', month: 'short' }))} series={[{ label: 'Moyenne de la semaine (kg)', data: pts.map((x) => x.avg), color: COLORS.mint, fill: true }]} />}
       </Card>
 
-      {st.bmr && <Card title="Mes calories de maintien" icon="flame">
+      {st.bmr && <Fold title="Mes calories de maintien" icon="flame" hint={`≈ ${f0(st.tdee)} kcal`}>
         <div className="kcal-sum">
           <div><span className="muted small">Métabolisme de base</span><b>{f0(st.bmr.value)}</b></div><span className="op">×</span>
           <div><span className="muted small">Activité</span><b>{f1(st.profile.activity_pal)}</b></div><span className="op">+</span>
@@ -92,7 +94,7 @@ export default function Nutrition() {
           <select value={String(st.profile.activity_pal)} onChange={(e) => pal(e.target.value)}>{Object.entries(st.lifestyle).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </Field>
         <p className="muted small">Formule {st.bmr.formula}. L’entraînement est calculé sur tes 4 dernières semaines réelles{st.exercise?.estimated ? ' (estimé depuis ton profil pour l’instant)' : ''}. Toutes les formules ont ±10 % d’erreur : la cure se recale chaque semaine sur ta balance.</p>
-      </Card>}
+      </Fold>}
 
       {p ? (
         <Card title={`Cure : ${p.label}`} icon="target" className="plan-card" action={<button className="btn xs ghost" onClick={() => setStop(true)}>Arrêter</button>}>
@@ -110,7 +112,7 @@ export default function Nutrition() {
           <details className="rules"><summary className="small">Les règles de cette cure (études)</summary><ul>{st.types[p.type].rules.map((r) => <li key={r} className="small">{r}</li>)}</ul></details>
         </Card>
       ) : (
-        <Card title="Lancer une cure" icon="target">
+        <Fold title="Choisir une cure moi-même" icon="target" hint="sinon, Mon plan la choisit">
           {!st.tdee && <p className="muted small">Complète ton profil et ajoute une pesée pour voir les chiffres.</p>}
           <div className="plan-options">
             {Object.entries(st.types).map(([k, t]) => (
@@ -121,15 +123,15 @@ export default function Nutrition() {
               </button>
             ))}
           </div>
-        </Card>
+        </Fold>
       )}
 
       <MetricsHistory />
 
-      <Card title="Bonnes pratiques" icon="sparkles">
+      <Fold title="Bonnes pratiques" icon="sparkles">
         <ul className="tips-list">{st.tips.map((t) => <li key={t} className="small">{t}</li>)}</ul>
         <Link to="/outils" className="btn sm mt"><Icon name="target" size={14} />Calculateurs : 1RM, zones cardio, disques</Link>
-      </Card>
+      </Fold>
 
       <StartSheet start={start} setStart={setStart} st={st} onStarted={(x) => { setStart(null); set(x); toast('Cure lancée'); }} />
       <Confirm open={stop} onClose={() => setStop(false)} title="Arrêter la cure ?" confirmLabel="Arrêter" text="Tes pesées restent enregistrées. Tu pourras en lancer une autre."
@@ -177,7 +179,7 @@ function MetricsHistory() {
   const v = (x, u) => (x == null ? '—' : `${f1(x)}${u}`);
   const remove = async (id) => { try { await del(`/body-metrics/${id}`); toast('Mesure supprimée'); } catch (e) { toast(e.message, 'err'); } };
   return (
-    <Card title="Historique des mesures" icon="calendar">
+    <Fold title="Historique des mesures" icon="calendar" hint={`${data.length} mesure${data.length > 1 ? 's' : ''}`}>
       <div className="table-wrap"><table className="sets-table">
         <thead><tr><th>Date</th><th>Poids</th><th>Taille</th><th>Cou</th><th>% gras</th><th /></tr></thead>
         <tbody>{rows.map((x) => <tr key={x.id}><td>{fmtDate(x.date, { day: 'numeric', month: 'short' })}</td><td>{v(x.weight_kg, ' kg')}</td><td>{v(x.waist_cm, '')}</td><td>{v(x.neck_cm, '')}</td><td>{v(x.body_fat_pct, ' %')}</td>
@@ -185,6 +187,6 @@ function MetricsHistory() {
       </table></div>
       {data.length > 8 && <button className="link small mt-s" onClick={() => setAll(!all)}>{all ? 'Réduire' : `Tout afficher (${data.length})`}</button>}
       <p className="muted small mt-s">Mensurations en cm. Le % de gras de ce tableau est celui que tu as mesuré (appareil) ; l’estimation US Navy est calculée à part.</p>
-    </Card>
+    </Fold>
   );
 }

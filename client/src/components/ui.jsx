@@ -116,6 +116,16 @@ export function Card({ title, action, children, className = '', icon }) {
   );
 }
 
+// Carte repliée par défaut : le détail reste accessible sans encombrer l'écran
+export function Fold({ title, icon, hint, children, open = false, className = '' }) {
+  return (
+    <details className={`card fold ${className}`} open={open}>
+      <summary><h2>{icon && <Icon name={icon} size={16} />}{title}</h2>{hint && <span className="muted small grow-text">{hint}</span>}<Icon name="right" size={16} className="fold-chev" /></summary>
+      <div className="fold-body">{children}</div>
+    </details>
+  );
+}
+
 export function Stat({ label, value, unit, hint, icon, tone }) {
   return (
     <div className={`stat ${tone || ''}`}>

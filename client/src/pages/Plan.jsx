@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApi, Page, Card, Field, Loading, ErrorBox, NumInput, Icon, Segmented, useToast } from '../components/ui.jsx';
+import { useApi, Page, Card, Fold, Field, Loading, ErrorBox, NumInput, Icon, Segmented, useToast } from '../components/ui.jsx';
 import { get, put, post } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
 import { Macros } from './Nutrition.jsx';
@@ -42,7 +42,7 @@ export default function Plan() {
   };
   const n = s.nutrition;
   return (
-    <Page tabs={<SectionTabs group="body" />} title="Mon plan" subtitle="Calculé depuis ton objectif, ton état actuel et ta progression">
+    <Page tabs={<SectionTabs group="body" />} title="Mon plan">
       <Card title="Mon objectif" icon="target">
         <div className="seg-tight"><Segmented value={t.mode} onChange={(mode) => setT({ ...t, mode })} options={MODES} /></div>
         <div className="grid3 mt-s">
@@ -87,7 +87,7 @@ export default function Plan() {
           <ul className="why">{s.program.map((w) => <li key={w} className="small">{w}</li>)}</ul>
         </Card>
 
-        <Card title="D’où partent ces chiffres" icon="chart">
+        <Fold title="D’où partent ces chiffres" icon="chart">
           <ul className="plain-list">
             <li><span className="grow">Poids moyen sur 7 jours</span><span className="mono small">{f1(s.state.kg)} kg{s.state.trend_pct != null ? ` · ${s.state.trend_pct > 0 ? '+' : ''}${f1(s.state.trend_pct)} %/sem.` : ''}</span></li>
             <li><span className="grow">Masse grasse {s.state.bf_source === 'mesure' ? '(mesurée)' : '(estimée)'}</span><span className="mono small">{s.state.bf != null ? `≈ ${f1(s.state.bf)} %` : '—'}</span></li>
@@ -97,7 +97,7 @@ export default function Plan() {
             <li><span className="grow">Récupération</span><span className="mono small">{s.frequency.recovery}/100</span></li>
           </ul>
           <p className="muted small">Le plan se recalcule à chaque pesée et chaque séance. Les calories sont des estimations : c’est la tendance de ta balance qui les valide.</p>
-        </Card>
+        </Fold>
 
         {s.current_plan && <p className="tip"><Icon name="info" size={14} />Cure en cours : {s.current_plan.label}, semaine {s.current_plan.week}/{s.current_plan.weeks} à {f0(s.current_plan.kcal)} kcal. {s.current_plan.check?.text}</p>}
 

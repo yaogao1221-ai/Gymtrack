@@ -2,32 +2,21 @@ import { Link } from 'react-router-dom';
 import { Page, Icon } from '../components/ui.jsx';
 import { getToken, setToken, LEAGUE_ON } from '../lib/api.js';
 
+// Tout ce qui n'est pas déjà dans les onglets du bas : outils ponctuels et réglages
 const GROUPS = [
-  ['Corps', [
-    ['/plan', 'target', 'Mon plan', 'Fréquence, calories et cure selon ton objectif'],
-    ['/corps', 'scale', 'Poids et cure', 'Pesées, composition, calories'],
-  ]],
-  ['Suivi', [
-    ['/progres', 'chart', 'Progrès', 'Graphiques, exercices, comparaisons, historique'],
-    ['/objectifs', 'target', 'Objectifs', 'Calculés tout seuls depuis tes séances et pesées'],
-    ['/bilan', 'upload', 'Bilan de la semaine', 'Résumé à partager en story'],
-    ['/coach', 'brain', 'Analyse', 'Récupération, programme, deload'],
-  ]],
-  ...(LEAGUE_ON ? [['Entre amis', [['/ligue', 'trophy', 'Ligue entre amis', 'Lobby, défis, podiums, messages']]]] : []),
-  ['Organisation', [
-    ['/calendrier', 'calendar', 'Calendrier', 'Planifier, déplacer, reprendre'],
+  ['Outils', [
     ...(LEAGUE_ON ? [['/rappels', 'timer', 'Rappels de séance', 'Alarmes dans ton calendrier']] : []),
     ['/outils', 'target', 'Calculateurs', '1RM, zones cardio, disques'],
   ]],
   ['Réglages', [
-    ['/profil', 'user', 'Profil', 'Objectifs, disponibilités, préférences'],
+    ['/profil', 'user', 'Profil', 'Niveau, disponibilités, préférences'],
     ['/donnees', 'database', 'Données & sauvegarde', 'Export, import, sauvegardes'],
   ]],
 ];
 
 export default function More() {
   return (
-    <Page title="Plus">
+    <Page title="Réglages et outils">
       {GROUPS.map(([title, items]) => (
         <section key={title} className="menu-group">
           <p className="eyebrow">{title}</p>
@@ -39,7 +28,7 @@ export default function More() {
         </section>
       ))}
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack · v2.4</p>
+      <p className="muted small center mt">GymTrack · v2.5</p>
     </Page>
   );
 }
