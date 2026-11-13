@@ -184,7 +184,7 @@ export function Chips({ value = [], onChange, options, single }) {
 }
 
 // Dégradés partagés (anneaux, barres) : [début, fin]
-export const GRADS = { fire: ['#ffb03a', '#ff4d8d'], aqua: ['#2ee6c5', '#3b82f6'], violet: ['#a78bfa', '#e14bd0'] };
+export const GRADS = { fire: ['#FF7A50', '#FF7A50'], aqua: ['#33C9F2', '#33C9F2'], violet: ['#C062F8', '#C062F8'] };
 let gid = 0;
 export function Ring({ value = 0, size = 64, stroke = 7, label, color, grad = 'fire' }) {
   const [id] = useState(() => `rg${++gid}`);

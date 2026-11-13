@@ -1,0 +1,55 @@
+/* Style C « Cel-shading » : palette des illustrations 3D, aplats sans dégradé, contours sombres et ombres pleines (relief) */
+:root {
+  --bg: #12111A; --bg2: #16151F; --surface: #1C1A29; --surface2: #262436; --line: #3A3750; --line2: #4A4959;
+  --text: #F1EFFA; --muted: #9E9DB0; --accent: #FF7A50; --accent2: #2CE69B; --violet: #C062F8; --magenta: #DF9EFF; --blue: #33C9F2; --gold: #FFC837;
+  --warn: #FFC837; --danger: #FF6B6B; --info: #33C9F2; --accent-ink: #2A0D02;
+  --grad-fire: linear-gradient(#FF7A50, #FF7A50); --grad-aqua: linear-gradient(#33C9F2, #33C9F2); --grad-violet: linear-gradient(#C062F8, #C062F8);
+  --accent-soft: rgba(255,122,80,.14); --accent-line: #B83D18; --teal-soft: rgba(44,230,155,.13);
+  --font: "Nunito", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --display: "Fredoka", "Nunito", system-ui, sans-serif;
+  --r: 20px; --r-s: 14px; --shadow: 0 6px 0 #0B0A10; --press: #0B0A10;
+}
+h1 { font-weight: 700; font-size: 26px; letter-spacing: 0; }
+h2, h3 { font-weight: 600; letter-spacing: 0; }
+.card { background: var(--surface); border: 2px solid var(--line); box-shadow: var(--shadow); }
+.fold { box-shadow: 0 4px 0 var(--press); }
+/* Boutons : aplat, contour foncé, ombre pleine qui s'écrase à l'appui */
+.btn { font-family: var(--display); font-weight: 600; border: 2px solid var(--line2); background: var(--surface2); box-shadow: 0 4px 0 var(--press); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--press); }
+.btn.primary { background: #FF7A50; color: #2A0D02; border-color: #B83D18; box-shadow: 0 4px 0 #B83D18; }
+.btn.primary:active { box-shadow: 0 1px 0 #B83D18; }
+.btn.ghost { background: transparent; box-shadow: none; }
+/* Séance du jour : bloc violet en relief */
+.hero { background: #C062F8; border: 2.5px solid #7A24B0; box-shadow: 0 7px 0 #7A24B0; }
+.hero .eyebrow, .hero .muted { color: #F3DDFF; }
+.hero-title { font-family: var(--display); font-weight: 700; font-size: 24px; }
+.hero .btn.primary { background: #FF7A50; color: #2A0D02; border-color: #B83D18; box-shadow: 0 5px 0 #B83D18; }
+.hero .btn.ghost { border-color: #7A24B0; color: #fff; background: rgba(122,36,176,.35); }
+/* Barre du bas et onglets */
+.tabbar { background: var(--surface); border-top: 2px solid var(--line); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.tabbar a { font-family: var(--display); font-weight: 500; }
+.tabbar a.active, .tabbar a.active .icon { color: var(--gold); }
+.section-tabs a { font-family: var(--display); font-weight: 500; border-width: 2px; box-shadow: 0 3px 0 var(--press); }
+.section-tabs a.on { background: #FFC837; border-color: #B87D00; color: #2B1E00; }
+.section-tabs a.on .icon { color: #2B1E00; }
+.segmented { border-width: 2px; border-radius: 14px; }
+.segmented button.on { background: #FFC837; color: #2B1E00; font-family: var(--display); }
+.sidebar nav a.active { background: var(--surface2); color: var(--gold); }
+/* Ma journée : cases en relief */
+.my-day .chk { border-radius: 7px; border: 2.5px solid var(--line2); box-shadow: 0 3px 0 var(--press); }
+.my-day li.done .chk { background: #2CE69B; border-color: #148A5A; color: #063522; }
+.day-targets b { font-family: var(--display); }
+.pending { border: 2px solid #B87D00; background: rgba(255,200,55,.08); box-shadow: 0 5px 0 var(--press); }
+/* Chiffres en Fredoka */
+.plan-tiles b, .recap-tiles b, .kcal-target b, .body-tiles b, .week-rings b { font-family: var(--display); }
+.plan-tiles > div { border: 2px solid var(--line); box-shadow: 0 4px 0 var(--press); }
+.tip { border-width: 2px; }
+.icon-btn { border-width: 2px; box-shadow: 0 3px 0 var(--press); }
+.pill { border-width: 2px; font-family: var(--display); }
+input, select, textarea { border-width: 2px; }
+.plan-link { background: var(--surface); border-color: #B87D00; }
+.plan-hero { background: var(--surface); }
+.bar { background: var(--surface2); border: 2px solid var(--line); }
+.bar span { background: #FFC837; }
+.bar.done span { background: #2CE69B; }
+.quick > * { border-width: 2px; box-shadow: 0 4px 0 var(--press); }

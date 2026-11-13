@@ -28,7 +28,7 @@ export default function More() {
         </section>
       ))}
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack · v2.5</p>
+      <p className="muted small center mt">GymTrack · v3.0</p>
     </Page>
   );
 }

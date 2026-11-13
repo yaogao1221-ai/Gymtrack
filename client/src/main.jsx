@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { ToastProvider } from './components/ui.jsx';
 import { STANDALONE, PAGES } from './lib/api.js';
 import './styles.css';
+import './theme-cel.css';
 
 // GitHub Pages : adresses en #/… (pas de réécriture côté serveur) ; Claude : routeur en mémoire
 const Router = PAGES ? HashRouter : STANDALONE ? MemoryRouter : BrowserRouter;
