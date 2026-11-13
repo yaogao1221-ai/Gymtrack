@@ -361,3 +361,16 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .ps-list li > .grow { display: flex; flex-direction: column; }
 .ps-list li.on b::after { content: ' ✓'; color: var(--accent2); }
 .ps-list input { flex: 1; min-width: 0; }
+
+/* v6.5 Muscles oubliés */
+.gap-list { list-style: none; margin: 8px 0; padding: 0; }
+.gap-list li { padding: 12px 0; border-top: 1px solid var(--line); }
+.gap-top { display: flex; gap: 12px; align-items: center; }
+.gap-img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+.gap-img.ph { display: grid; place-items: center; color: var(--muted); }
+.gap-main { min-width: 0; }
+.gap-m { font-weight: 800; font-size: 15px; display: flex; gap: 6px; align-items: center; }
+.gap-ex { font-size: 13.5px; color: var(--muted); }
+.gap-ex b { color: var(--text); }
+.gap-chips { margin-top: 8px; flex-wrap: nowrap; overflow-x: auto; }
+.gap-chips .chip { white-space: nowrap; flex-shrink: 0; }

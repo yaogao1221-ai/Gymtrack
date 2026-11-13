@@ -120,3 +120,16 @@ test('programmes enregistrés : copie B, renommer, activer, améliorer en gardan
   assert.equal(after.days[0].exercises[0].target_weight, firstOld.target_weight);
   const del = await call('DELETE', `/programs/${b.body.id}`); assert.equal(del.status, 200);
 });
+
+test('muscles oubliés : suggestion pour un muscle ni travaillé ni prévu, disparaît une fois ajouté', async () => {
+  let g = (await call('GET', '/program/gaps')).body.gaps;
+  const prog = (await call('GET', '/program')).body;
+  const planned = new Set(prog.days.flatMap((d) => d.exercises.flatMap((e) => Object.keys(e.muscles || {}))));
+  for (const x of g) { assert.ok(x.exercise.id); assert.ok(x.day?.id); }
+  const t = g[0]; if (!t) return;
+  assert.ok(!planned.has(t.muscle) || t.planned < 1);
+  const r = await call('POST', `/program/days/${t.day.id}/exercises`, { exercise_id: t.exercise.id, sets: t.sets, reps: t.reps, rest_seconds: t.rest_seconds });
+  assert.equal(r.status, 201);
+  g = (await call('GET', '/program/gaps')).body.gaps;
+  assert.ok(!g.find((x) => x.muscle === t.muscle));
+});

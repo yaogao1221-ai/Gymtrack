@@ -1,6 +1,6 @@
 // Progrès détaillés, carte du corps, trophées et journal alimentaire
 import { Router } from 'express';
-import { USER_ID, getProfile, allRecords } from '../services.js';
+import { USER_ID, getProfile, allRecords, activeProgram } from '../services.js';
 import { toJSON } from '../schema.js';
 import { MUSCLES } from '../seed.js';
 import { RANGES, PAIN_AREAS } from '../analysis.js';
@@ -40,6 +40,11 @@ function dailyLoads(db, from, to) {
   }
   return out;
 }
+// Muscles à ne pas oublier : exercice proposé et priorité (1 = muscle majeur, 2 = secondaire)
+const GAP_FILL = { pectoraux: ['dev_couche', 1], dos_largeur: ['tirage_vertical', 1], dos_epaisseur: ['row', 1], quadriceps: ['leg_press', 1], ischios: ['leg_curl_couche', 1], fessiers: ['hip_thrust', 1],
+  epaules_lat: ['elev_laterales', 1], epaules_post: ['face_pull', 1], biceps: ['curl_classique', 1], triceps: ['ext_triceps_corde', 1], mollets: ['mollets_machine', 1], abdominaux: ['planche', 1],
+  lombaires: ['hyperextension', 2], trapezes: ['shrugs', 2], avant_bras: ['curl_marteau', 2], adducteurs: ['adduct_abduct', 2], abducteurs: ['abduction', 2] };
+const LOWER_M = new Set(['quadriceps', 'ischios', 'fessiers', 'mollets', 'adducteurs', 'abducteurs', 'lombaires']);
 const BIG = new Set(['quadriceps', 'ischios', 'fessiers', 'adducteurs', 'pectoraux', 'dos_largeur', 'lombaires']);
 
 // Trophées : calculés à partir des données, rien n'est stocké
@@ -143,6 +148,34 @@ export default function insightsRoutes(db) {
     }));
     const pains = db.all('SELECT * FROM pain_reports WHERE user_id = ? AND resolved = 0 ORDER BY date DESC', USER_ID).map((p) => ({ ...p, label: PAIN_AREAS[p.area]?.label || p.area }));
     res.json({ muscles, pains, range: { min: minS, low: optLow, high: optHigh } });
+  });
+
+  // Muscles oubliés : ni travaillés depuis 4 semaines (muscu + cardio) ni prévus dans le programme actif → exercice suggéré + jour conseillé
+  r.get('/program/gaps', (req, res) => {
+    const prog = activeProgram(db); if (!prog) return res.json({ gaps: [] });
+    const items = db.all(`SELECT pd.id day_id, pd.name day_name, pe.sets, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
+      WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));
+    if (!items.length) return res.json({ gaps: [] });
+    const planned = {}; for (const x of items) for (const [m, c] of Object.entries(x.muscles)) planned[m] = (planned[m] || 0) + c * (x.sets || 0);
+    const done = {}; for (const day of Object.values(dailyLoads(db, addDays(req.today, -27), req.today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
+    const days = db.all('SELECT id, name FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', prog.id);
+    const lib = db.all('SELECT id, slug, name, pattern, muscles, lib_id FROM exercises').map((e) => ({ ...e, muscles: toJSON(e.muscles, {}) }));
+    const gaps = [];
+    for (const [m, [slug, prio]] of Object.entries(GAP_FILL)) {
+      if ((planned[m] || 0) >= 1 || (done[m] || 0) >= 1) continue;
+      const main = lib.find((e) => e.slug === slug); if (!main) continue;
+      const alts = lib.filter((e) => e.id !== main.id && (e.muscles[m] || 0) >= 1).slice(0, 3);
+      // Jour conseillé : celui qui travaille déjà la même zone (haut / bas du corps), sinon le moins chargé
+      const lower = LOWER_M.has(m);
+      const score = (d) => { const its = items.filter((x) => x.day_id === d.id); return its.reduce((a, x) => a + Object.keys(x.muscles).filter((k) => LOWER_M.has(k) === lower).length, 0) * 10 - its.length; };
+      const host = [...days].sort((a, b) => score(b) - score(a))[0];
+      const core = /core|plank/.test(main.pattern || '');
+      gaps.push({ muscle: m, label: MUSCLES[m], prio, done: r1(done[m] || 0), planned: r1(planned[m] || 0),
+        exercise: { id: main.id, name: main.name, lib_id: main.lib_id }, alternatives: alts.map((e) => ({ id: e.id, name: e.name, lib_id: e.lib_id })),
+        day: host ? { id: host.id, name: host.name } : null, sets: prio === 1 ? 3 : 2, reps: core ? 30 : 12, rest_seconds: core ? 45 : 75 });
+    }
+    gaps.sort((a, b) => a.prio - b.prio);
+    res.json({ gaps });
   });
 
   // Courbatures signalées par l'utilisateur (toggle du jour)
