@@ -345,3 +345,11 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .cw-list li.done .cw-ic { background: #0EA5E9; color: #fff; }
 .cw-list li.missed { opacity: .55; }
 .cw-list li.extra { cursor: pointer; }
+/* Carte du corps vectorielle */
+.bm-base { fill: var(--bm-base); stroke: var(--line2); stroke-width: .5; stroke-linejoin: round; }
+.bm-base.noline { stroke: none; }
+.bm-m { stroke: var(--surface); stroke-width: .7; stroke-linejoin: round; transition: fill .2s, filter .2s; }
+.bm-m:hover { filter: brightness(1.06); }
+.bm-m.on { stroke: var(--text); stroke-width: 1.1; }
+.bm-fig svg { overflow: visible; }
+.bm-base.edge { stroke-width: 1.1; } .bm-base.fillonly { stroke: none; }
