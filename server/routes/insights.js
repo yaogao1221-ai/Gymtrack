@@ -152,17 +152,21 @@ export default function insightsRoutes(db) {
 
   // Muscles oubliés : ni travaillés depuis 4 semaines (muscu + cardio) ni prévus dans le programme actif → exercice suggéré + jour conseillé
   r.get('/program/gaps', (req, res) => {
-    const prog = activeProgram(db); if (!prog) return res.json({ gaps: [] });
+    const prog = activeProgram(db); if (!prog) return res.json({ gaps: [], low: [] });
     const items = db.all(`SELECT pd.id day_id, pd.name day_name, pe.sets, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
       WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));
-    if (!items.length) return res.json({ gaps: [] });
+    if (!items.length) return res.json({ gaps: [], low: [], empty: true });
     const planned = {}; for (const x of items) for (const [m, c] of Object.entries(x.muscles)) planned[m] = (planned[m] || 0) + c * (x.sets || 0);
     const done = {}; for (const day of Object.values(dailyLoads(db, addDays(req.today, -27), req.today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
     const days = db.all('SELECT id, name FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', prog.id);
     const lib = db.all('SELECT id, slug, name, pattern, muscles, lib_id FROM exercises').map((e) => ({ ...e, muscles: toJSON(e.muscles, {}) }));
-    const gaps = [];
+    const gaps = []; const low = [];
     for (const [m, [slug, prio]] of Object.entries(GAP_FILL)) {
-      if ((planned[m] || 0) >= 1 || (done[m] || 0) >= 1) continue;
+      const pl = planned[m] || 0; const dn = done[m] || 0;
+      const forgotten = pl < 1 && dn < 1;
+      // Peu travaillé : muscle majeur prévu à moins de 4 séries par semaine et moins de 4 séries par semaine faites en moyenne
+      const weak = !forgotten && prio === 1 && pl < 4 && dn / 4 < 4;
+      if (!forgotten && !weak) continue;
       const main = lib.find((e) => e.slug === slug); if (!main) continue;
       const alts = lib.filter((e) => e.id !== main.id && (e.muscles[m] || 0) >= 1).slice(0, 3);
       // Jour conseillé : celui qui travaille déjà la même zone (haut / bas du corps), sinon le moins chargé
@@ -170,12 +174,12 @@ export default function insightsRoutes(db) {
       const score = (d) => { const its = items.filter((x) => x.day_id === d.id); return its.reduce((a, x) => a + Object.keys(x.muscles).filter((k) => LOWER_M.has(k) === lower).length, 0) * 10 - its.length; };
       const host = [...days].sort((a, b) => score(b) - score(a))[0];
       const core = /core|plank/.test(main.pattern || '');
-      gaps.push({ muscle: m, label: MUSCLES[m], prio, done: r1(done[m] || 0), planned: r1(planned[m] || 0),
+      (forgotten ? gaps : low).push({ muscle: m, label: MUSCLES[m], prio, done: r1(dn), done_week: r1(dn / 4), planned: r1(pl),
         exercise: { id: main.id, name: main.name, lib_id: main.lib_id }, alternatives: alts.map((e) => ({ id: e.id, name: e.name, lib_id: e.lib_id })),
         day: host ? { id: host.id, name: host.name } : null, sets: prio === 1 ? 3 : 2, reps: core ? 30 : 12, rest_seconds: core ? 45 : 75 });
     }
-    gaps.sort((a, b) => a.prio - b.prio);
-    res.json({ gaps });
+    gaps.sort((a, b) => a.prio - b.prio); low.sort((a, b) => a.planned - b.planned);
+    res.json({ gaps, low: low.slice(0, 3) });
   });
 
   // Courbatures signalées par l'utilisateur (toggle du jour)

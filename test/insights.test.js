@@ -133,3 +133,8 @@ test('muscles oubliés : suggestion pour un muscle ni travaillé ni prévu, disp
   g = (await call('GET', '/program/gaps')).body.gaps;
   assert.ok(!g.find((x) => x.muscle === t.muscle));
 });
+
+test('muscles oubliés : la réponse contient toujours gaps et low', async () => {
+  const b = (await call('GET', '/program/gaps')).body;
+  assert.ok(Array.isArray(b.gaps)); assert.ok(Array.isArray(b.low));
+});
