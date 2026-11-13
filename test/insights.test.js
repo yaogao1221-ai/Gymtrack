@@ -124,10 +124,10 @@ test('programmes enregistrés : copie B, renommer, activer, améliorer en gardan
 test('muscles oubliés : suggestion pour un muscle ni travaillé ni prévu, disparaît une fois ajouté', async () => {
   let g = (await call('GET', '/program/gaps')).body.gaps;
   const prog = (await call('GET', '/program')).body;
-  const planned = new Set(prog.days.flatMap((d) => d.exercises.flatMap((e) => Object.keys(e.muscles || {}))));
+  const planned = new Set(prog.days.flatMap((d) => d.exercises.flatMap((e) => Object.entries(e.muscles || {}).filter(([, c]) => c >= 1).map(([m]) => m))));
   for (const x of g) { assert.ok(x.exercise.id); assert.ok(x.day?.id); }
   const t = g[0]; if (!t) return;
-  assert.ok(!planned.has(t.muscle) || t.planned < 1);
+  assert.ok(!planned.has(t.muscle)); assert.ok(t.forgotten);
   const r = await call('POST', `/program/days/${t.day.id}/exercises`, { exercise_id: t.exercise.id, sets: t.sets, reps: t.reps, rest_seconds: t.rest_seconds });
   assert.equal(r.status, 201);
   g = (await call('GET', '/program/gaps')).body.gaps;

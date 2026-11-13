@@ -377,3 +377,5 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .gap-why { font-size: 12.5px; color: var(--muted); }
 .gap-ok { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; color: var(--good, #16A34A); margin: 4px 0 0; }
 .gap-h { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 0; }
+.gap-chips .chip.on { color: #C2410C; font-weight: 700; }
+[data-theme="dark"] .gap-chips .chip.on { color: #FDBA74; }

@@ -153,17 +153,29 @@ export default function insightsRoutes(db) {
   // Muscles oubliés : ni travaillés depuis 4 semaines (muscu + cardio) ni prévus dans le programme actif → exercice suggéré + jour conseillé
   r.get('/program/gaps', (req, res) => {
     const prog = activeProgram(db); if (!prog) return res.json({ gaps: [], low: [] });
-    const items = db.all(`SELECT pd.id day_id, pd.name day_name, pe.sets, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
+    const items = db.all(`SELECT pd.id day_id, pd.name day_name, pe.sets, e.name, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
       WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));
     if (!items.length) return res.json({ gaps: [], low: [], empty: true });
     const planned = {}; for (const x of items) for (const [m, c] of Object.entries(x.muscles)) planned[m] = (planned[m] || 0) + c * (x.sets || 0);
-    const done = {}; for (const day of Object.values(dailyLoads(db, addDays(req.today, -27), req.today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
+    // Travail direct = exercices où le muscle est principal (coefficient 1). Un RDL ne remplace pas un exercice de lombaires.
+    const direct = {}; const via = {};
+    for (const x of items) for (const [m, c] of Object.entries(x.muscles)) { if (c >= 1) direct[m] = (direct[m] || 0) + (x.sets || 0); else (via[m] ||= new Set()).add(x.name); }
+    const from = addDays(req.today, -27);
+    const done = {}; for (const day of Object.values(dailyLoads(db, from, req.today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
+    const doneDirect = {};
+    for (const r of db.all(`SELECT e.muscles, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+      WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ? GROUP BY e.id`, USER_ID, from, req.today)) for (const [m, c] of Object.entries(toJSON(r.muscles, {}))) if (c >= 1) doneDirect[m] = (doneDirect[m] || 0) + r.n;
+    // Le cardio compte comme travail direct (marche inclinée → mollets)
+    for (const c of db.all('SELECT activity, duration_min, incline_pct FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, from, req.today)) {
+      const k = c.activity === 'marche' && c.incline_pct >= 5 ? CARDIO_LOAD.marche_inclinee : CARDIO_LOAD[c.activity]; if (!k) continue;
+      for (const [m, per] of Object.entries(k)) doneDirect[m] = (doneDirect[m] || 0) + Math.min(4, per * (c.duration_min || 0));
+    }
     const days = db.all('SELECT id, name FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', prog.id);
     const lib = db.all('SELECT id, slug, name, pattern, muscles, lib_id FROM exercises').map((e) => ({ ...e, muscles: toJSON(e.muscles, {}) }));
     const gaps = []; const low = [];
     for (const [m, [slug, prio]] of Object.entries(GAP_FILL)) {
       const pl = planned[m] || 0; const dn = done[m] || 0;
-      const forgotten = pl < 1 && dn < 1;
+      const forgotten = (direct[m] || 0) < 1 && (doneDirect[m] || 0) < 1;
       // Peu travaillé : muscle majeur prévu à moins de 4 séries par semaine et moins de 4 séries par semaine faites en moyenne
       const weak = !forgotten && prio === 1 && pl < 4 && dn / 4 < 4;
       if (!forgotten && !weak) continue;
@@ -174,7 +186,7 @@ export default function insightsRoutes(db) {
       const score = (d) => { const its = items.filter((x) => x.day_id === d.id); return its.reduce((a, x) => a + Object.keys(x.muscles).filter((k) => LOWER_M.has(k) === lower).length, 0) * 10 - its.length; };
       const host = [...days].sort((a, b) => score(b) - score(a))[0];
       const core = /core|plank/.test(main.pattern || '');
-      (forgotten ? gaps : low).push({ muscle: m, label: MUSCLES[m], prio, done: r1(dn), done_week: r1(dn / 4), planned: r1(pl),
+      (forgotten ? gaps : low).push({ forgotten, muscle: m, label: MUSCLES[m], prio, indirect: [...(via[m] || [])].slice(0, 2), done: r1(dn), done_week: r1(dn / 4), planned: r1(pl),
         exercise: { id: main.id, name: main.name, lib_id: main.lib_id }, alternatives: alts.map((e) => ({ id: e.id, name: e.name, lib_id: e.lib_id })),
         day: host ? { id: host.id, name: host.name } : null, sets: prio === 1 ? 3 : 2, reps: core ? 30 : 12, rest_seconds: core ? 45 : 75 });
     }
