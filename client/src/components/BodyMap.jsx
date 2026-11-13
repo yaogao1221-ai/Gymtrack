@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Segmented, Icon } from './ui.jsx';
 import { ExerciseInfo } from './ExerciseDemo.jsx';
 import { loadLib, thumb } from '../lib/exlib.js';
-import { post } from '../lib/api.js';
+import { post, get } from '../lib/api.js';
 import { fmtDate, n1 } from '../lib/format.js';
 import { AREAS } from '../data/rehab.js';
 
@@ -78,10 +78,25 @@ export function BodyFigures({ data, small }) {
   );
 }
 
+// Muscles travaillés par un exercice : principal en plein, secondaire en clair
+export function MuscleFigures({ muscles }) {
+  const c = (k) => { const v = muscles?.[k] || 0; return v >= 1 ? 'var(--accent)' : v > 0 ? 'var(--accent-line)' : 'var(--map-0)'; };
+  const data = Object.fromEntries(Object.keys(MUSCLES_KEYS).map((k) => [k, { k }]));
+  return (
+    <div className="bm-figs ex-figs">
+      <Figure map={FRONT} data={data} color={(x) => c(x?.k)} onSel={() => {}} label="Face" />
+      <Figure map={BACK} back data={data} color={(x) => c(x?.k)} onSel={() => {}} label="Dos" />
+    </div>
+  );
+}
+const MUSCLES_KEYS = { ...Object.fromEntries(Object.keys({ ...FRONT, ...BACK }).map((k) => [k, 1])) };
+
 // Carte du corps : séries de la semaine ou récupération, muscle sélectionné avec exercices et étirements illustrés
 export default function BodyMap({ data }) {
   const [mode, setMode] = useState('rec'); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
-  useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); }, []);
+  const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState('');
+  useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); }, []);
+  useEffect(() => { setAll(false); setEq(''); }, [sel, role]);
   const m = data.muscles;
   const color = (x) => (!x ? 'var(--map-0)' : mode === 'rec' ? COLORS_REC[x.status] : x.sets <= 0 ? COLORS_LOAD[0] : COLORS_LOAD[x.zone]);
   const cur = sel ? m[sel] : null;
@@ -89,8 +104,18 @@ export default function BodyMap({ data }) {
     if (!sel || !lib) return null;
     const strength = lib.filter((x) => x.c !== 'mobilite' && (x.m[sel] || 0) >= 1 && x.img).sort((a, b) => (a.l === 'b' ? -1 : 0) - (b.l === 'b' ? -1 : 0)).slice(0, 4);
     const stretch = lib.filter((x) => x.c === 'mobilite' && (x.t || []).includes(sel)).slice(0, 4);
-    return { strength, stretch };
+    // Tous les exercices de la bibliothèque qui travaillent ce muscle : en principal (coefficient 1) ou en secondaire
+    const work = lib.filter((x) => x.c !== 'mobilite' && x.c !== 'cardio' && (x.m[sel] || 0) > 0);
+    const byImg = (a, b) => (b.img ? 1 : 0) - (a.img ? 1 : 0) || (a.l === 'b' ? -1 : 0) - (b.l === 'b' ? -1 : 0);
+    const main = work.filter((x) => x.m[sel] >= 1).sort(byImg); const second = work.filter((x) => x.m[sel] < 1).sort(byImg);
+    return { strength, stretch, main, second };
   }, [sel, lib]);
+  // Exercices de TON programme qui travaillent ce muscle
+  const mine = useMemo(() => {
+    if (!sel || !prog) return [];
+    return prog.days.flatMap((d) => d.exercises.filter((e) => (e.muscles?.[sel] || 0) > 0).map((e) => ({ ...e, day: d.name, role: e.muscles[sel] >= 1 ? 'Principal' : 'Secondaire' })))
+      .sort((a, b) => (b.muscles[sel] || 0) - (a.muscles[sel] || 0));
+  }, [sel, prog]);
   const area = sel ? Object.entries(AREAS).find(([, a]) => a.muscles.includes(sel)) : null;
   return (
     <div className="bodymap">
@@ -110,7 +135,26 @@ export default function BodyMap({ data }) {
           <p className="small">{n1(cur.sets)} série{cur.sets > 1 ? 's' : ''} sur 7 jours · {cur.last ? `dernière fois ${cur.days === 0 ? 'aujourd’hui' : cur.days === 1 ? 'hier' : `le ${fmtDate(cur.last, { day: 'numeric', month: 'short' })}`}` : 'pas travaillé récemment'}</p>
           {picks && (<>
             {picks.stretch.length > 0 && <><h4 className="h-sub">Étirements et mobilité</h4><Thumbs list={picks.stretch} onOpen={setInfo} /></>}
-            <h4 className="h-sub">Exercices pour ce muscle</h4><Thumbs list={picks.strength} onOpen={setInfo} />
+            <h4 className="h-sub">Dans ton programme</h4>
+            {mine.length ? <ul className="bm-mine">{mine.map((e) => (
+              <li key={e.id}><button onClick={() => { const x = lib.find((l) => l.id === e.lib_id); if (x) setInfo(x); }}>
+                {thumb(e.lib_id) ? <img src={thumb(e.lib_id)} alt="" loading="lazy" /> : <span className="pick-thumb empty"><Icon name="dumbbell" size={16} /></span>}
+                <span className="grow"><b>{e.name}</b><span className="muted small">{e.day} · {e.sets} × {e.reps ?? '?'}</span></span>
+                <span className={`tag ${e.role === 'Principal' ? 'good' : ''}`}>{e.role}</span></button></li>))}</ul>
+              : <p className="muted small">Aucun exercice de ton programme ne travaille ce muscle.</p>}
+            <h4 className="h-sub">Tous les exercices qui le travaillent</h4>
+            <Segmented value={role} onChange={setRole} options={[['main', `Principal (${picks.main.length})`], ['second', `Secondaire (${picks.second.length})`]]} />
+            {(() => {
+              const src = role === 'main' ? picks.main : picks.second;
+              const eqs = [...new Set(src.map((x) => x.q).filter(Boolean))].slice(0, 8);
+              const list = eq ? src.filter((x) => x.q === eq) : src;
+              return (<>
+                {eqs.length > 1 && <div className="chips scroll mt-s"><button className={`chip ${!eq ? 'on' : ''}`} onClick={() => setEq('')}>Tout</button>{eqs.map((q) => <button key={q} className={`chip ${eq === q ? 'on' : ''}`} onClick={() => setEq(q)}>{q}</button>)}</div>}
+                <p className="muted xs mt-s">{role === 'main' ? 'Ce muscle fait l’essentiel du travail.' : 'Ce muscle aide, sans être la cible principale.'} Touche un exercice pour la démo et tous les muscles qu’il travaille.</p>
+                <Thumbs list={all ? list : list.slice(0, 9)} onOpen={setInfo} />
+                {list.length > 9 && <button className="btn sm block mt-s" onClick={() => setAll(!all)}>{all ? 'Réduire' : `Voir les ${list.length} exercices`}</button>}
+              </>);
+            })()}
           </>)}
           {area && <Link className="btn sm ghost mt-s" to={`/soins?zone=${area[0]}`}><Icon name="heal" size={14} />Douleur {area[1].label.toLowerCase()} : que faire ?</Link>}
         </div>

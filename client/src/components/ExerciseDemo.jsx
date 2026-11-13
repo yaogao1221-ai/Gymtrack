@@ -1,3 +1,4 @@
+import { MuscleFigures } from './BodyMap.jsx';
 import { useEffect, useState } from 'react';
 import { Sheet, Icon, Loading } from './ui.jsx';
 import { findLib, imgs, CATS, LEVELS, MUSCLE_FR, MUSCLES_APP } from '../lib/exlib.js';
@@ -28,7 +29,14 @@ export function ExerciseInfo({ libId, x: given, open, onClose, footer }) {
         <div className="chips mt-s">
           <span className="chip on">{CATS[x.c] || x.c}</span><span className="chip">{x.q}</span><span className="chip">{LEVELS[x.l] || ''}</span>
         </div>
-        {(x.p?.length > 0 || x.t?.length > 0) && <p className="small mt-s"><b>Muscles :</b> {(x.p?.length ? x.p.map((m) => MUSCLE_FR[m] || m) : x.t.map((m) => MUSCLES_APP[m] || m)).join(', ')}</p>}
+        {x.m && Object.keys(x.m).length > 0 ? (<div className="ex-muscles">
+          <MuscleFigures muscles={x.m} />
+          <div className="grow">
+            <h3 className="h-sub">Muscles travaillés</h3>
+            {Object.entries(x.m).filter(([, v]) => v >= 1).length > 0 && <p className="small"><span className="mdot mdot-main" /><b>Principal :</b> {Object.entries(x.m).filter(([, v]) => v >= 1).map(([k]) => MUSCLES_APP[k] || k).join(', ')}</p>}
+            {Object.entries(x.m).filter(([, v]) => v > 0 && v < 1).length > 0 && <p className="small"><span className="mdot mdot-sec" /><b>Secondaire :</b> {Object.entries(x.m).filter(([, v]) => v > 0 && v < 1).map(([k]) => MUSCLES_APP[k] || k).join(', ')}</p>}
+          </div>
+        </div>) : (x.p?.length > 0 || x.t?.length > 0) && <p className="small mt-s"><b>Muscles :</b> {(x.p?.length ? x.p.map((m) => MUSCLE_FR[m] || m) : x.t.map((m) => MUSCLES_APP[m] || m)).join(', ')}</p>}
         {steps.length > 0 && (<>
           <h3 className="h-sub">Exécution {!x.fr && <span className="muted small">(en anglais)</span>}</h3>
           <ol className="demo-steps">{steps.map((s, k) => <li key={k}>{s}</li>)}</ol>

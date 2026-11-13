@@ -6,7 +6,7 @@ import { ToastProvider } from './components/ui.jsx';
 import { STANDALONE, PAGES } from './lib/api.js';
 import './styles.css';
 import './theme-pro.css';
-import './theme-atelier.css';
+import './theme-apple.css';
 import { watchTheme } from './lib/theme.js';
 
 watchTheme();
