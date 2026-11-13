@@ -2,6 +2,7 @@ import { useEffect, useRef, Suspense } from 'react';
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon, Page, EmbedCtx, Loading } from './ui.jsx';
 import { LEAGUE_ON } from '../lib/api.js';
+import CoachCard from './CoachCard.jsx';
 
 // Sous-onglets d'un espace : on passe d'un écran lié à l'autre sans repasser par un menu
 export const SECTIONS = {
@@ -28,11 +29,12 @@ export function SectionTabs({ group }) {
 }
 
 // Écran regroupé : plusieurs vues sous un même onglet, choisies par ?v=
-export function Hub({ title, views }) {
+export function Hub({ title, views, coach }) {
   const [sp, setSp] = useSearchParams(); const v = views.find(([k]) => k === sp.get('v')) || views[0];
   const [, , View] = v;
   return (
     <Page tabs={<SectionTabs group="body" />} title={title}>
+      {coach && <CoachCard section={coach} />}
       <div className="chips scroll hub-chips">{views.map(([k, l]) => <button key={k} className={`chip ${k === v[0] ? 'on' : ''}`} onClick={() => setSp(k === views[0][0] ? {} : { v: k }, { replace: true })}>{l}</button>)}</div>
       <EmbedCtx.Provider value><Suspense fallback={<Loading />}><View key={v[0]} /></Suspense></EmbedCtx.Provider>
     </Page>

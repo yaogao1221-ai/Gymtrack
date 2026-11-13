@@ -83,7 +83,14 @@ export default function profileRoutes(db) {
     res.status(201).json(db.one('SELECT * FROM pain_reports WHERE id = ?', info.lastInsertRowid));
   });
   r.patch('/pains/:id', (req, res) => {
-    const p = db.one('SELECT id FROM pain_reports WHERE id = ? AND user_id = ?', req.params.id, USER_ID); if (!p) throw notFound();
+    const p = db.one('SELECT * FROM pain_reports WHERE id = ? AND user_id = ?', req.params.id, USER_ID); if (!p) throw notFound();
+    // Suivi : chaque nouvelle intensité est gardée avec sa date (une par jour) pour voir si ça s'améliore
+    if (req.body.intensity != null) {
+      const log = (() => { try { return JSON.parse(p.log || '[]'); } catch { return []; } })().filter((x) => x.date !== req.today);
+      if (!log.length) log.push({ date: p.date, intensity: p.intensity });
+      log.push({ date: req.today, intensity: num(req.body.intensity, 'intensité', { min: 1, max: 10, int: true }) });
+      db.run('UPDATE pain_reports SET log = ? WHERE id = ?', JSON.stringify(log.slice(-60)), p.id);
+    }
     patchRow(db, 'pain_reports', p.id, req.body, { resolved: (v) => (v ? 1 : 0), intensity: (v) => num(v, 'intensité', { min: 1, max: 10, int: true }), notes: (v) => str(v, 'notes', { max: 500 }) });
     res.json(db.one('SELECT * FROM pain_reports WHERE id = ?', p.id));
   });

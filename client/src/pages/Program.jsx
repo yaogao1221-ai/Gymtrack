@@ -9,10 +9,11 @@ import { DemoImages, ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { thumb } from '../lib/exlib.js';
 import { CardioWeek } from './Cardio.jsx';
 import MissingMuscles from '../components/MissingMuscles.jsx';
+import CoachCard from '../components/CoachCard.jsx';
 
 export default function Program() {
   const { data, error, reload } = useApi('/program');
-  const lib = useApi('/exercises');
+  const lib = useApi('/exercises'); const brief = useApi('/coach/brief');
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
   const [wd, setWd] = useState(null);
   const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
@@ -21,6 +22,7 @@ export default function Program() {
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
   const day = data.days[Math.min(sel, data.days.length - 1)];
+  const painOf = (e) => Object.values(brief.data?.pain_patterns || {}).find((p) => p.patterns.includes(e.pattern))?.label;
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, 'err'); } };
   const saveDay = (code) => run(async () => { await put('/profile', { schedule: { ...data.schedule, [wd]: code } }); setWd(null); }, 'Semaine type et calendrier mis à jour');
   // Glisser-déposer tactile : on attrape la poignée, l'exercice suit le doigt, les autres se décalent
@@ -51,7 +53,7 @@ export default function Program() {
     return { transform: 'translateY(0)' };
   };
   const cardioRow = (c) => (
-    <li key={`c${c.id}`} className="ex-item cardio" onClick={() => edit && setPc({ ...c })}>
+    <li key={`c${c.id}`} className="ex-item cardio tappable" onClick={() => setPc({ ...c })}>
       <span className="ex-cardio"><Icon name="heart" size={20} /></span>
       <div className="ex-main">
         <div className="ex-name">{c.label}<span className="tag aqua">Cardio</span></div>
@@ -59,12 +61,13 @@ export default function Program() {
         {c.notes && <div className="ex-last">{c.notes}</div>}
         {c.last && <div className="ex-last">Dernière fois : {c.last.duration_min} min{c.last.speed_kmh ? ` · ${c.last.speed_kmh} km/h` : ''}</div>}
       </div>
-      {edit && <Icon name="edit" size={16} />}
+      <Icon name={edit ? 'edit' : 'right'} size={16} className="ex-go" />
     </li>
   );
   return (
     <Page title="Programme"
       actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => nav('/programme/creer')}><Icon name="sparkles" size={16} />Créer</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
+      {!edit && <CoachCard section="program" />}
       <ProgramSwitcher current={data.program} onChanged={() => { setSel(0); reload(); }} />
       <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
@@ -84,15 +87,16 @@ export default function Program() {
           <ol className="ex-list">
             {day.cardio.filter((c) => c.placement === 'debut').map((c) => cardioRow(c))}
             {day.exercises.map((e, i) => (
-              <li key={e.id} ref={(el) => { rows.current[i] = el; }} style={shiftOf(i)} className={`ex-item ${e.superset_group ? 'superset' : ''} ${drag?.from === i ? 'dragging' : ''} ${drag ? 'drag-on' : ''}`} onClick={() => edit && !drag && setPe({ ...e })}>
+              <li key={e.id} ref={(el) => { rows.current[i] = el; }} style={shiftOf(i)} className={`ex-item ${e.superset_group ? 'superset' : ''} ${drag?.from === i ? 'dragging' : ''} ${drag ? 'drag-on' : ''} tappable`} onClick={() => !drag && setPe({ ...e })}>
                 {thumb(e.lib_id) ? <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /><span className="ex-n">{i + 1}</span></button>
                   : <span className="ex-num">{i + 1}</span>}
                 <div className="ex-main">
-                  <div className="ex-name">{e.name}{e.superset_group && <span className="tag">Superset {e.superset_group}</span>}</div>
+                  <div className="ex-name">{e.name}{e.superset_group && <span className="tag">Superset {e.superset_group}</span>}{painOf(e) && <span className="tag warn" title="Douleur suivie : amplitude réduite, pas de hausse de charge">À adapter · {painOf(e).toLowerCase()}</span>}</div>
                   <div className="ex-meta"><span className="pill-sets">{repsLabel(e)}</span><span className={e.target_weight == null && e.kind !== 'bodyweight' ? 'warn-text' : ''}>{weightLabel(e)}</span>{e.rest_seconds && <span className="muted">repos {e.rest_seconds >= 120 ? `${e.rest_seconds / 60} min` : `${e.rest_seconds} s`}</span>}</div>
                   {e.last && <div className="ex-last">Dernière fois : {e.last.sets.map((s) => `${s.weight != null ? Math.round(s.weight * 10) / 10 : 'PDC'}×${s.reps ?? '?'}`).join(' · ')}</div>}
                   {e.notes && <div className="ex-last">{e.notes}</div>}
                 </div>
+                {!edit && <Icon name="right" size={16} className="ex-go" />}
                 {edit && <span className="drag-handle" role="button" aria-label="Maintenir et glisser pour déplacer" onClick={(ev) => ev.stopPropagation()}
                   onPointerDown={(ev) => dragStart(ev, i)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd}><Icon name="grip" size={22} stroke={3.2} /></span>}
               </li>
@@ -102,10 +106,11 @@ export default function Program() {
           {!day.exercises.length && !day.cardio.length && <p className="muted small center">Jour vide : touche « Modifier » pour ajouter des exercices ou du cardio.</p>}
           {edit && <div className="grid2 add-row"><button className="btn dashed" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Exercice</button>
             <button className="btn dashed" onClick={() => setPc({ activity: 'marche_inclinee', duration_min: 20, speed_kmh: 5, incline_pct: 8, placement: 'fin' })}><Icon name="heart" size={16} />Cardio</button></div>}
-          {!edit && <p className="muted small mt">Touche « Modifier » pour changer les exercices, séries, répétitions, charges ou l’ordre.</p>}
+          {!edit && <p className="muted small mt">Touche un exercice pour changer ses séries, répétitions ou sa charge. « Modifier » sert à réordonner, ajouter ou retirer.</p>}
         </Card>
       )}
 
+      {edit && <button className="btn primary edit-done" onClick={() => setEdit(false)}><Icon name="check" size={18} />Terminer</button>}
       {!edit && <MissingMuscles days={data.days} onAdded={(id) => { const i = data.days.findIndex((d) => d.id === id); if (i >= 0) setSel(i); reload(); }} />}
       {!edit && <CardioWeek prog={data} day={day} onChanged={reload} />}
       <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
@@ -255,7 +260,7 @@ function ProgramSwitcher({ current, onChanged }) {
     <div className="prog-switch">
       <div className="chips scroll ps-chips">
         {list.map((p) => (
-          <button key={p.id} className={`chip ${p.active ? 'on' : ''}`} onClick={() => (p.active ? setSheet(true) : setAsk(p))}>{p.active && <Icon name="check" size={14} />}{p.name}<span className="muted xs"> · {p.days} j</span></button>
+          <button key={p.id} className={`chip ${p.active ? 'on' : ''}`} onClick={() => (p.active ? setSheet(true) : setAsk(p))}>{!!p.active && <Icon name="check" size={14} />}{p.name}<span className="muted xs"> · {p.days} j</span></button>
         ))}
         <button className="chip ghost" onClick={() => setSheet(true)}><Icon name="menu" size={14} />Gérer</button>
       </div>

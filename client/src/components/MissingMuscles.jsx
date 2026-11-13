@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApi, Card, Icon, useToast } from './ui.jsx';
-import { post } from '../lib/api.js';
+import { post, patch } from '../lib/api.js';
 import { thumb } from '../lib/exlib.js';
 
 // Muscles ni travaillés ni prévus : on propose un exercice et le jour où il s'intègre le mieux, ajout en un geste
@@ -20,10 +20,26 @@ export default function MissingMuscles({ days: daysProp, onAdded }) {
   const add = async (g) => {
     const p = pick[g.muscle] || {}; const ex = p.ex || g.exercise; const dayId = p.day || g.day?.id; if (!dayId) return;
     setBusy(g.muscle);
-    try { await post(`/program/days/${dayId}/exercises`, { exercise_id: ex.id, sets: g.sets, reps: g.reps, rest_seconds: g.rest_seconds }); toast(`${ex.name} ajouté`); await reload(); onAdded?.(dayId); prog.reload?.(); }
+    try { await post(`/program/days/${dayId}/exercises`, { exercise_id: ex.id, sets: g.sets, reps: g.reps, rest_seconds: g.rest_seconds, no_duplicate: true }); toast(`${ex.name} ajouté`); await reload(); onAdded?.(dayId); prog.reload?.(); }
     catch (e) { toast(e.message, 'err'); } finally { setBusy(null); }
   };
-  const row = (g) => {
+  const bumpIt = async (g) => {
+    setBusy(g.muscle);
+    try { await patch(`/program/exercises/${g.bump.pe_id}`, { sets: g.bump.to }); toast(`${g.bump.name} : ${g.bump.to} séries`); await reload(); onAdded?.(g.bump.day.id); prog.reload?.(); }
+    catch (e) { toast(e.message, 'err'); } finally { setBusy(null); }
+  };
+  const row = (g) => g.bump ? (
+    <li key={g.muscle}>
+      <div className="gap-m">{g.label}{g.prio === 2 && <span className="tag">secondaire</span>}</div>
+      <div className="gap-why">{String(g.planned).replace('.', ',')} {g.planned >= 2 ? 'séries prévues' : 'série prévue'} par semaine{g.prio === 1 ? ' (conseillé : 6 à 10)' : ''}</div>
+      <p className="small mt-s"><b>{g.bump.name}</b> est déjà dans {g.bump.day.name} : plutôt que d’ajouter un exercice, passe-le de {g.bump.from} à {g.bump.to} séries.</p>
+      <div className="row gap-s mt-s">
+        <button className="btn primary sm" disabled={busy === g.muscle} onClick={() => bumpIt(g)}><Icon name="plus" size={14} />{g.bump.to} séries</button>
+        <button className="btn ghost sm" onClick={() => ignore(g.muscle)}>Pas pour moi</button>
+      </div>
+    </li>
+  ) : rowAdd(g);
+  const rowAdd = (g) => {
           const p = pick[g.muscle] || {}; const ex = p.ex || g.exercise; const dayId = p.day || g.day?.id; const dayName = days.find((d) => d.id === dayId)?.name || g.day?.name;
           const set = (k, v) => setPick({ ...pick, [g.muscle]: { ...p, [k]: v } });
           return (

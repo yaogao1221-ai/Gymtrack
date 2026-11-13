@@ -91,8 +91,9 @@ export default function Workout() {
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [rmIt, setRmIt] = useState(null); const [demo, setDemo] = useState(null);
-  const blockRefs = useRef([]); const [bm, setBm] = useState(null);
-  useEffect(() => { get('/bodymap').then(setBm).catch(() => {}); }, []);
+  const blockRefs = useRef([]); const [bm, setBm] = useState(null); const [brief, setBrief] = useState(null);
+  useEffect(() => { get('/bodymap').then(setBm).catch(() => {}); get('/coach/brief').then(setBrief).catch(() => {}); }, []);
+  const painOf = (it) => Object.values(brief?.pain_patterns || {}).find((p) => p.patterns.includes(it.pattern))?.label;
 
   useEffect(() => {
     if (s) return;
@@ -265,7 +266,7 @@ export default function Workout() {
       </header>
       <div className="wk-progress"><span style={{ width: `${total ? (done / total) * 100 : (cardio.length ? (cardioDone / cardio.length) * 100 : 0)}%` }} /></div>
       <p className="muted small center">{total ? `${done} / ${total} séries validées` : ''}{cardio.length ? `${total ? ' · ' : ''}cardio ${cardioDone}/${cardio.length}` : ''}</p>
-      {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
+      {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} painOf={painOf} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
         : done === 0 && <button className="link small brief-reopen" onClick={() => update((y) => { y.briefed = false; })}>Revoir le briefing</button>}
       {s.deload && <div className="deload-banner"><Icon name="moon" size={16} /><span><b>Semaine de deload</b> : moitié des séries et charges −10 % déjà appliquées. Arrête chaque série à 3 ou 4 répétitions de l’échec, cardio facile.</span></div>}
       {cardio.map((c, ci) => (c.placement === 'debut' ? cardioCard(c, ci) : null))}
@@ -282,7 +283,7 @@ export default function Workout() {
                 <div key={ii} className="wk-ex">
                   <button className="wk-ex-head" onClick={() => update((y) => { y.current = bi; })}>
                     <span className="ex-num">{finished ? <Icon name="check" size={14} /> : ii + 1}</span>
-                    <div><div className="ex-name">{it.name}</div><div className="muted small">{it.target.label}</div></div>
+                    <div><div className="ex-name">{it.name}{painOf(it) && <span className="tag warn">À adapter</span>}</div><div className="muted small">{it.target.label}</div></div>
                     <span className="muted small">{it.sets.filter((x) => x.done).length}/{it.sets.length}</span>
                   </button>
                   {open && (<>
@@ -387,11 +388,11 @@ export default function Workout() {
 }
 
 // Briefing avant la séance : durée, échauffement, charges du jour (hausses à valider), muscles encore fatigués
-function Briefing({ s, bm, onApply, onGo }) {
+function Briefing({ s, bm, painOf, onApply, onGo }) {
   const items = s.items.filter((it) => !it.removed);
   const cardioMin = (s.cardio || []).reduce((a, c) => a + (Number(c.duration_min) || 0), 0);
   const est = Math.round(items.reduce((a, it) => a + it.sets.length * (40 + it.rest), 0) / 60 + cardioMin);
-  const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
+  const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && !painOf(it) && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
   const mus = new Set(items.flatMap((it) => Object.entries(it.muscles || {}).filter(([, c]) => c >= 1).map(([k]) => k)));
   const tired = bm ? [...mus].filter((k) => bm.muscles[k]?.status === 'fatigue').map((k) => bm.muscles[k].label) : [];
   const first = items.find((it) => it.kind === 'weighted' && it.sets.some((x) => Number(x.weight) > 0));
@@ -405,6 +406,7 @@ function Briefing({ s, bm, onApply, onGo }) {
       <p className="eyebrow">Briefing</p>
       <h2>{s.name}{s.focus ? ` · ${s.focus}` : ''}</h2>
       <div className="brief-kpi"><span><b>≈ {est}</b> min</span><span><b>{items.length}</b> exercices</span><span><b>{items.reduce((a, it) => a + it.sets.length, 0)}</b> séries</span>{cardioMin > 0 && <span><b>{Math.round(cardioMin)}</b> min cardio</span>}</div>
+      {items.some((it) => painOf(it)) && <p className="brief-warn"><Icon name="heal" size={15} />Douleur {painOf(items.find((it) => painOf(it))).toLowerCase()} suivie : les exercices marqués « à adapter » restent à ta charge actuelle ou plus légers. Touche « Remplacer » pendant la séance si ça tire.</p>}
       {tired.length > 0 && <p className="brief-warn"><Icon name="alert" size={15} />{tired.join(', ')} encore fatigué{tired.length > 1 ? 's' : ''} : échauffe-toi plus longtemps et arrête chaque série à 2 reps de l’échec.</p>}
       <h3>1. Échauffement</h3>
       <ul className="brief-list">
@@ -414,7 +416,7 @@ function Briefing({ s, bm, onApply, onGo }) {
       <h3>2. Charges du jour</h3>
       <ul className="brief-list ex">
         {items.map((it) => { const ii = s.items.indexOf(it); const up = ups.includes(ii); return (
-          <li key={ii} className={up ? 'up' : ''}><span className="grow"><b>{it.name}</b><br /><span className="muted small">{up ? `Proposé : ${it.sugg.text}${lastTxt(it)}` : `${setsText(it)}${lastTxt(it)}`}</span></span>{up && <Icon name="up" size={16} />}</li>
+          <li key={ii} className={up ? 'up' : painOf(it) ? 'pain' : ''}><span className="grow"><b>{it.name}</b>{painOf(it) && <span className="tag warn">À adapter · {painOf(it).toLowerCase()}</span>}<br /><span className="muted small">{painOf(it) ? 'Pas de hausse : amplitude confortable, arrête si la douleur dépasse 3/10. ' : ''}{up ? `Proposé : ${it.sugg.text}${lastTxt(it)}` : `${setsText(it)}${lastTxt(it)}`}</span></span>{up && <Icon name="up" size={16} />}</li>
         ); })}
       </ul>
       {ups.length > 0 && <button className="btn block" onClick={() => onApply(ups)}><Icon name="up" size={16} />Appliquer {ups.length > 1 ? `les ${ups.length} hausses` : 'la hausse'} pour aujourd’hui</button>}

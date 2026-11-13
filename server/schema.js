@@ -217,6 +217,7 @@ CREATE TABLE IF NOT EXISTS pain_reports (
   area TEXT NOT NULL,
   intensity INTEGER NOT NULL,   -- 1..10
   notes TEXT,
+  log TEXT,                     -- JSON [{date, intensity}] : suivi jour après jour
   resolved INTEGER NOT NULL DEFAULT 0
 );
 
@@ -279,6 +280,7 @@ export function setupDb(db) {
   const cols = (t) => new Set(db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name));
   if (!cols('calendar_events').has('deload')) db.exec('ALTER TABLE calendar_events ADD COLUMN deload INTEGER NOT NULL DEFAULT 0');
   for (const c of ['neck_cm', 'hip_cm']) if (!cols('body_metrics').has(c)) db.exec(`ALTER TABLE body_metrics ADD COLUMN ${c} REAL`);
+  if (!cols('pain_reports').has('log')) db.exec('ALTER TABLE pain_reports ADD COLUMN log TEXT');
   if (!cols('goals').has('nutrition_plan_id')) db.exec('ALTER TABLE goals ADD COLUMN nutrition_plan_id INTEGER REFERENCES nutrition_plans(id) ON DELETE SET NULL');
   if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');

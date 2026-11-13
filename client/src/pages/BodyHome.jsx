@@ -4,6 +4,7 @@ import { useApi, Page, Card, Icon, Loading, Ring, Sheet, Field, NumInput, useToa
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import BodyMap from '../components/BodyMap.jsx';
 import MissingMuscles from '../components/MissingMuscles.jsx';
+import CoachCard from '../components/CoachCard.jsx';
 import { BodyCard } from './Dashboard.jsx';
 import { post, patch, today } from '../lib/api.js';
 import { fmtDate, n0 } from '../lib/format.js';
@@ -17,8 +18,9 @@ export default function BodyHome() {
   const active = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
     <Page tabs={<SectionTabs group="body" />} title="Mon corps">
+      <CoachCard section="body" />
       <section className="card bm-hero">{map.data ? <BodyMap data={map.data} /> : <Loading />}</section>
-      <MissingMuscles onAdded={() => map.reload()} />
+      <div id="oublies"><MissingMuscles onAdded={() => map.reload()} /></div>
 
       <div className="grid-2col">
         {r && <Card title="Récupération" icon="bolt" action={<Link className="link small" to="/progres?v=analyse">Analyse</Link>}>

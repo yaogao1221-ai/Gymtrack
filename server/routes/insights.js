@@ -1,6 +1,6 @@
 // Progrès détaillés, carte du corps, trophées et journal alimentaire
 import { Router } from 'express';
-import { USER_ID, getProfile, allRecords, activeProgram, getProgram, nextSession } from '../services.js';
+import { USER_ID, getProfile, allRecords, activeProgram, getProgram, nextSession, periodStats } from '../services.js';
 import { toJSON } from '../schema.js';
 import { MUSCLES } from '../seed.js';
 import { RANGES, PAIN_AREAS, analyse, recoveryScore } from '../analysis.js';
@@ -67,6 +67,170 @@ function bodyStatus(db, today) {
       return [k, { label, sets: s, last: l, days, status, sore: so ? so.date : null, zone: s < minS / 2 ? 'bas' : s < optLow ? 'correct' : s <= optHigh ? 'optimal' : 'haut' }];
     }));
     return { muscles, range: { min: minS, low: optLow, high: optHigh } };
+}
+
+function programGaps(db, today) {
+    const prog = activeProgram(db); if (!prog) return ({ gaps: [], low: [] });
+    const items = db.all(`SELECT pe.id pe_id, pe.exercise_id, pd.id day_id, pd.name day_name, pe.sets, e.name, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
+      WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));
+    if (!items.length) return ({ gaps: [], low: [], empty: true });
+    const planned = {}; for (const x of items) for (const [m, c] of Object.entries(x.muscles)) planned[m] = (planned[m] || 0) + c * (x.sets || 0);
+    // Travail direct = exercices où le muscle est principal (coefficient 1). Un RDL ne remplace pas un exercice de lombaires.
+    const direct = {}; const via = {};
+    for (const x of items) for (const [m, c] of Object.entries(x.muscles)) { if (c >= 1) direct[m] = (direct[m] || 0) + (x.sets || 0); else (via[m] ||= new Set()).add(x.name); }
+    const from = addDays(today, -27);
+    const done = {}; for (const day of Object.values(dailyLoads(db, from, today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
+    const doneDirect = {};
+    for (const r of db.all(`SELECT e.muscles, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+      WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ? GROUP BY e.id`, USER_ID, from, today)) for (const [m, c] of Object.entries(toJSON(r.muscles, {}))) if (c >= 1) doneDirect[m] = (doneDirect[m] || 0) + r.n;
+    // Le cardio compte comme travail direct (marche inclinée → mollets)
+    for (const c of db.all('SELECT activity, duration_min, incline_pct FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, from, today)) {
+      const k = c.activity === 'marche' && c.incline_pct >= 5 ? CARDIO_LOAD.marche_inclinee : CARDIO_LOAD[c.activity]; if (!k) continue;
+      for (const [m, per] of Object.entries(k)) doneDirect[m] = (doneDirect[m] || 0) + Math.min(4, per * (c.duration_min || 0));
+    }
+    const days = db.all('SELECT id, name FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', prog.id);
+    const lib = db.all('SELECT id, slug, name, pattern, muscles, lib_id FROM exercises').map((e) => ({ ...e, muscles: toJSON(e.muscles, {}) }));
+    const gaps = []; const low = [];
+    for (const [m, [slug, prio]] of Object.entries(GAP_FILL)) {
+      const pl = planned[m] || 0; const dn = done[m] || 0;
+      const forgotten = (direct[m] || 0) < 1 && (doneDirect[m] || 0) < 1;
+      // Peu travaillé : muscle majeur prévu à moins de 4 séries par semaine et moins de 4 séries par semaine faites en moyenne
+      const weak = !forgotten && prio === 1 && pl < 4 && dn / 4 < 4;
+      if (!forgotten && !weak) continue;
+      // Le muscle a déjà un exercice dans le programme : on propose des séries en plus, jamais un doublon
+      const own = items.filter((x) => (x.muscles[m] || 0) >= 1).sort((a, b) => a.sets - b.sets)[0];
+      if (own && own.sets < 4) {
+        const need = Math.max(1, Math.min(4 - own.sets, Math.ceil((prio === 1 ? 6 : 3) - pl)));
+        (forgotten ? gaps : low).push({ forgotten, muscle: m, label: MUSCLES[m], prio, planned: r1(pl), done: r1(dn), indirect: [],
+          bump: { pe_id: own.pe_id, name: own.name, day: { id: own.day_id, name: own.day_name }, from: own.sets, to: own.sets + need } });
+        continue;
+      }
+      if (own) continue;
+      const inProg = new Set(items.map((x) => x.exercise_id));
+      const cands = [lib.find((e) => e.slug === slug), ...lib.filter((e) => (e.muscles[m] || 0) >= 1)].filter((e) => e && !inProg.has(e.id));
+      const main = cands[0]; if (!main) continue;
+      const alts = [...new Map(cands.slice(1).map((e) => [e.id, e])).values()].filter((e) => e.id !== main.id).slice(0, 3);
+      // Jour conseillé : celui qui travaille déjà la même zone (haut / bas du corps), sinon le moins chargé
+      const lower = LOWER_M.has(m);
+      const score = (d) => { const its = items.filter((x) => x.day_id === d.id); return its.reduce((a, x) => a + Object.keys(x.muscles).filter((k) => LOWER_M.has(k) === lower).length, 0) * 10 - its.length; };
+      const host = [...days].sort((a, b) => score(b) - score(a))[0];
+      const core = /core|plank/.test(main.pattern || '');
+      (forgotten ? gaps : low).push({ forgotten, muscle: m, label: MUSCLES[m], prio, indirect: [...(via[m] || [])].slice(0, 2), done: r1(dn), done_week: r1(dn / 4), planned: r1(pl),
+        exercise: { id: main.id, name: main.name, lib_id: main.lib_id }, alternatives: alts.map((e) => ({ id: e.id, name: e.name, lib_id: e.lib_id })),
+        day: host ? { id: host.id, name: host.name } : null, sets: prio === 1 ? 3 : 2, reps: core ? 30 : 12, rest_seconds: core ? 45 : 75 });
+    }
+    gaps.sort((a, b) => a.prio - b.prio); low.sort((a, b) => a.planned - b.planned);
+    return { gaps, low: low.slice(0, 3) };
+}
+
+
+
+// Coach commun : une consigne par espace (Corps, Progrès, Nutrition, Soins, Programme), chacune tient compte des autres
+const PHASES = ['calmer', 'recharger', 'reprendre'];
+const phaseOf = (days) => (days <= 7 ? 0 : days <= 42 ? 1 : 2);
+const fmtD = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+export function coachBrief(db, today) {
+  const profile = getProfile(db);
+  const prog = getProgram(db, { withLast: false });
+  const allEx = prog.days.flatMap((d) => d.exercises.map((e) => ({ ...e, day_name: d.name, day_id: d.id })));
+  const next = nextSession(db, today); const nextDay = next ? prog.days.find((d) => d.id === next.program_day_id) : null;
+  const nextLbl = next ? `${next.name}${next.focus ? ` (${next.focus})` : ''}${next.date === today ? ' aujourd’hui' : next.date ? ` le ${fmtD(next.date)}` : ''}` : null;
+  const st = bodyStatus(db, today).muscles;
+  // Douleurs suivies
+  const pains = db.all('SELECT * FROM pain_reports WHERE user_id = ? AND resolved = 0 ORDER BY intensity DESC, date DESC', USER_ID).map((p) => {
+    const area = PAIN_AREAS[p.area] || { label: p.area, patterns: [] };
+    const log = (() => { try { return JSON.parse(p.log || '[]'); } catch { return []; } })();
+    const first = log[0]?.intensity ?? p.intensity; const days = diffDays(p.date, today) + 1;
+    const affected = allEx.filter((e) => area.patterns.includes(e.pattern));
+    return { id: p.id, area: p.area, label: area.label, intensity: p.intensity, first, days, phase: phaseOf(days), phase_label: PHASES[phaseOf(days)],
+      checked_today: log.some((x) => x.date === today), trend: log.length > 1 ? Math.sign(p.intensity - first) : 0,
+      affected: [...new Set(affected.map((e) => e.name))], next_affected: nextDay ? [...new Set(nextDay.exercises.filter((e) => area.patterns.includes(e.pattern)).map((e) => e.name))] : [] };
+  });
+  const painLine = (p) => `${p.label} ${p.intensity}/10, jour ${p.days}${p.trend < 0 ? ` (en baisse depuis ${p.first}/10)` : p.trend > 0 ? ` (en hausse depuis ${p.first}/10)` : ''}`;
+  // Muscles
+  const nextMus = nextDay ? [...new Set(nextDay.exercises.flatMap((e) => Object.entries(e.muscles || {}).filter(([, c]) => c >= 1).map(([k]) => k)))] : [];
+  const tiredNext = nextMus.filter((k) => st[k]?.status === 'fatigue').map((k) => MUSCLES[k]);
+  const tired = Object.entries(st).filter(([, m]) => m.status === 'fatigue' || m.status === 'recup');
+  const gaps = (() => { try { return programGaps(db, today); } catch { return { gaps: [], low: [] }; } })();
+  let ana = null; try { ana = analyse(db, today); } catch { /* historique insuffisant */ }
+  const increases = (ana?.progression || []).filter((p) => p.type === 'increase');
+  const out = {};
+
+  // SOINS
+  if (pains.length) {
+    const p = pains[0];
+    const lines = [{ icon: 'heal', text: `Aujourd’hui : phase « ${p.phase_label} ». ${p.phase === 0 ? 'Isométriques sans douleur, 5 min, 1 à 2 fois.' : p.phase === 1 ? 'Renforcement lent 3 × 12-15, douleur ≤ 3/10.' : 'Reprise progressive : 50 % de ta charge, +10 % par semaine.'}` }];
+    if (p.next_affected.length) lines.push({ icon: 'dumbbell', tone: 'warn', text: `Dans ta prochaine séance${nextLbl ? ` ${nextLbl}` : ''} : ${p.next_affected.join(', ')} à adapter. Aucune hausse de charge n’y sera proposée.` });
+    else if (p.affected.length) lines.push({ icon: 'dumbbell', text: `Exercices de ton programme concernés : ${p.affected.slice(0, 4).join(', ')}.` });
+    if (!p.checked_today) lines.push({ icon: 'chat', text: 'Dis-moi comment ça va aujourd’hui pour suivre l’évolution.' });
+    if (p.days > 21 && p.trend >= 0) lines.push({ icon: 'alert', tone: 'warn', text: 'Plus de 3 semaines sans amélioration : un avis de kiné ou de médecin est conseillé.' });
+    out.care = { headline: pains.length > 1 ? `${pains.length} douleurs suivies · ${painLine(p)}` : painLine(p), lines, action: { label: 'Mon protocole', to: `/soins?zone=${p.area}` }, tone: p.intensity >= 6 ? 'warn' : 'mid' };
+  } else {
+    const upper = nextDay ? nextMus.some((k) => !LOWER_M.has(k)) && !nextMus.some((k) => ['quadriceps', 'ischios', 'fessiers'].includes(k)) : true;
+    out.care = { headline: 'Aucune douleur suivie', lines: [{ icon: 'body', text: nextLbl ? `Avant ${nextLbl} : routine mobilité « ${upper ? 'haut du corps' : 'jambes'} », 5 min.` : '5 min de mobilité par jour gardent les articulations souples.' }, ...(tired.length ? [{ icon: 'moon', text: `Après la séance : étirements doux sur ${tired.slice(0, 3).map(([, m]) => m.label.toLowerCase()).join(', ')}.` }] : [])],
+      action: { label: 'Mobilité', to: '/soins' }, tone: 'good' };
+  }
+
+  // CORPS
+  {
+    const lines = [];
+    if (tiredNext.length) lines.push({ icon: 'alert', tone: 'warn', text: `${tiredNext.join(', ')} encore fatigué${tiredNext.length > 1 ? 's' : ''} pour ${nextLbl} : échauffe-toi plus et ne cherche pas de record.` });
+    else if (nextLbl) lines.push({ icon: 'check', tone: 'good', text: `Les muscles de ${nextLbl} sont récupérés.` });
+    if (gaps.gaps.length) lines.push({ icon: 'target', text: `${gaps.gaps.length} muscle${gaps.gaps.length > 1 ? 's' : ''} sans exercice dédié : ${gaps.gaps.slice(0, 3).map((g) => g.label.toLowerCase()).join(', ')}.` });
+    for (const p of pains.slice(0, 1)) lines.push({ icon: 'heal', text: `Douleur ${p.label.toLowerCase()} suivie : les muscles autour sont ménagés dans les conseils.` });
+    out.body = { headline: tired.length ? `${tired.length} muscle${tired.length > 1 ? 's' : ''} en récupération` : 'Tout est récupéré', lines, action: gaps.gaps.length ? { label: 'Muscles oubliés', to: '/corps#oublies' } : null, tone: tiredNext.length ? 'warn' : 'good' };
+  }
+
+  // PROGRÈS
+  {
+    const recs = allRecords(db).filter((r) => r.date >= addDays(today, -29));
+    const wk = periodStats(db, weekStart(today), addDays(weekStart(today), 6)); const target = profile.sessions_per_week || null;
+    // Stagnation : même charge max sur les 3 dernières séances d'un exercice du programme
+    const stag = [];
+    for (const e of allEx) {
+      const rows = db.all(`SELECT w.date, MAX(s.weight) top FROM workout_sets s JOIN workouts w ON w.id = s.workout_id WHERE w.user_id = ? AND s.exercise_id = ? AND s.completed = 1 AND s.weight IS NOT NULL GROUP BY w.id ORDER BY w.date DESC LIMIT 3`, USER_ID, e.exercise_id);
+      if (rows.length === 3 && rows.every((r) => r.top === rows[0].top) && !pains.some((p) => p.affected.includes(e.name))) stag.push(e.name);
+    }
+    const lines = [];
+    if (target) lines.push({ icon: 'calendar', tone: wk.workouts >= target ? 'good' : '', text: `${wk.workouts}/${target} séances cette semaine${wk.workouts >= target ? ' : objectif atteint' : ''}.` });
+    if (increases.length) lines.push({ icon: 'up', tone: 'good', text: `${increases.length} hausse${increases.length > 1 ? 's' : ''} de charge prête${increases.length > 1 ? 's' : ''} : tu les valides dans le briefing ou le débrief.` });
+    if (stag.length) lines.push({ icon: 'alert', text: `${[...new Set(stag)].slice(0, 2).join(', ')} : même charge depuis 3 séances. Vise +1 répétition par série avant de monter.` });
+    if (pains.length) lines.push({ icon: 'heal', text: `Pas de hausse sur les exercices touchés par ta douleur ${pains[0].label.toLowerCase()} : c’est voulu.` });
+    const nRec = new Set(recs.map((r) => r.exercise_id ?? r.name)).size;
+    out.progress = { headline: recs.length ? `Records sur ${nRec} exercice${nRec > 1 ? 's' : ''} en 30 jours` : 'Pas de record ce mois-ci, la régularité paie', lines, action: { label: 'Analyse', to: '/progres?v=analyse' }, tone: recs.length ? 'good' : 'mid' };
+  }
+
+  // NUTRITION
+  {
+    let ns = null; try { ns = nutritionState(db, today); } catch { /* données incomplètes */ }
+    const eat = db.one('SELECT COALESCE(SUM(kcal),0) k, COALESCE(SUM(protein_g),0) p FROM food_logs WHERE user_id = ? AND date = ?', USER_ID, today);
+    const code = profile.schedule?.[dayKey(today)];
+    const trainToday = !!db.one('SELECT id FROM workouts WHERE user_id = ? AND date = ?', USER_ID, today) || !!db.one("SELECT id FROM calendar_events WHERE user_id = ? AND date = ? AND type = 'workout' AND status <> 'skipped'", USER_ID, today) || (!!code && code !== 'rest');
+    const lines = [];
+    if (ns?.plan) {
+      const kcal = ns.plan.in_break ? ns.tdee : ns.plan.kcal; const prot = ns.plan.protein_g;
+      lines.push({ icon: 'flame', text: `Reste ${Math.max(0, Math.round(kcal - eat.k)).toLocaleString('fr-FR')} kcal et ${Math.max(0, Math.round(prot - eat.p))} g de protéines aujourd’hui.` });
+      out.nutrition_head = `${ns.plan.label} · semaine ${ns.plan.week}/${ns.plan.weeks}`;
+    } else lines.push({ icon: 'target', text: 'Pas encore de cible : choisis un objectif dans le créateur, les calories suivent.' });
+    lines.push({ icon: 'dumbbell', text: trainToday ? 'Jour d’entraînement : glucides et protéines dans le repas avant et après la séance.' : 'Jour sans séance : garde les protéines, un peu moins de glucides.' });
+    if (pains.length) lines.push({ icon: 'heal', text: 'Douleur en cours : 1,6 à 2,2 g de protéines par kg et 7 à 9 h de sommeil aident la réparation.' });
+    out.nutrition = { headline: out.nutrition_head || 'Nutrition', lines, action: ns?.plan ? { label: 'Noter un repas', to: '/repas' } : { label: 'Choisir un objectif', to: '/programme/creer' }, tone: 'mid' };
+    delete out.nutrition_head;
+  }
+
+  // PROGRAMME
+  {
+    const lines = [];
+    const hit = pains.filter((p) => p.affected.length);
+    if (hit.length) lines.push({ icon: 'heal', tone: 'warn', text: `Douleur ${hit[0].label.toLowerCase()} : ${hit[0].affected.slice(0, 3).join(', ')} marqué${hit[0].affected.length > 1 ? 's' : ''} « à adapter » ci-dessous.` });
+    if (increases.length) lines.push({ icon: 'up', tone: 'good', text: `${increases.length} hausse${increases.length > 1 ? 's' : ''} de charge prête${increases.length > 1 ? 's' : ''}.` });
+    if (gaps.gaps.length) lines.push({ icon: 'target', text: `${gaps.gaps.map((g) => g.label.toLowerCase()).slice(0, 3).join(', ')} sans exercice dédié : suggestion plus bas.` });
+    if (tiredNext.length) lines.push({ icon: 'alert', text: `${tiredNext.join(', ')} encore fatigué${tiredNext.length > 1 ? 's' : ''} pour la prochaine séance.` });
+    out.program = { headline: nextLbl ? `Prochaine : ${nextLbl}` : 'Ton programme', lines, action: next ? { label: 'Briefing', to: `/seance/${next.program_day_id}` } : null, tone: hit.length ? 'warn' : 'good' };
+  }
+  out.pains = pains.map((p) => ({ id: p.id, area: p.area, label: p.label, intensity: p.intensity, first: p.first, days: p.days, phase: p.phase, checked_today: p.checked_today, trend: p.trend, affected: p.affected, next_affected: p.next_affected }));
+  out.pain_patterns = Object.fromEntries(pains.map((p) => [p.area, { label: p.label, patterns: (PAIN_AREAS[p.area] || {}).patterns || [] }]));
+  return out;
 }
 
 // Trophées : calculés à partir des données, rien n'est stocké
@@ -192,6 +356,11 @@ export default function insightsRoutes(db) {
       const d = describe(dayId);
       if (d.tired.length) lines.push({ icon: 'alert', tone: 'warn', text: `${d.tired.join(', ')} encore fatigué${d.tired.length > 1 ? 's' : ''} : échauffement plus long, garde tes charges et arrête-toi à 2 répétitions de l’échec.` });
       else if (rec.score < 55) lines.push({ icon: 'alert', tone: 'warn', text: `Récupération ${rec.label.toLowerCase()} (${rec.score}/100) : séance normale mais sans chercher de record.` });
+      const dayEx = prog.days.find((x) => x.id === dayId)?.exercises || [];
+      for (const p of db.all('SELECT area, intensity FROM pain_reports WHERE user_id = ? AND resolved = 0', USER_ID)) {
+        const hit = [...new Set(dayEx.filter((e) => (PAIN_AREAS[p.area]?.patterns || []).includes(e.pattern)).map((e) => e.name))];
+        if (hit.length) lines.push({ icon: 'heal', tone: 'warn', text: `Douleur ${(PAIN_AREAS[p.area]?.label || p.area).toLowerCase()} (${p.intensity}/10) : ${hit.slice(0, 3).join(', ')} à adapter, sans hausse de charge.` });
+      }
       if (d.increases) lines.push({ icon: 'up', tone: 'good', text: 'Des hausses de charge sont prêtes : tu choisis de les appliquer dans le briefing.' });
       if (ev?.deload) lines.push({ icon: 'moon', text: 'Semaine de deload : moitié des séries, charges −10 %, déjà calculées.' });
       if (d.cardio_min) lines.push({ icon: 'heart', text: `${d.cardio_min} min de cardio inclus dans la séance.` });
@@ -215,48 +384,8 @@ export default function insightsRoutes(db) {
   });
 
   // Muscles oubliés : ni travaillés depuis 4 semaines (muscu + cardio) ni prévus dans le programme actif → exercice suggéré + jour conseillé
-  r.get('/program/gaps', (req, res) => {
-    const prog = activeProgram(db); if (!prog) return res.json({ gaps: [], low: [] });
-    const items = db.all(`SELECT pd.id day_id, pd.name day_name, pe.sets, e.name, e.muscles FROM program_exercises pe JOIN program_days pd ON pd.id = pe.day_id JOIN exercises e ON e.id = pe.exercise_id
-      WHERE pd.program_id = ? AND pd.archived = 0`, prog.id).map((x) => ({ ...x, muscles: toJSON(x.muscles, {}) }));
-    if (!items.length) return res.json({ gaps: [], low: [], empty: true });
-    const planned = {}; for (const x of items) for (const [m, c] of Object.entries(x.muscles)) planned[m] = (planned[m] || 0) + c * (x.sets || 0);
-    // Travail direct = exercices où le muscle est principal (coefficient 1). Un RDL ne remplace pas un exercice de lombaires.
-    const direct = {}; const via = {};
-    for (const x of items) for (const [m, c] of Object.entries(x.muscles)) { if (c >= 1) direct[m] = (direct[m] || 0) + (x.sets || 0); else (via[m] ||= new Set()).add(x.name); }
-    const from = addDays(req.today, -27);
-    const done = {}; for (const day of Object.values(dailyLoads(db, from, req.today))) for (const [m, v] of Object.entries(day)) done[m] = (done[m] || 0) + v;
-    const doneDirect = {};
-    for (const r of db.all(`SELECT e.muscles, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
-      WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ? GROUP BY e.id`, USER_ID, from, req.today)) for (const [m, c] of Object.entries(toJSON(r.muscles, {}))) if (c >= 1) doneDirect[m] = (doneDirect[m] || 0) + r.n;
-    // Le cardio compte comme travail direct (marche inclinée → mollets)
-    for (const c of db.all('SELECT activity, duration_min, incline_pct FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, from, req.today)) {
-      const k = c.activity === 'marche' && c.incline_pct >= 5 ? CARDIO_LOAD.marche_inclinee : CARDIO_LOAD[c.activity]; if (!k) continue;
-      for (const [m, per] of Object.entries(k)) doneDirect[m] = (doneDirect[m] || 0) + Math.min(4, per * (c.duration_min || 0));
-    }
-    const days = db.all('SELECT id, name FROM program_days WHERE program_id = ? AND archived = 0 ORDER BY position', prog.id);
-    const lib = db.all('SELECT id, slug, name, pattern, muscles, lib_id FROM exercises').map((e) => ({ ...e, muscles: toJSON(e.muscles, {}) }));
-    const gaps = []; const low = [];
-    for (const [m, [slug, prio]] of Object.entries(GAP_FILL)) {
-      const pl = planned[m] || 0; const dn = done[m] || 0;
-      const forgotten = (direct[m] || 0) < 1 && (doneDirect[m] || 0) < 1;
-      // Peu travaillé : muscle majeur prévu à moins de 4 séries par semaine et moins de 4 séries par semaine faites en moyenne
-      const weak = !forgotten && prio === 1 && pl < 4 && dn / 4 < 4;
-      if (!forgotten && !weak) continue;
-      const main = lib.find((e) => e.slug === slug); if (!main) continue;
-      const alts = lib.filter((e) => e.id !== main.id && (e.muscles[m] || 0) >= 1).slice(0, 3);
-      // Jour conseillé : celui qui travaille déjà la même zone (haut / bas du corps), sinon le moins chargé
-      const lower = LOWER_M.has(m);
-      const score = (d) => { const its = items.filter((x) => x.day_id === d.id); return its.reduce((a, x) => a + Object.keys(x.muscles).filter((k) => LOWER_M.has(k) === lower).length, 0) * 10 - its.length; };
-      const host = [...days].sort((a, b) => score(b) - score(a))[0];
-      const core = /core|plank/.test(main.pattern || '');
-      (forgotten ? gaps : low).push({ forgotten, muscle: m, label: MUSCLES[m], prio, indirect: [...(via[m] || [])].slice(0, 2), done: r1(dn), done_week: r1(dn / 4), planned: r1(pl),
-        exercise: { id: main.id, name: main.name, lib_id: main.lib_id }, alternatives: alts.map((e) => ({ id: e.id, name: e.name, lib_id: e.lib_id })),
-        day: host ? { id: host.id, name: host.name } : null, sets: prio === 1 ? 3 : 2, reps: core ? 30 : 12, rest_seconds: core ? 45 : 75 });
-    }
-    gaps.sort((a, b) => a.prio - b.prio); low.sort((a, b) => a.planned - b.planned);
-    res.json({ gaps, low: low.slice(0, 3) });
-  });
+  r.get('/program/gaps', (req, res) => res.json(programGaps(db, req.today)));
+  r.get('/coach/brief', (req, res) => res.json(coachBrief(db, req.today)));
 
   // Courbatures signalées par l'utilisateur (toggle du jour)
   r.post('/soreness', (req, res) => {

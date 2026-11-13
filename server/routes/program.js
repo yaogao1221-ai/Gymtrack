@@ -136,6 +136,7 @@ export default function programRoutes(db) {
     const d = dayOf(req.params.id);
     const ex = db.one('SELECT * FROM exercises WHERE id = ?', num(req.body.exercise_id, 'exercice', { int: true }));
     if (!ex) throw bad('Exercice inconnu');
+    if (req.body.no_duplicate && db.one('SELECT id FROM program_exercises WHERE day_id = ? AND exercise_id = ?', d.id, ex.id)) throw bad(`${ex.name} est déjà dans ce jour`);
     const pos = (db.one('SELECT MAX(position) m FROM program_exercises WHERE day_id = ?', d.id).m || 0) + 1;
     const b = { sets: 2, reps: 8, weight_unit: ex.default_unit, ...req.body };
     const info = db.run(`INSERT INTO program_exercises (day_id, exercise_id, position, sets, reps, reps_note, target_weight, weight_unit, weight_note, rest_seconds, superset_group, notes)

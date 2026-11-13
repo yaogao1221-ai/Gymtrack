@@ -163,7 +163,7 @@ export default function App() {
           <Route path="/historique/:id" element={<WorkoutDetail />} />
           <Route path="/cardio" element={<Cardio />} />
           <Route path="/calendrier" element={<CalRedirect />} />
-          <Route path="/progres" element={<Hub title="Progrès" views={PROGRESS_VIEWS} />} />
+          <Route path="/progres" element={<Hub title="Progrès" views={PROGRESS_VIEWS} coach="progress" />} />
           <Route path="/coach" element={<Navigate to="/progres?v=analyse" replace />} />
           <Route path="/objectifs" element={<Navigate to="/progres?v=objectifs" replace />} />
           <Route path="/profil" element={<Profile onSaved={setProfile} />} />
@@ -172,7 +172,7 @@ export default function App() {
           <Route path="/rappels" element={<Reminders />} />
           <Route path="/bilan" element={<Navigate to="/progres?v=bilan" replace />} />
           <Route path="/corps" element={<BodyHome />} />
-          <Route path="/nutrition" element={<Hub title="Nutrition" views={NUTRITION_VIEWS} />} />
+          <Route path="/nutrition" element={<Hub title="Nutrition" views={NUTRITION_VIEWS} coach="nutrition" />} />
           <Route path="/outils" element={<Tools />} />
           <Route path="/plan" element={<Navigate to="/programme/creer" replace />} />
           <Route path="/programme/creer" element={<Builder />} />
