@@ -60,3 +60,19 @@ test('modèle de programme : nouveau programme actif, ancien conservé et réact
   const prof = (await call('GET', '/profile')).body; assert.equal(Object.values(prof.schedule).filter((c) => c !== 'rest').length, 4);
   await call('POST', `/programs/${old}/activate`); assert.equal((await call('GET', '/program')).body.days.length, 5);
 });
+
+test('historique : changer un exercice, ajouter/supprimer une série, retirer un exercice', async () => {
+  const prog = (await call('GET', '/program')).body; const [a, b] = prog.days[0].exercises;
+  const w = (await call('POST', '/workouts', { client_id: 'edit1', name: 'Test', date: '2026-11-10',
+    sets: [1, 2].map((k) => ({ exercise_id: a.exercise_id, position: 0, set_index: k, weight: 50, weight_unit: 'lbs', reps: 10 })) })).body;
+  let r = await call('PATCH', `/workouts/${w.id}/exercises`, { position: 0, exercise_id: a.exercise_id, new_exercise_id: b.exercise_id });
+  assert.equal(r.body.exercises[0].exercise_id, b.exercise_id); assert.equal(r.body.exercises[0].sets.length, 2);
+  r = await call('POST', `/workouts/${w.id}/sets`, { exercise_id: b.exercise_id, position: 0 });
+  assert.equal(r.status, 201); const s3 = r.body.exercises[0].sets[2]; assert.equal(s3.set_index, 3); assert.equal(s3.weight, 50);
+  r = await call('DELETE', `/workouts/${w.id}/sets/${r.body.exercises[0].sets[0].id}`);
+  assert.deepEqual(r.body.exercises[0].sets.map((x) => x.set_index), [1, 2]);
+  r = await call('POST', `/workouts/${w.id}/sets`, { exercise_id: a.exercise_id, weight: null, reps: null });
+  assert.equal(r.body.exercises.length, 2); assert.equal(r.body.exercises[1].position, 1);
+  r = await call('POST', `/workouts/${w.id}/exercises/remove`, { position: 1, exercise_id: a.exercise_id });
+  assert.equal(r.body.exercises.length, 1);
+});

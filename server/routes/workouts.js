@@ -7,12 +7,12 @@ export default function workoutRoutes(db) {
   const r = Router();
   const get = (id) => { const w = db.one('SELECT * FROM workouts WHERE id = ? AND user_id = ?', id, USER_ID); if (!w) throw notFound('Séance introuvable'); return w; };
   const full = (w) => {
-    const sets = db.all(`SELECT s.*, e.name exercise_name, e.kind FROM workout_sets s JOIN exercises e ON e.id = s.exercise_id WHERE s.workout_id = ? ORDER BY s.position, s.set_index`, w.id);
+    const sets = db.all(`SELECT s.*, e.name exercise_name, e.kind, e.pattern ex_pattern, e.muscles ex_muscles, e.lib_id ex_lib FROM workout_sets s JOIN exercises e ON e.id = s.exercise_id WHERE s.workout_id = ? ORDER BY s.position, s.set_index`, w.id);
     const exercises = [];
     for (const s of sets) {
       let g = exercises.find((x) => x.position === s.position && x.exercise_id === s.exercise_id);
-      if (!g) { g = { exercise_id: s.exercise_id, name: s.exercise_name, kind: s.kind, position: s.position, sets: [] }; exercises.push(g); }
-      g.sets.push(s);
+      if (!g) { g = { exercise_id: s.exercise_id, name: s.exercise_name, kind: s.kind, position: s.position, pattern: s.ex_pattern, muscles: JSON.parse(s.ex_muscles || '{}'), lib_id: s.ex_lib, sets: [] }; exercises.push(g); }
+      const { ex_pattern, ex_muscles, ex_lib, ...row } = s; if (row.weight != null) row.weight = r1(row.weight); g.sets.push(row);
     }
     return { ...workoutSummary(db, w), exercises, review: review(w, exercises) };
   };
@@ -28,7 +28,7 @@ export default function workoutRoutes(db) {
       const top = ex.kind === 'assisted' ? Math.min(...vals) : Math.max(...vals);
       const best1 = ex.kind === 'assisted' ? null : Math.max(...done.map((x) => e1rm(toLbs(x.weight, x.weight_unit), x.reps) || 0));
       const topSet = done[vals.indexOf(top)];
-      if (ex.kind === 'assisted' ? top < b.top_lbs - 1e-9 : top > b.top_lbs + 1e-9) records.push({ name: ex.name, type: ex.kind === 'assisted' ? 'assistance' : 'charge', value: topSet.weight, unit: topSet.weight_unit, reps: topSet.reps });
+      if (ex.kind === 'assisted' ? top < b.top_lbs - 1e-9 : top > b.top_lbs + 1e-9) records.push({ name: ex.name, type: ex.kind === 'assisted' ? 'assistance' : 'charge', value: r1(topSet.weight), unit: topSet.weight_unit, reps: topSet.reps });
       else if (best1 && b.e1rm_lbs && best1 > b.e1rm_lbs + 0.5) records.push({ name: ex.name, type: '1rm', value: r1(topSet.weight_unit === 'kg' ? best1 / 2.20462 : best1), unit: topSet.weight_unit });
     }
     const prev = w.program_day_id ? db.one('SELECT * FROM workouts WHERE user_id = ? AND program_day_id = ? AND (date < ? OR (date = ? AND id < ?)) ORDER BY date DESC, id DESC LIMIT 1', USER_ID, w.program_day_id, w.date, w.date, w.id) : null;
@@ -94,6 +94,40 @@ export default function workoutRoutes(db) {
     const w = get(req.params.id);
     const s = db.one('SELECT id FROM workout_sets WHERE id = ? AND workout_id = ?', req.params.setId, w.id); if (!s) throw notFound('Série introuvable');
     patchRow(db, 'workout_sets', s.id, req.body, { weight: (v) => num(v, 'charge', { min: 0, max: 2000 }), reps: (v) => num(v, 'répétitions', { int: true, min: 0, max: 500 }), completed: (v) => (v ? 1 : 0) });
+    res.json(full(get(w.id)));
+  });
+  // Corrections après coup : changer l'exercice d'un bloc, ajouter/retirer une série, ajouter/retirer un exercice
+  const exOk = (v) => { const id = num(v, 'exercice', { int: true }); if (!id || !db.one('SELECT id FROM exercises WHERE id = ?', id)) throw bad('Exercice inconnu'); return id; };
+  const pos = (v) => { const p = num(v, 'position', { int: true, min: 0 }); if (p == null) throw bad('Position manquante'); return p; };
+  r.patch('/workouts/:id/exercises', (req, res) => {
+    const w = get(req.params.id); const p = pos(req.body.position); const from = exOk(req.body.exercise_id); const to = exOk(req.body.new_exercise_id);
+    db.run('UPDATE workout_sets SET exercise_id = ?, program_exercise_id = CASE WHEN ? = ? THEN program_exercise_id ELSE NULL END WHERE workout_id = ? AND position = ? AND exercise_id = ?', to, from, to, w.id, p, from);
+    res.json(full(get(w.id)));
+  });
+  r.post('/workouts/:id/sets', (req, res) => {
+    const w = get(req.params.id); const b = req.body; const exId = exOk(b.exercise_id);
+    let p = b.position == null ? null : pos(b.position);
+    if (p == null) p = (db.one('SELECT MAX(position) m FROM workout_sets WHERE workout_id = ?', w.id)?.m ?? -1) + 1;
+    const last = db.one('SELECT * FROM workout_sets WHERE workout_id = ? AND position = ? AND exercise_id = ? ORDER BY set_index DESC LIMIT 1', w.id, p, exId);
+    const unit = b.weight_unit ? (b.weight_unit === 'kg' ? 'kg' : 'lbs') : (last?.weight_unit || db.one('SELECT default_unit FROM exercises WHERE id = ?', exId)?.default_unit || 'lbs');
+    db.run(`INSERT INTO workout_sets (workout_id, exercise_id, program_exercise_id, position, set_index, weight, weight_unit, reps, target_reps, completed) VALUES (?,?,?,?,?,?,?,?,?,1)`,
+      w.id, exId, last?.program_exercise_id ?? null, p, (last?.set_index || 0) + 1,
+      b.weight !== undefined ? num(b.weight, 'charge', { min: 0, max: 2000 }) : last?.weight ?? null, unit,
+      b.reps !== undefined ? num(b.reps, 'répétitions', { int: true, min: 0, max: 500 }) : last?.reps ?? null, last?.target_reps ?? null);
+    res.status(201).json(full(get(w.id)));
+  });
+  r.delete('/workouts/:id/sets/:setId', (req, res) => {
+    const w = get(req.params.id);
+    const s = db.one('SELECT * FROM workout_sets WHERE id = ? AND workout_id = ?', req.params.setId, w.id); if (!s) throw notFound('Série introuvable');
+    db.tx(() => {
+      db.run('DELETE FROM workout_sets WHERE id = ?', s.id);
+      db.all('SELECT id FROM workout_sets WHERE workout_id = ? AND position = ? AND exercise_id = ? ORDER BY set_index', w.id, s.position, s.exercise_id).forEach((x, i) => db.run('UPDATE workout_sets SET set_index = ? WHERE id = ?', i + 1, x.id));
+    });
+    res.json(full(get(w.id)));
+  });
+  r.post('/workouts/:id/exercises/remove', (req, res) => {
+    const w = get(req.params.id);
+    db.run('DELETE FROM workout_sets WHERE workout_id = ? AND position = ? AND exercise_id = ?', w.id, pos(req.body.position), exOk(req.body.exercise_id));
     res.json(full(get(w.id)));
   });
   r.delete('/workouts/:id', (req, res) => {

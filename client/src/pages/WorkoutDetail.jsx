@@ -1,16 +1,23 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Loading, ErrorBox, Confirm, NumInput, Field, useToast } from '../components/ui.jsx';
-import { patch, del } from '../lib/api.js';
+import { patch, del, post } from '../lib/api.js';
+import ExercisePicker from '../components/ExercisePicker.jsx';
 import { fmtDay, dur, n0 } from '../lib/format.js';
 
 export default function WorkoutDetail() {
   const { id } = useParams(); const nav = useNavigate(); const toast = useToast();
   const { data: w, error, reload, setData } = useApi(`/workouts/${id}`);
-  const [edit, setEdit] = useState(false); const [confirm, setConfirm] = useState(false);
+  const [edit, setEdit] = useState(false); const [confirm, setConfirm] = useState(false); const [picker, setPicker] = useState(null); const [rmEx, setRmEx] = useState(null);
   if (error && !w) return <ErrorBox error={error} retry={reload} />;
   if (!w) return <Loading />;
   const saveSet = async (s, k, v) => { try { setData(await patch(`/workouts/${w.id}/sets/${s.id}`, { [k]: v })); } catch (e) { toast(e.message, 'err'); } };
+  const run = async (fn) => { try { setData(await fn()); } catch (e) { toast(e.message, 'err'); } };
+  const pick = (e) => {
+    const p = picker; setPicker(null);
+    if (p.ex) run(() => patch(`/workouts/${w.id}/exercises`, { position: p.ex.position, exercise_id: p.ex.exercise_id, new_exercise_id: e.id })).then(() => toast(`Remplacé par ${e.name} dans l’historique`));
+    else run(() => post(`/workouts/${w.id}/sets`, { exercise_id: e.id, weight: null, reps: null })).then(() => toast(`${e.name} ajouté : renseigne la charge et les reps`));
+  };
   const saveMeta = async (body) => { try { setData(await patch(`/workouts/${w.id}`, body)); } catch (e) { toast(e.message, 'err'); } };
   return (
     <Page title={w.name} subtitle={fmtDay(w.date)} back={() => nav(-1)}
@@ -32,15 +39,20 @@ export default function WorkoutDetail() {
         </Card>
       )}
       {w.exercises.map((ex) => (
-        <Card key={`${ex.position}-${ex.exercise_id}`} title={ex.name}>
-          <table className="sets-table"><thead><tr><th>Série</th><th>{ex.kind === 'assisted' ? 'Assistance' : 'Charge'}</th><th>Reps</th></tr></thead>
+        <Card key={`${ex.position}-${ex.exercise_id}`} title={ex.name}
+          action={edit ? <button className="btn xs ghost" onClick={() => setPicker({ ex, title: `Changer ${ex.name}` })}><Icon name="skip" size={14} />Changer</button> : null}>
+          <table className="sets-table"><thead><tr><th>Série</th><th>{ex.kind === 'assisted' ? 'Assistance' : 'Charge'}</th><th>Reps</th>{edit && <th />}</tr></thead>
             <tbody>{ex.sets.map((s) => (
               <tr key={s.id}><td>{s.set_index}</td>
                 <td>{edit ? <Cell value={s.weight} onSave={(v) => saveSet(s, 'weight', v)} /> : `${s.weight ?? 'PDC'} ${s.weight != null ? s.weight_unit : ''}`}</td>
-                <td>{edit ? <Cell value={s.reps} onSave={(v) => saveSet(s, 'reps', v == null ? null : Math.round(v))} /> : <>{s.reps ?? '—'}{s.target_reps && s.reps < s.target_reps ? <span className="warn-text small"> / {s.target_reps}</span> : null}</>}</td></tr>
+                <td>{edit ? <Cell value={s.reps} onSave={(v) => saveSet(s, 'reps', v == null ? null : Math.round(v))} /> : <>{s.reps ?? '—'}{s.target_reps && s.reps < s.target_reps ? <span className="warn-text small"> / {s.target_reps}</span> : null}</>}</td>
+                {edit && <td><button className="icon-btn sm" aria-label="Supprimer la série" onClick={() => (ex.sets.length > 1 ? run(() => del(`/workouts/${w.id}/sets/${s.id}`)) : setRmEx(ex))}><Icon name="trash" size={15} /></button></td>}</tr>
             ))}</tbody></table>
+          {edit && <div className="row gap-s wrap mt-s"><button className="btn xs ghost" onClick={() => run(() => post(`/workouts/${w.id}/sets`, { exercise_id: ex.exercise_id, position: ex.position }))}><Icon name="plus" size={14} />Série</button>
+            <button className="btn xs ghost danger-text" onClick={() => setRmEx(ex)}>Retirer l’exercice</button></div>}
         </Card>
       ))}
+      {edit && <button className="btn block dashed" onClick={() => setPicker({ title: 'Ajouter un exercice' })}><Icon name="plus" size={16} />Ajouter un exercice oublié</button>}
       <Card title="Notes">
         {edit ? (<>
           <Field label={`Effort ressenti : ${w.rpe ?? '—'}/10`}><input type="range" min="1" max="10" defaultValue={w.rpe ?? 7} onMouseUp={(e) => saveMeta({ rpe: Number(e.target.value) })} onTouchEnd={(e) => saveMeta({ rpe: Number(e.target.value) })} /></Field>
@@ -48,6 +60,9 @@ export default function WorkoutDetail() {
         </>) : <p className={w.notes ? '' : 'muted'}>{w.notes || 'Aucune note.'}</p>}
       </Card>
       <button className="btn ghost danger-text block" onClick={() => setConfirm(true)}><Icon name="trash" size={16} />Supprimer cette séance</button>
+      <ExercisePicker open={!!picker} onClose={() => setPicker(null)} title={picker?.title} like={picker?.ex} onPick={pick} />
+      <Confirm open={!!rmEx} onClose={() => setRmEx(null)} danger title={`Retirer ${rmEx?.name || ''} ?`} confirmLabel="Retirer" text="Ses séries seront retirées de cette séance, de l’historique et des statistiques."
+        onConfirm={() => run(() => post(`/workouts/${w.id}/exercises/remove`, { position: rmEx.position, exercise_id: rmEx.exercise_id }))} />
       <Confirm open={confirm} onClose={() => setConfirm(false)} danger title="Supprimer la séance ?" confirmLabel="Supprimer" text="Toutes ses séries seront supprimées de l’historique et des statistiques."
         onConfirm={async () => { try { await del(`/workouts/${w.id}`); toast('Séance supprimée'); nav('/', { replace: true }); } catch (e) { toast(e.message, 'err'); } }} />
     </Page>

@@ -35,12 +35,12 @@ function buildSession(day, profile, deload = false) {
       pe_id: pe.id, exercise_id: pe.exercise_id, name: pe.name, kind: pe.kind, unit: pe.weight_unit, technique: pe.technique, superset: pe.superset_group,
       pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note, lib_id: pe.lib_id,
       target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
-      last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight ?? 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
+      last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight != null ? Math.round(s.weight * 10) / 10 : 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
       best: pe.best || null, sugg: deload ? null : suggestNext(pe),
       // Deload : moitié des séries, charge ~-10 % (assistance +10 %), arrondie au pas de 5 lbs / 2,5 kg
       sets: Array.from({ length: deload ? Math.max(1, Math.floor(pe.sets / 2)) : pe.sets }, (_, i) => {
         const ls = lastSets[i] || lastSets.at(-1);
-        let w = ls?.weight ?? pe.target_weight ?? null;
+        let w = ls?.weight ?? pe.target_weight ?? null; if (w != null) w = Math.round(w * 10) / 10;
         if (deload && w != null && pe.kind !== 'bodyweight') { const step = pe.weight_unit === 'kg' ? 2.5 : 5; w = Math.round((pe.kind === 'assisted' ? w * 1.1 : w * 0.9) / step) * step; }
         return { weight: w, reps: pe.reps ?? ls?.reps ?? null, done: false };
       }),
@@ -61,7 +61,7 @@ export default function Workout() {
   const [s, setS] = useState(() => { const a = store.get(KEY); return a && String(a.dayId) === String(dayId) ? a : null; });
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
-  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [demo, setDemo] = useState(null);
+  const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [rmIt, setRmIt] = useState(null); const [demo, setDemo] = useState(null);
   const blockRefs = useRef([]);
 
   useEffect(() => {
@@ -100,10 +100,10 @@ export default function Workout() {
   if (error) return <ErrorBox error={error} />;
   if (!s) return <Loading />;
 
-  const total = s.items.reduce((a, it) => a + it.sets.length, 0);
-  const done = s.items.reduce((a, it) => a + it.sets.filter((x) => x.done).length, 0);
+  const total = s.items.reduce((a, it) => a + (it.removed ? 0 : it.sets.length), 0);
+  const done = s.items.filter((it) => !it.removed).reduce((a, it) => a + it.sets.filter((x) => x.done).length, 0);
   const elapsed = (now - new Date(s.startedAt).getTime()) / 1000;
-  const blockDone = (b) => b.items.every((i) => s.items[i].sets.every((x) => x.done));
+  const blockDone = (b) => b.items.every((i) => s.items[i].removed || s.items[i].sets.every((x) => x.done));
   const cardio = s.cardio || [];
   const cardioDone = cardio.filter((c) => c.done).length;
   const saveCardio = async (ci) => {
@@ -153,15 +153,15 @@ export default function Workout() {
       set.pr = isRecord(prev, set);
       const block = y.blocks[bi];
       // En superset, le repos démarre quand le tour est complet
-      const roundDone = block.items.every((k) => !y.items[k].sets[si] || y.items[k].sets[si].done);
-      const allDone = block.items.every((k) => y.items[k].sets.every((x) => x.done));
+      const roundDone = block.items.every((k) => y.items[k].removed || !y.items[k].sets[si] || y.items[k].sets[si].done);
+      const allDone = block.items.every((k) => y.items[k].removed || y.items[k].sets.every((x) => x.done));
       if (roundDone) {
-        const rest = Math.max(...block.items.map((k) => y.items[k].rest));
+        const rest = Math.max(...block.items.filter((k) => !y.items[k].removed).map((k) => y.items[k].rest));
         y.rest = { endsAt: Date.now() + rest * 1000, duration: rest };
       }
       if (allDone) {
-        const next = y.blocks.findIndex((b, k) => k > bi && !b.items.every((m) => y.items[m].sets.every((x) => x.done)));
-        const any = next === -1 ? y.blocks.findIndex((b) => !b.items.every((m) => y.items[m].sets.every((x) => x.done))) : next;
+        const next = y.blocks.findIndex((b, k) => k > bi && !b.items.every((m) => y.items[m].removed || y.items[m].sets.every((x) => x.done)));
+        const any = next === -1 ? y.blocks.findIndex((b) => !b.items.every((m) => y.items[m].removed || y.items[m].sets.every((x) => x.done))) : next;
         if (any !== -1) { y.current = any; setTimeout(() => blockRefs.current[any]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350); }
         else y.rest = null;
       }
@@ -180,7 +180,12 @@ export default function Workout() {
   });
   const pick = (e) => {
     const p = picker; setPicker(null);
-    if (p.ii != null) { update((y) => { y.items[p.ii] = fromLib(e, y.items[p.ii]); }); toast(`${e.name} remplace l’exercice pour aujourd’hui`); return; }
+    if (p.ii != null) {
+      const started = s.items[p.ii].sets.some((x) => x.done);
+      // Séries déjà faites : on garde charges et reps, seul le nom de l'exercice change (erreur de saisie, machine différente…)
+      update((y) => { const old = y.items[p.ii]; const n = fromLib(e, old); if (started) { n.sets = old.sets.map((x) => ({ ...x, pr: false })); n.unit = old.unit; } y.items[p.ii] = n; });
+      toast(started ? `Séries déjà faites gardées, rangées sous ${e.name}` : `${e.name} remplace l’exercice pour aujourd’hui`); return;
+    }
     update((y) => { y.items.push(fromLib(e)); y.blocks.push({ items: [y.items.length - 1] }); y.current = y.blocks.length - 1; });
     setTimeout(() => blockRefs.current[blockRefs.current.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
   };
@@ -197,7 +202,7 @@ export default function Workout() {
   const save = async () => {
     setSaving(true);
     const sets = [];
-    s.items.forEach((it, pos) => it.sets.forEach((x, i) => { if (x.done) sets.push({ exercise_id: it.exercise_id, program_exercise_id: it.pe_id, position: pos, set_index: i + 1, weight: x.weight === '' ? null : x.weight, weight_unit: it.unit, reps: x.reps, target_reps: it.target.reps, completed: true }); }));
+    s.items.forEach((it, pos) => !it.removed && it.sets.forEach((x, i) => { if (x.done) sets.push({ exercise_id: it.exercise_id, program_exercise_id: it.pe_id, position: pos, set_index: i + 1, weight: x.weight === '' ? null : x.weight, weight_unit: it.unit, reps: x.reps, target_reps: it.target.reps, completed: true }); }));
     if (!sets.length && cardioDone) { store.del(KEY); toast('Séance cardio enregistrée'); nav('/cardio', { replace: true }); return; }
     if (!sets.length) { toast(cardio.length ? 'Valide au moins une série ou ton cardio avant d’enregistrer' : 'Valide au moins une série avant d’enregistrer', 'err'); setSaving(false); return; }
     const body = { client_id: s.clientId, program_day_id: s.dayId, name: s.name, date: s.date, started_at: s.startedAt, ended_at: new Date().toISOString(), duration_sec: Math.round(elapsed), rpe: s.rpe, notes: s.notes, sets };
@@ -223,11 +228,12 @@ export default function Workout() {
       {cardio.map((c, ci) => (c.placement === 'debut' ? cardioCard(c, ci) : null))}
 
       {s.blocks.map((b, bi) => {
+        if (b.items.every((i) => s.items[i].removed)) return null;
         const open = bi === s.current; const finished = blockDone(b);
         return (
           <section key={bi} ref={(el) => { blockRefs.current[bi] = el; }} className={`wk-block card ${open ? 'open' : ''} ${finished ? 'finished' : ''}`}>
             {b.items.length > 1 && <p className="eyebrow">Superset · {b.items.length} exercices en alternance</p>}
-            {b.items.map((ii) => {
+            {b.items.filter((ii) => !s.items[ii].removed).map((ii) => {
               const it = s.items[ii];
               return (
                 <div key={ii} className="wk-ex">
@@ -275,7 +281,8 @@ export default function Workout() {
                     ))}
                     <div className="row gap-s wrap mt-s"><button className="btn xs ghost" onClick={() => addSet(ii)}><Icon name="plus" size={14} />Série</button>{it.sets.length > 1 && <button className="btn xs ghost" onClick={() => removeSet(ii)}>Retirer une série</button>}
                       {it.kind === 'weighted' && <button className={`btn xs ghost ${warm[ii] ? 'on' : ''}`} onClick={() => setWarm({ ...warm, [ii]: !warm[ii] })}><Icon name="flame" size={14} />Échauffement</button>}
-                      {!it.sets.some((x) => x.done) && <button className="btn xs ghost" onClick={() => setPicker({ ii, like: it, title: `Remplacer ${it.name}` })}><Icon name="skip" size={14} />Remplacer</button>}</div>
+                      <button className="btn xs ghost" onClick={() => setPicker({ ii, like: it, title: it.sets.some((x) => x.done) ? `Changer ${it.name} (séries gardées)` : `Remplacer ${it.name}` })}><Icon name="skip" size={14} />{it.sets.some((x) => x.done) ? 'Changer' : 'Remplacer'}</button>
+                      <button className="btn xs ghost danger-text" onClick={() => setRmIt(ii)}>Retirer</button></div>
                   </>)}
                 </div>
               );
@@ -304,7 +311,7 @@ export default function Workout() {
       <Sheet open={finishing} onClose={() => setFinishing(false)} title="Terminer la séance"
         footer={<><button className="btn ghost" onClick={() => setFinishing(false)}>Continuer</button><button className="btn primary" disabled={saving} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer la séance'}</button></>}>
         <div className="summary"><div><b>{clock(elapsed)}</b><span>durée</span></div><div><b>{done}/{total}</b><span>séries</span></div>
-          <div><b>{s.items.filter((it) => it.sets.some((x) => x.done)).length}</b><span>exercices</span></div></div>
+          <div><b>{s.items.filter((it) => !it.removed && it.sets.some((x) => x.done)).length}</b><span>exercices</span></div></div>
         {done < total && <p className="warn-text small">{total - done} série(s) non validée(s) : elles ne seront pas enregistrées.</p>}
         {cardio.some((c) => !c.done) && <p className="warn-text small">Cardio pas encore validé : touche « Cardio fait » avant de terminer pour qu’il compte.</p>}
         <Field label={`Effort ressenti global : ${s.rpe ?? '—'}/10`} hint="1 = très facile · 10 = effort maximal. Sert au calcul de ta récupération.">
@@ -315,6 +322,9 @@ export default function Workout() {
       </Sheet>
       <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
       <ExercisePicker open={!!picker} onClose={() => setPicker(null)} title={picker?.title} like={picker?.like} onPick={pick} />
+      <Confirm open={rmIt != null} onClose={() => setRmIt(null)} danger title={`Retirer ${rmIt != null ? s.items[rmIt].name : ''} ?`} confirmLabel="Retirer"
+        text="Il sort de la séance d’aujourd’hui, ses séries ne seront pas enregistrées. Ton programme ne change pas."
+        onConfirm={() => update((y) => { y.items[rmIt].removed = true; const bi = y.blocks.findIndex((b) => b.items.includes(rmIt)); if (bi === y.current) { const nx = y.blocks.findIndex((b) => b.items.some((k) => !y.items[k].removed && !y.items[k].sets.every((x) => x.done))); if (nx !== -1) y.current = nx; } })} />
       <Confirm open={cancel} onClose={() => setCancel(false)} danger title="Abandonner la séance ?" confirmLabel="Abandonner" text="Les séries saisies seront perdues."
         onConfirm={() => { store.del(KEY); nav('/'); }} />
     </div>
