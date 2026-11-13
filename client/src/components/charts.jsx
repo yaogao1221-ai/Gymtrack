@@ -13,7 +13,7 @@ window.addEventListener('gt-theme', syncChartTheme);
 C.defaults.font.family = '"Inter", system-ui, sans-serif';
 C.defaults.font.size = 11;
 
-export const COLORS = { lime: '#F75A17', mint: '#1FAE57', blue: '#3B7BF2', orange: '#E8A100', pink: '#D946EF', violet: '#7C5CF5' };
+export const COLORS = { lime: '#DE4E14', mint: '#2E8B5A', blue: '#3F5F86', orange: '#B08400', pink: '#9A6B5B', violet: '#6A5E9E' };
 // Paires de dégradé associées à chaque couleur
 const PAIR = {}; // aplats : une couleur par série
 const vgrad = (color, alphaTop = 'ff', alphaBottom = 'ff') => (ctx) => {

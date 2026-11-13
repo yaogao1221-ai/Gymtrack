@@ -32,6 +32,7 @@ export default function Dashboard() {
       </header>
 
       <CoachHero fallbackNext={d.next} />
+      <CoachInbox />
 
       {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
       <MiniMap />
@@ -52,18 +53,12 @@ export default function Dashboard() {
         {weigh && <Field label="Poids (kg)" hint="Idéalement le matin, à jeun : la moyenne sur 7 jours lisse les variations d’eau."><NumInput value={weigh.weight_kg} onChange={(v) => setWeigh({ ...weigh, weight_kg: v })} step={0.1} autoFocus /></Field>}
       </Sheet>
 
-      <section className="card week-rings">
-        <ActivityRings size={120} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))} />
-        <ul className="ring-legend">
-          <li className="ring-total"><span>Ma semaine</span><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)} %</b></li>
-          {rings.map((r) => (
-            <li key={r.label}>
-              <i style={{ background: `linear-gradient(135deg, ${GRADS[r.grad][0]}, ${GRADS[r.grad][1]})` }} />
-              <span>{r.label}</span>
-              <b>{r.text}</b>
-            </li>
-          ))}
-        </ul>
+      <section className="card home-week">
+        <div className="card-head"><h2>Ma semaine</h2><Link className="link small" to="/coach">Bilan du coach</Link></div>
+        <div className="hw-row">{rings.map((r) => (
+          <div key={r.label}><span className="eyebrow">{r.label}</span><b className="num-l">{r.text.split(' / ')[0]}<span className="unit-s">/ {r.text.split(' / ')[1]}</span></b>
+            <div className={`bar thin ${r.value >= 1 ? 'done' : ''}`}><span style={{ width: `${Math.min(100, Math.round(r.value * 100))}%` }} /></div></div>
+        ))}</div>
       </section>
 
       <section id="calendrier"><Suspense fallback={<Loading />}><CalendarView home /></Suspense></section>
@@ -89,6 +84,15 @@ export default function Dashboard() {
   );
 }
 
+// Ce qui attend ta validation dans l'espace Coach : une ligne, pas une carte de plus
+function CoachInbox() {
+  const { data } = useApi('/coach/inbox'); const n = data?.items.length || 0;
+  if (!n) return null; const first = data.items[0];
+  return (
+    <Link to="/coach#valider" className="home-inbox"><span className="hi-n">{n}</span><span className="grow"><span className="eyebrow">À valider avec le coach</span><b>{first.title}</b><span className="muted small">{first.state_label}{n > 1 ? ` · et ${n - 1} autre${n > 2 ? 's' : ''}` : ''}</span></span><Icon name="right" size={18} /></Link>
+  );
+}
+
 // Coach du jour : une seule consigne claire, ce qui compte aujourd'hui, et le bouton pour y aller
 function CoachHero({ fallbackNext }) {
   const { data: c } = useApi('/coach/today'); const nav = useNavigate();
@@ -98,7 +102,6 @@ function CoachHero({ fallbackNext }) {
   return (
     <section className={`hero card coach-hero k-${c.kind}`}>
       <div className="hero-glow" />
-      {(c.kind === 'workout' || c.kind === 'free') && <IconStrength size={84} className="hero-art" />}
       <p className="eyebrow">{eyebrow}</p>
       <h2 className="hero-title">{c.headline}</h2>
       {c.sub && <p className="muted small">{c.sub}</p>}

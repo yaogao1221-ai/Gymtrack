@@ -255,6 +255,16 @@ export function ask(db, today, id, opts = {}) {
   }
   if (id === 'stagnate' || id === 'regress') {
     const list = stagnationReport(db, today, opts.exercise_id ? Number(opts.exercise_id) : null);
+    if (opts.exercise_id) {
+      const x = list[0];
+      if (!x) { res.headline = 'Cet exercice n’est pas dans ton programme actuel.'; return res; }
+      if (x.status === 'insuffisant') { res.headline = 'Pas encore assez de séances pour juger.'; P(x.text); return res; }
+      res.headline = { progresse: `${x.exercise} progresse.`, stagne: `${x.exercise} stagne.`, regresse: `${x.exercise} est en baisse.` }[x.status];
+      P(x.text, x.status === 'progresse' ? 'good' : 'warn');
+      x.causes.forEach((c) => P(c.text, 'muted')); x.actions.forEach((a) => P(`→ ${a}`));
+      E('Séances analysées', x.sessions); E('Évolution', pct(x.change_pct));
+      return res;
+    }
     const bad = list.filter((x) => (id === 'regress' ? x.status === 'regresse' : x.status === 'stagne' || x.status === 'regresse'));
     if (!list.length || list.every((x) => x.status === 'insuffisant')) { res.headline = 'Pas encore assez de séances pour juger.'; P('Il faut au moins 3 séances du même exercice sur les 10 dernières semaines.'); return res; }
     if (!bad.length) { res.headline = id === 'regress' ? 'Aucun exercice ne régresse.' : 'Tu ne stagnes pas : tes exercices progressent.'; list.filter((x) => x.status === 'progresse').slice(0, 4).forEach((x) => P(`${x.exercise} : ${x.text}`, 'good')); return res; }

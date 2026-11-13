@@ -32,6 +32,8 @@ export function coachCue(it, si) {
     return { tone: 'good', text: `${pre}${reps} reps pour ${target} : trop facile. Passe à ${fmt(nw)} pour la prochaine série.`, action: { type: 'set', weight: nw, label: `Mettre ${fmt(nw)}` } };
   }
   if (reps >= target) {
+    // Même moteur que le briefing : si une hausse était proposée et pas appliquée, on la rappelle au lieu de dire « garde »
+    if (remaining > 0 && it.sugg?.up && !it.applied && it.sugg.weight != null && w != null && it.sugg.weight !== w) return { tone: 'good', text: `${pre}Objectif atteint (${reps}/${target}). ${it.sugg.state_label} : ${fmt(it.sugg.weight)} pour les séries restantes, si la technique reste propre.`, action: { type: 'set', weight: it.sugg.weight, label: `Mettre ${fmt(it.sugg.weight)}` } };
     if (remaining > 0) return { tone: 'good', text: `${pre}Objectif atteint (${reps}/${target}). Garde ${bw ? 'le rythme' : fmt(w)}, même technique.` };
     const all = it.sets.every((x) => x.done && Number(x.reps) >= target);
     return { tone: 'good', text: `${pre}${all ? 'Toutes les séries réussies : je te proposerai une hausse au débrief.' : 'Exercice terminé.'}` };
@@ -257,7 +259,7 @@ export default function Workout() {
   };
 
   return (
-    <div className="workout fade-in">
+    <div className={`workout fade-in ${s.rest ? 'resting' : ''}`}>
       <header className="wk-head">
         <button className="icon-btn" onClick={() => nav('/')} aria-label="Réduire (la séance reste en cours)"><Icon name="left" /></button>
         <div className="wk-title"><b>{s.name}</b><span>{s.focus}</span></div>
@@ -265,6 +267,12 @@ export default function Workout() {
         <button className="btn primary sm" onClick={() => setFinishing(true)}>Terminer</button>
       </header>
       <div className="wk-progress"><span style={{ width: `${total ? (done / total) * 100 : (cardio.length ? (cardioDone / cardio.length) * 100 : 0)}%` }} /></div>
+      {s.briefed && s.blocks.length > 1 && <nav className="wk-strip" aria-label="Exercices">{s.blocks.map((b, bi) => {
+        const its = b.items.filter((i) => !s.items[i].removed); if (!its.length) return null;
+        const d = its.reduce((a, i) => a + s.items[i].sets.filter((x) => x.done).length, 0); const t = its.reduce((a, i) => a + s.items[i].sets.length, 0);
+        return <button key={bi} className={`${bi === s.current ? 'on' : ''} ${d === t ? 'ok' : ''}`} onClick={() => { update((y) => { y.current = bi; }); setTimeout(() => blockRefs.current[bi]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }}>
+          <span className="ws-n">{d === t ? <Icon name="check" size={13} stroke={3} /> : String(bi + 1).padStart(2, '0')}</span><span className="ws-name">{its.map((i) => s.items[i].name).join(' + ')}</span><span className="ws-c">{d}/{t}</span></button>;
+      })}</nav>}
       <p className="muted small center">{total ? `${done} / ${total} séries validées` : ''}{cardio.length ? `${total ? ' · ' : ''}cardio ${cardioDone}/${cardio.length}` : ''}</p>
       {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} painOf={painOf} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
         : done === 0 && <button className="link small brief-reopen" onClick={() => update((y) => { y.briefed = false; })}>Revoir le briefing</button>}
@@ -293,7 +301,7 @@ export default function Workout() {
                       {it.lib_id && <button className="link small" onClick={() => setDemo(it.lib_id)}>Démo</button>}
                     </div>
                     {it.sugg && !it.applied && !it.sets.some((x) => x.done) && (
-                      <div className="sugg"><Icon name={it.sugg.down ? 'down' : it.sugg.hold ? 'info' : 'up'} size={16} /><span className="grow">{(it.sugg.up || it.sugg.down) && <span className="tag">{it.sugg.state_label}</span>}<b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
+                      <div className="sugg"><Icon name={it.sugg.down ? 'down' : it.sugg.hold ? 'info' : 'up'} size={16} /><span className="grow">{(it.sugg.up || it.sugg.down) && <span className="sugg-state">{it.sugg.state_label}</span>}<b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
                         <button className="btn xs" onClick={() => update((y) => { y.items[ii].sets.forEach((x) => { if (!x.done) { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; } }); })}>Appliquer</button></div>
                     )}
                     {it.replaced && <p className="muted small">Remplace {it.replaced} aujourd’hui (ton programme ne change pas).</p>}

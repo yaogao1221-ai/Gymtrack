@@ -55,6 +55,8 @@ function Overview() {
       </>) : <Empty icon="chart" title="Pas encore assez de séances">La courbe apparaît dès 2 séances sur un même exercice avec charge.</Empty>}
     </Card>
 
+    <StagnationList />
+
     <Card title="Séries par muscle et par semaine" icon="body">
       <p className="muted small">Moyenne des 4 dernières semaines. La bande verte est la zone idéale pour ton niveau ({data.range.low} à {data.range.high} séries).</p>
       <ul className="mbars">{[...data.muscles].sort((a, b) => b.sets - a.sets).map((m) => {
@@ -108,6 +110,34 @@ function Heat({ heat }) {
   );
 }
 
+// Stagnations : même moteur que l'espace Coach (4 dernières séances de chaque exercice du programme)
+function StagnationList() {
+  const { data } = useApi('/coach/stagnation');
+  if (!data?.length) return null;
+  const lbl = { progresse: 'Progresse', stagne: 'Stagne', regresse: 'En baisse', insuffisant: '—' };
+  return (
+    <Card title="Où en est chaque exercice" action={<Link className="link small" to="/coach">Diagnostic</Link>}>
+      <p className="muted small">Les 4 dernières séances de chaque exercice du programme : début contre fin.</p>
+      <ul className="stag-list">{data.map((x) => (
+        <li key={x.exercise_id} className={x.status}><span className="grow"><b>{x.exercise}</b>{x.status !== 'progresse' && x.causes[0] && <span className="small muted">{x.causes[0].text}</span>}</span>
+          <span className="sl-tag">{lbl[x.status]}</span><span className="sl-pct">{x.change_pct > 0 ? '+' : ''}{n1(x.change_pct)} %</span></li>
+      ))}</ul>
+    </Card>
+  );
+}
+
+function ExerciseDiag({ id }) {
+  const [a, setA] = useState(null);
+  useEffect(() => { setA(null); if (id) get(`/coach/ask/stagnate?exercise_id=${id}`).then(setA).catch(() => {}); }, [id]);
+  if (!a) return null;
+  return (
+    <Card title="Diagnostic du coach">
+      <p className="cs-ans-head">{a.headline}</p>
+      {a.points.length > 0 && <ul className="cs-points">{a.points.map((p, i) => <li key={i} className={p.tone}>{p.text}</li>)}</ul>}
+    </Card>
+  );
+}
+
 function ExerciseTab() {
   const ov = useApi('/stats/overview?weeks=4');
   const program = useApi('/program');
@@ -136,6 +166,7 @@ function ExerciseTab() {
           <LineChart labels={labels} beginAtZero series={[{ label: 'Meilleure série', data: pts.map((p) => p.best_reps), color: COLORS.blue }, { label: 'Moyenne / série', data: pts.map((p) => p.avg_reps), color: COLORS.pink }]} />
         </Card>
       </div>
+      <ExerciseDiag id={id} />
       <Card title="Détail par séance">
         <table className="sets-table"><thead><tr><th>Date</th><th>{assisted ? 'Assist.' : 'Charge'}</th><th>Reps tot.</th><th>Volume</th></tr></thead>
           <tbody>{[...pts].reverse().map((p, i) => <tr key={i}><td>{fmtDate(p.date)}</td><td>{p.top_weight ?? 'PDC'} {p.top_weight != null ? p.unit : ''}</td><td>{p.total_reps}</td><td>{n0(p.volume)}</td></tr>)}</tbody></table>
