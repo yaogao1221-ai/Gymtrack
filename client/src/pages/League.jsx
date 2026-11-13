@@ -76,6 +76,8 @@ function Board({ m, onLeft }) {
     loadFeed();
   }, [loadFeed]);
   useEffect(() => { load(); }, [load]);
+  // Les badges débloqués depuis la dernière visite s'animent une fois, puis sont marqués comme vus
+  useEffect(() => { if (!data) return; const t = setTimeout(() => { try { localStorage.setItem('gt_badges_seen', JSON.stringify(data.summary.badges.filter((b) => b.got).map((b) => b.id))); } catch { /* */ } }, 4000); return () => clearTimeout(t); }, [data]);
   useEffect(() => { if (view === 'feed' && feed[0]) { markFeedSeen(feed[0].created_at); } }, [view, feed]);
   const fresh = feed.filter((p) => p.author !== m.member_id && p.created_at > seen).length;
   const compose = (target, tone) => setDraft({ target, tone, n: Date.now() });
@@ -85,6 +87,7 @@ function Board({ m, onLeft }) {
   if (!data) return <Page title="Ligue"><Card><p className="warn-text small">{error}</p><button className="btn sm" onClick={load}>Réessayer</button></Card></Page>;
 
   const { summary, board } = data;
+  const seenBadges = (() => { try { return JSON.parse(localStorage.getItem('gt_badges_seen') || '[]'); } catch { return []; } })();
   const cur = summary.periods.find((p) => p.kind === kind && p.current);
   const prev = summary.periods.find((p) => p.kind === kind && !p.current);
   const category = CATEGORIES.find((c) => c.id === cat);
@@ -93,7 +96,7 @@ function Board({ m, onLeft }) {
   const dayCur = summary.periods.find((p) => p.kind === 'day' && p.current); const dayPrev = summary.periods.find((p) => p.kind === 'day' && !p.current);
   const dayLeader = dayCur ? ranking(board, dayCur.key, CATEGORIES[0])[0] : null; const dayWinner = dayPrev ? ranking(board, dayPrev.key, CATEGORIES[0])[0] : null;
   const fmt = (c, v) => (c.fmt ? c.fmt(v) : Math.round(v).toLocaleString('fr-FR'));
-  const titles = ['points', 'km', 'iron'].map((id) => {
+  const titles = ['points', 'progress', 'km'].map((id) => {
     const c = CATEGORIES.find((x) => x.id === id); const r = ranking(board, prev.key, c);
     return { c, winner: r[0]?.value > 0 ? r[0] : null };
   });
@@ -145,9 +148,10 @@ function Board({ m, onLeft }) {
 
       <Challenges board={board} me={m.member_id} list={challenges} keys={chKeys} onChanged={loadChallenges} />
       <Card title={`Classement de la ${label}`} icon="chart">
-        <div className="chips mb">
+        <div className="chips scroll mb">
           {CATEGORIES.map((c) => <button key={c.id} className={`chip ${cat === c.id ? 'on' : ''}`} onClick={() => setCat(c.id)}>{c.label}</button>)}
         </div>
+        <p className="muted small">{category.hint}</p>
         <Podium rows={rows} me={m.member_id} unit={category.unit} fmt={(v) => fmt(category, v)} />
         <ol className="rank-list" start={4}>
           {rows.slice(3).map((r, i) => (
@@ -174,14 +178,17 @@ function Board({ m, onLeft }) {
 
       <Card title="Mes badges" icon="sparkles">
         <div className="badges">
-          {summary.badges.map((b) => { const [glyph, tone] = BADGE_ART[b.id] || ['record', 'violet']; return <div key={b.id} className={`badge3d ${b.got ? 'got' : ''}`}><Badge3D unlocked={b.got} glyph={glyph} tone={tone} label={b.label} size={68} /><span className="small">{b.label}</span></div>; })}
+          {summary.badges.map((b) => { const [glyph, tone] = BADGE_ART[b.id] || ['record', 'violet']; const fresh = b.got && !seenBadges.includes(b.id); return <div key={b.id} className={`badge3d ${b.got ? 'got' : 'locked'} ${fresh ? 'unlock' : ''}`}><Badge3D unlocked={b.got} glyph={glyph} tone={tone} label={b.label} size={68} /><span className="small"><b>{b.label}</b></span><span className="xs muted">{b.cond}</span>
+            {!b.got && b.goal != null && <><div className="bar thin"><span style={{ width: `${Math.round((b.cur / b.goal) * 100)}%` }} /></div><span className="xs muted">{Number(b.cur).toLocaleString('fr-FR')} / {Number(b.goal).toLocaleString('fr-FR')}</span></>}
+            {fresh && <span className="xs unlock-tag">Débloqué !</span>}</div>; })}
         </div>
         <p className="muted small mt">Série en cours : {summary.streak} semaine{summary.streak > 1 ? 's' : ''} d’affilée avec au moins une séance.</p>
       </Card>
 
       <Fold title="Barème" icon="info">
-        <p className="small">Séance muscu {POINTS.workout} pts · 1 km de cardio {POINTS.km} pts · record battu {POINTS.record} pts · 1 000 pas {POINTS.steps1000} pt.</p>
-        <p className="muted small">Iron : séances × {POINTS.workout} + séries validées + records × {POINTS.record}. Les records comptent ta progression à toi, donc un débutant peut battre un costaud.</p>
+        <p className="small"><b>Général, sur 100</b> : régularité 40 % (tes séances par rapport à <i>ton</i> objectif), progression 30 % (part de tes exercices où tu bats ton propre record), participation 30 % (jours actifs, 6 sur 7 suffisent).</p>
+        <p className="small">Faire plus que ton objectif ne rapporte rien de plus, et un jour de repos ne coûte rien : le classement récompense la constance et le progrès, pas le volume. Un débutant peut battre un costaud.</p>
+        <ul className="small rules-list">{CATEGORIES.map((c) => <li key={c.id}><b>{c.label}</b> : {c.hint}</li>)}</ul>
         <button className="btn xs ghost mt" onClick={() => setLeave(true)}>Quitter la ligue</button>
       </Fold>
       </>}

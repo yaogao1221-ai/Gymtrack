@@ -31,11 +31,16 @@ export default function leagueRoutes(db) {
   const r = Router();
   // Bilan à partager avec la ligue : uniquement des totaux, jamais le détail des séances
   r.get('/league/summary', (req, res) => {
-    const records = allRecords(db);
+    const records = allRecords(db); const profile = getProfile(db);
     const periods = leaguePeriods(req.today).map((p) => {
       const s = periodStats(db, p.from, p.to);
       const prs = records.filter((x) => x.date >= p.from && x.date <= p.to).length;
-      const stats = { km: s.cardio_km, cardio_min: s.cardio_minutes, cardio_n: s.cardio_sessions, workouts: s.workouts, sets: s.sets, prs };
+      // Classements équitables : objectif personnel, jours actifs, part d'exercices en progrès (jamais le détail des séances)
+      const active = db.one(`SELECT COUNT(DISTINCT d) n FROM (SELECT date d FROM workouts WHERE user_id = ? AND date BETWEEN ? AND ? UNION SELECT date FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?)`, USER_ID, p.from, p.to, USER_ID, p.from, p.to).n;
+      const trainedIds = db.all('SELECT DISTINCT s.exercise_id id FROM workout_sets s JOIN workouts w ON w.id = s.workout_id WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ?', USER_ID, p.from, p.to).map((x) => x.id);
+      const improvedIds = new Set(records.filter((x) => x.date >= p.from && x.date <= p.to).map((x) => x.exercise_id));
+      const stats = { km: s.cardio_km, cardio_min: s.cardio_minutes, cardio_n: s.cardio_sessions, workouts: s.workouts, sets: s.sets, prs,
+        target: profile.sessions_per_week || 4, active_days: active, trained: trainedIds.length, improved: trainedIds.filter((id) => improvedIds.has(id)).length };
       return { ...p, stats };
     });
     // Badges personnels (cumul depuis le début)
@@ -45,16 +50,18 @@ export default function leagueRoutes(db) {
       const s = periodStats(db, ws, addDays(ws, 6));
       if (s.workouts + s.cardio_sessions > 0) streak++; else if (i > 0) break;
     }
+    // Badges : condition claire, progression chiffrée, verrouillé ou débloqué. Aucun ne récompense le volume pur.
+    const B = (id, label, cond, cur, goal) => ({ id, label, cond, cur: Math.min(cur, goal), goal, got: cur >= goal });
     const badges = [
-      { id: 'first', label: 'Première séance', got: all.workouts >= 1 },
-      { id: 'w10', label: '10 séances muscu', got: all.workouts >= 10 },
-      { id: 'w50', label: '50 séances muscu', got: all.workouts >= 50 },
-      { id: 'km42', label: 'Marathon cumulé (42 km)', got: all.cardio_km >= 42.2 },
-      { id: 'km100', label: '100 km de cardio', got: all.cardio_km >= 100 },
-      { id: 'pr5', label: '5 records battus', got: records.length >= 5 },
-      { id: 'pr20', label: '20 records battus', got: records.length >= 20 },
-      { id: 'streak4', label: '4 semaines d’affilée', got: streak >= 4 },
-      { id: 'streak12', label: '12 semaines d’affilée', got: streak >= 12 },
+      B('first', 'Première séance', 'Enregistrer une séance de muscu', all.workouts, 1),
+      B('w10', '10 séances', '10 séances de muscu au total', all.workouts, 10),
+      B('w50', '50 séances', '50 séances de muscu au total', all.workouts, 50),
+      B('streak4', 'Un mois tenu', '4 semaines d’affilée avec au moins une séance', streak, 4),
+      B('streak12', 'Un trimestre tenu', '12 semaines d’affilée avec au moins une séance', streak, 12),
+      B('pr5', 'Premiers records', 'Battre 5 de tes propres records', records.length, 5),
+      B('pr20', 'En progression', 'Battre 20 de tes propres records', records.length, 20),
+      B('km42', 'Marathon cumulé', '42,2 km de cardio au total', Math.round(all.cardio_km * 10) / 10, 42.2),
+      B('km100', '100 km', '100 km de cardio au total', Math.round(all.cardio_km * 10) / 10, 100),
     ];
     res.json({ periods, streak, badges, points: POINTS });
   });

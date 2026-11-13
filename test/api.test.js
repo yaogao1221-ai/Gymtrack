@@ -112,7 +112,7 @@ test('ligue : bilan des périodes (totaux seulement), badges, semaines ISO', asy
   const w = body.periods[2];
   assert.deepEqual([w.from, w.to], ['2026-11-09', '2026-11-15']);
   assert.ok(w.stats.km >= 5.5); assert.ok(w.stats.workouts >= 1);
-  assert.deepEqual(Object.keys(w.stats).sort(), ['cardio_min', 'cardio_n', 'km', 'prs', 'sets', 'workouts']);
+  assert.deepEqual(Object.keys(w.stats).sort(), ['active_days', 'cardio_min', 'cardio_n', 'improved', 'km', 'prs', 'sets', 'target', 'trained', 'workouts'], 'que des totaux');
   assert.ok(body.badges.find((b) => b.id === 'first').got);
   assert.equal(body.periods[5].to, '2026-10-31');
 });

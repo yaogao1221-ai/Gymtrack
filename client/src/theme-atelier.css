@@ -278,3 +278,34 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .phase-bar span { border-radius: 0; }
 .int-row .int { border-radius: 3px; }
 .tabs .tab.on b, .tabs .tab b { color: var(--text) !important; } .tabs .tab:not(.on) b { color: var(--muted) !important; }
+
+/* ---------- Ligue ---------- */
+.badge3d { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
+.badge3d.locked { opacity: .75; } .badge3d.locked svg { filter: grayscale(1); opacity: .55; }
+.badge3d .bar { width: 70%; }
+.badge3d.unlock svg { animation: unlockPop 1.2s cubic-bezier(.2,1.4,.4,1) both; }
+.unlock-tag { color: var(--accent); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; animation: fadeUp .6s .6s both; }
+@keyframes unlockPop { 0% { transform: scale(.4) rotate(-12deg); filter: grayscale(1); opacity: .3; } 60% { transform: scale(1.15) rotate(4deg); } 100% { transform: scale(1) rotate(0); filter: none; opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .badge3d.unlock svg, .unlock-tag { animation: none; } }
+.sport-profile { display: grid; grid-template-columns: repeat(3, 1fr); margin: 12px 0 4px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.sport-profile > div { padding: 10px 8px 10px 0; display: flex; flex-direction: column; gap: 1px; }
+.sport-profile > div + div { border-left: 1px solid var(--line); padding-left: 10px; }
+.sport-profile dt { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.sport-profile dd { margin: 0; font-family: var(--num); font-size: 30px; font-weight: 700; line-height: 1; }
+.sport-profile dd small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.rules-list { padding-left: 16px; display: grid; gap: 4px; }
+.title-card { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.title-card b { font-family: var(--display); font-size: 20px; text-transform: uppercase; }
+.rank-list li { border-radius: 0 !important; background: transparent !important; border-top: 1px solid var(--line); }
+.rank-list li.me { box-shadow: inset 3px 0 0 var(--accent); }
+.lobby-row, .challenge { border-radius: 0 !important; }
+.day-winner { border-radius: 0 !important; background: transparent !important; border: 0 !important; border-left: 3px solid var(--gold) !important; padding-left: 12px !important; }
+.post-react { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0 4px; }
+.post-react button { border: 1px solid var(--line); background: transparent; border-radius: 3px; padding: 2px 7px; font-size: 14px; display: inline-flex; gap: 3px; align-items: center; color: var(--text); }
+.post-react button.on { border-color: var(--accent); background: var(--accent-soft); }
+.post-react button span { font-family: var(--num); font-size: 13px; font-weight: 700; }
+.post-react .pr-c { font-size: 12px; font-weight: 600; color: var(--muted); border: 0; text-decoration: underline; text-underline-offset: 3px; }
+.post-comments { border-left: 2px solid var(--line2); padding: 4px 0 6px 10px; margin: 4px 0 6px; display: grid; gap: 6px; }
+.post-comments p { margin: 0; }
+.feed .post { border-radius: 0 !important; background: transparent !important; border: 0 !important; border-top: 1px solid var(--line) !important; }

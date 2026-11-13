@@ -64,23 +64,47 @@ export async function syncBoard() {
   const summary = await get('/league/summary');
   await rpc('ligue_push', { p_member: m.member_id, p_token: m.token, p_periods: summary.periods.map(({ key, kind, from, to, stats }) => ({ key, kind, from, to, stats })) });
   const board = await rpc('ligue_board', { p_member: m.member_id, p_token: m.token, p_periods: summary.periods.map(({ key, from, to }) => ({ key, from, to })) });
+  for (const p of summary.periods) PERIOD_BY_KEY[p.key] = p;
   return { summary, board };
 }
 
-// Scores
-export const ironScore = (s) => (s ? s.workouts * POINTS.workout + s.sets + s.prs * POINTS.record : 0);
-export const totalPoints = (s, steps) => (s ? s.workouts * POINTS.workout + Math.round(s.km * POINTS.km) + s.prs * POINTS.record : 0) + Math.floor((steps || 0) / 1000) * POINTS.steps1000;
+// Scores équitables (v7) : on récompense la régularité par rapport à SON objectif, la progression et la participation,
+// pas le volume. Au-delà de l'objectif, rien de plus : s'entraîner plus que prévu ne fait pas gagner, se reposer ne fait pas perdre.
+const DAY = 86400000;
+const daysBetween = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / DAY) + 1;
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const PERIOD_BY_KEY = {};
+const per = (x) => (typeof x === 'string' ? PERIOD_BY_KEY[x] : x);
+export function elapsedDays(period) { period = per(period); if (!period) return 7; const t = todayIso(); const end = period.to < t ? period.to : t; return Math.max(1, daysBetween(period.from, end)); }
+export function regularity(s, period) {
+  if (!s) return 0; const target = s.target || 4; const exp = Math.max(1, Math.round((target * elapsedDays(period)) / 7));
+  return Math.min(1, (s.workouts + Math.min(s.cardio_n || 0, 1) * 0.5) / exp);
+}
+// Part des exercices travaillés sur la période où tu as battu ton propre record : un débutant et un costaud partent à égalité
+export const progression = (s) => (s && s.trained >= 2 ? Math.min(1, s.improved / s.trained) : null);
+// Jours actifs, plafonnés à 6 sur 7 : un jour de repos par semaine ne coûte rien
+export function participation(s, period) { if (!s) return 0; const d = elapsedDays(period); const cap = Math.max(1, Math.round(d * 6 / 7)); return Math.min(1, (s.active_days ?? Math.min(d, s.workouts + (s.cardio_n || 0))) / cap); }
+export function fairScore(s, period) {
+  if (!s) return 0; const r = regularity(s, period); const p = progression(s); const a = participation(s, period);
+  return Math.round(p == null ? (r * 40 + a * 30) / 70 * 100 : r * 40 + p * 30 + a * 30);
+}
+export const ironScore = (s) => (s ? Math.min(s.workouts, (s.target || 4) + 1) * POINTS.workout + s.prs * POINTS.record : 0);
+export const totalPoints = (s, _steps, period) => fairScore(s, period);
 
+const pct = (v) => `${Math.round(v * 100)}`;
 export const CATEGORIES = [
-  { id: 'points', label: 'Classement général', short: 'Champion', unit: 'pts', value: (s, steps) => totalPoints(s, steps) },
-  { id: 'km', label: 'Runner', short: 'Runner', unit: 'km', value: (s) => s?.km || 0, fmt: (v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) },
-  { id: 'iron', label: 'Iron (muscu)', short: 'Iron', unit: 'pts', value: (s) => ironScore(s) },
-  { id: 'steps', label: 'Marcheur', short: 'Marcheur', unit: 'pas', value: (_, steps) => steps || 0, fmt: (v) => v.toLocaleString('fr-FR') },
+  { id: 'points', label: 'Général', short: 'Champion', unit: 'pts', value: (s, steps, per) => fairScore(s, per), hint: 'Régularité 40 % · progression 30 % · participation 30 %' },
+  { id: 'regularity', label: 'Régularité', short: 'Régulier', unit: '%', value: (s, _, per) => regularity(s, per) * 100, fmt: (v) => pct(v / 100), hint: 'Séances faites par rapport à ton propre objectif' },
+  { id: 'progress', label: 'Progression', short: 'Progression', unit: '%', value: (s) => (progression(s) ?? 0) * 100, fmt: (v) => pct(v / 100), hint: 'Part de tes exercices où tu as battu ton record' },
+  { id: 'participation', label: 'Participation', short: 'Présent', unit: '%', value: (s, _, per) => participation(s, per) * 100, fmt: (v) => pct(v / 100), hint: 'Jours actifs (6 sur 7 suffisent pour le maximum)' },
+  { id: 'iron', label: 'Iron', short: 'Iron', unit: 'pts', value: (s) => ironScore(s), hint: `Séances muscu (jusqu’à ton objectif + 1) × ${POINTS.workout} + records × ${POINTS.record}` },
+  { id: 'km', label: 'Runner', short: 'Runner', unit: 'km', value: (s) => s?.km || 0, fmt: (v) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 }), hint: 'Kilomètres de cardio' },
+  { id: 'steps', label: 'Marcheur', short: 'Marcheur', unit: 'pas', value: (_, steps) => steps || 0, fmt: (v) => v.toLocaleString('fr-FR'), hint: 'Pas envoyés depuis l’iPhone ou saisis' },
 ];
 
-export function ranking(board, periodKey, cat) {
+export function ranking(board, periodKey, cat, period) {
   return board.members
-    .map((m) => { const p = m.periods?.[periodKey] || {}; return { id: m.id, pseudo: m.pseudo, value: cat.value(p.stats, p.steps), stats: p.stats, steps: p.steps || 0 }; })
+    .map((m) => { const p = m.periods?.[periodKey] || {}; return { id: m.id, pseudo: m.pseudo, photo: m.photo, value: cat.value(p.stats, p.steps, period ?? per(periodKey)), stats: p.stats, steps: p.steps || 0 }; })
     .sort((a, b) => b.value - a.value || a.pseudo.localeCompare(b.pseudo));
 }
 
@@ -124,6 +148,10 @@ export async function myPhoto() {
   try { const b = await rpc('ligue_board', { p_member: m.member_id, p_token: m.token, p_periods: [] }); const p = b.members.find((x) => x.id === m.member_id)?.photo || null; if (p) store.set(PHOTO, p); else store.del(PHOTO); return p; } catch { return store.get(PHOTO) || null; }
 }
 export const hidePost = (id) => rpc('ligue_post_hide', { ...auth(), p_post: id });
+export const REACTIONS = [['fire', '🔥'], ['muscle', '💪'], ['clap', '👏'], ['heart', '❤️'], ['laugh', '😂']];
+export const react = (post, emoji) => rpc('ligue_react', { ...auth(), p_post: post, p_emoji: emoji });
+export const comment = (post, body) => rpc('ligue_comment', { ...auth(), p_post: post, p_body: body });
+export const hideComment = (id) => rpc('ligue_comment_hide', { ...auth(), p_id: id });
 
 // Recadre au carré et compresse (≈ 10 Ko) : la photo est stockée dans la ligue
 export async function resizePhoto(file, size = 192) {

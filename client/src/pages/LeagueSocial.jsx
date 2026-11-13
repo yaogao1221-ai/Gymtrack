@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Card, Icon, Field, Sheet, useToast } from '../components/ui.jsx';
 import { ShareToggle } from './LeagueChat.jsx';
 import { NotifToggle } from './LeagueNotif.jsx';
-import { setPhoto, resizePhoto, postMessage, hidePost, TONES, quickLines, ago, totalPoints } from '../lib/league.js';
+import { setPhoto, resizePhoto, postMessage, hidePost, REACTIONS, react, comment, hideComment, TONES, quickLines, ago, totalPoints, regularity, progression } from '../lib/league.js';
 
 const HUES = [18, 168, 262, 330, 42, 205, 290];
 const hue = (id = '') => HUES[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length];
@@ -66,7 +66,7 @@ export function Lobby({ board, curKey, me, rows, feed, onReload, onCompose, onOp
                     <span className="row gap-s"><b>{x.pseudo}</b>{x.id === me && <span className="muted small">(toi)</span>}</span>
                     <span className="muted small">{statLine(p.stats, p.steps)}</span>
                   </span>
-                  <span className="lobby-rank"><b className="mono">{rank(x.id)}<sup>{rank(x.id) === 1 ? 'er' : 'e'}</sup></b><span className="muted small mono">{totalPoints(p.stats, p.steps)} pts</span></span>
+                  <span className="lobby-rank"><b className="mono">{rank(x.id)}<sup>{rank(x.id) === 1 ? 'er' : 'e'}</sup></b><span className="muted small mono">{totalPoints(p.stats, p.steps, curKey)} pts</span></span>
                 </button>
                 {x.id !== me && (
                   <div className="lobby-acts">
@@ -106,6 +106,7 @@ export function Feed({ board, feed, me, onCompose, onHidden }) {
                   <span className={`tone-tag tone-${p.tone}`}>{tone?.label}</span>
                 </div>
                 <p className="post-body">{p.body}</p>
+                <PostSocial p={p} me={me} byId={byId} onChanged={onHidden} />
                 <div className="row gap-s">
                   <span className="muted small">{ago(p.created_at)}</span>
                   {a && p.author !== me && <button className="btn xs ghost" onClick={() => onCompose(a, p.tone === 'chambre' ? 'chambre' : 'bravo')}>Répondre</button>}
@@ -118,6 +119,28 @@ export function Feed({ board, feed, me, onCompose, onHidden }) {
       </ul>
     </Card>
   );
+}
+
+// Réactions et commentaires sous chaque message du fil (rien n'est publié automatiquement)
+function PostSocial({ p, me, byId, onChanged }) {
+  const toast = useToast(); const [open, setOpen] = useState(false); const [txt, setTxt] = useState(''); const [busy, setBusy] = useState(false);
+  const [local, setLocal] = useState(null); const mine = local?.mine ?? p.mine ?? []; const counts = local?.counts ?? p.reactions ?? {};
+  const tap = async (e) => {
+    const on = !mine.includes(e); setLocal({ mine: on ? [...mine, e] : mine.filter((x) => x !== e), counts: { ...counts, [e]: Math.max(0, (counts[e] || 0) + (on ? 1 : -1)) } });
+    try { await react(p.id, e); } catch (err) { setLocal(null); toast(err.message, 'err'); }
+  };
+  const send = async () => { if (!txt.trim()) return; setBusy(true); try { await comment(p.id, txt.trim()); setTxt(''); onChanged(); } catch (e) { toast(e.message, 'err'); } finally { setBusy(false); } };
+  const comments = p.comments || [];
+  return (<>
+    <div className="post-react">
+      {REACTIONS.map(([k, e]) => <button key={k} className={mine.includes(k) ? 'on' : ''} onClick={() => tap(k)} aria-label={k}>{e}{counts[k] ? <span>{counts[k]}</span> : null}</button>)}
+      <button className="pr-c" onClick={() => setOpen(!open)}>{comments.length ? `${comments.length} commentaire${comments.length > 1 ? 's' : ''}` : 'Commenter'}</button>
+    </div>
+    {open && <div className="post-comments">
+      {comments.map((c) => <p key={c.id} className="small"><b>{byId[c.author]?.pseudo || 'Ancien membre'}</b> {c.body}{c.can_hide && <button className="link xs" onClick={async () => { try { await hideComment(c.id); onChanged(); } catch (e) { toast(e.message, 'err'); } }}> · retirer</button>}</p>)}
+      <div className="row gap-s"><input value={txt} maxLength={280} onChange={(e) => setTxt(e.target.value)} placeholder="Ton commentaire" onKeyDown={(e) => e.key === 'Enter' && send()} /><button className="btn sm" disabled={busy || !txt.trim()} onClick={send}>Envoyer</button></div>
+    </div>}
+  </>);
 }
 
 export function ComposeSheet({ draft, onClose, board, me, curKey, onSent }) {
@@ -168,9 +191,14 @@ export function MemberSheet({ member, onClose, board, me, curKey, monthKey, rows
         <div><b className="mono big">{rank}<sup>{rank === 1 ? 'er' : 'e'}</sup></b><span className="muted small"> au général cette semaine</span></div>
       </div>
       <div className="member-stats">
-        <div><span className="muted small">Cette semaine</span><p className="small">{statLine(w.stats, w.steps)}</p><p className="small mono">{totalPoints(w.stats, w.steps)} pts</p></div>
-        <div><span className="muted small">Ce mois</span><p className="small">{statLine(mo.stats, mo.steps)}</p><p className="small mono">{totalPoints(mo.stats, mo.steps)} pts</p></div>
+        <div><span className="muted small">Cette semaine</span><p className="small">{statLine(w.stats, w.steps)}</p><p className="small mono">{totalPoints(w.stats, w.steps, curKey)} pts</p></div>
+        <div><span className="muted small">Ce mois</span><p className="small">{statLine(mo.stats, mo.steps)}</p><p className="small mono">{totalPoints(mo.stats, mo.steps, monthKey)} pts</p></div>
       </div>
+      <dl className="sport-profile">
+        <div><dt>Régularité</dt><dd>{Math.round(regularity(mo.stats, monthKey) * 100)}<small>%</small></dd><span className="xs muted">séances / son objectif ({mo.stats?.target || '—'} par sem.)</span></div>
+        <div><dt>Progression</dt><dd>{progression(mo.stats) == null ? '—' : Math.round(progression(mo.stats) * 100)}<small>{progression(mo.stats) == null ? '' : '%'}</small></dd><span className="xs muted">exercices en record ce mois</span></div>
+        <div><dt>Présence</dt><dd>{mo.stats?.active_days ?? '—'}<small> j</small></dd><span className="xs muted">jours actifs ce mois</span></div>
+      </dl>
       <div className="row gap-s wrap mt">
         {member.shares && <button className="btn sm primary" onClick={() => onProgram(member)}><Icon name="dumbbell" size={14} />{member.id === me ? 'Voir ce que je partage' : 'Voir son programme et sa progression'}</button>}
         {member.id !== me && <button className="btn sm" onClick={() => onChat(member)}><Icon name="chat" size={14} />Écrire</button>}
