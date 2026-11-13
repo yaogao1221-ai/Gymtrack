@@ -94,3 +94,10 @@ input, select, textarea { background: var(--surface); }
 :root { --mono: "Inter", -apple-system, system-ui, sans-serif; }
 .mono, .summary b, .rest-time, .wk-clock { font-variant-numeric: tabular-nums; }
 .summary b { white-space: nowrap; font-family: var(--display); }
+
+/* Bilan de la semaine : pourcentage global hors des anneaux (lisible) */
+.ring-legend .ring-total { grid-template-columns: 1fr auto; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.ring-legend .ring-total span { color: var(--text); font-weight: 600; }
+.ring-legend .ring-total b { font-family: var(--display); font-size: 22px; font-weight: 700; }
+/* iPhone : bande opaque sous l'heure et la batterie, le contenu ne passe plus dessous */
+body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 45; pointer-events: none; }

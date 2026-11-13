@@ -62,9 +62,9 @@ export default function Dashboard() {
       </Sheet>
 
       <section className="card week-rings">
-        <ActivityRings size={120} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))}
-          center={<><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)}%</b><small>semaine</small></>} />
+        <ActivityRings size={120} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))} />
         <ul className="ring-legend">
+          <li className="ring-total"><span>Ma semaine</span><b>{Math.round(rings.reduce((a, r) => a + Math.min(1, r.value), 0) / rings.length * 100)} %</b></li>
           {rings.map((r) => (
             <li key={r.label}>
               <i style={{ background: `linear-gradient(135deg, ${GRADS[r.grad][0]}, ${GRADS[r.grad][1]})` }} />
