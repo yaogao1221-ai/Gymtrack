@@ -207,3 +207,7 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .thumbs .pick-thumb.empty { display: grid; place-items: center; background: var(--bg2); color: var(--muted); }
 .pain-row { flex-wrap: wrap; } .pain-row > span { flex: 1 1 150px; min-width: 0; }
 .rec .row { flex-wrap: wrap; } .rec .row .btn { max-width: 100%; white-space: normal; text-align: left; }
+.pick-list.lib li button.pick-main { flex: 1 1 auto; width: auto; min-width: 0; flex-direction: row; align-items: center; }
+.pick-list.lib li button.pick-info { flex: 0 0 44px; width: 44px; padding: 0; flex-direction: row; justify-content: center; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); margin: 6px 0; }
+.pick-list li button { flex-direction: row; }
+.pick-list li .grow { flex: 1; min-width: 0; }

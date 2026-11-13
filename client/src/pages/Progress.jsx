@@ -10,7 +10,7 @@ import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib
 export default function Progress() {
   const [tab, setTab] = useState('overview');
   return (
-    <Page tabs={<SectionTabs group="progress" />} title="Progrès">
+    <Page tabs={<SectionTabs group="body" />} title="Progrès">
       <Segmented value={tab} onChange={setTab} options={[['overview', 'Vue globale'], ['exercise', 'Exercices'], ['compare', 'Comparer'], ['history', 'Historique']]} />
       <div className="mt">
         {tab === 'overview' && <Overview />}

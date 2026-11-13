@@ -33,7 +33,7 @@ function Join({ onJoined }) {
   };
   const ok = mode === 'create' ? f.name.trim().length >= 2 && f.pseudo.trim().length >= 2 : mode === 'join' ? f.code.trim().length >= 6 && f.pseudo.trim().length >= 2 : f.key.includes('.');
   return (
-    <Page tabs={<SectionTabs group="progress" />} title="Ligue">
+    <Page title="Ligue">
       <Card>
         <ul className="league-pitch">
           <li><Icon name="trophy" size={18} /><span><b>Podiums</b> de la semaine et du mois : Runner (km), Iron (muscu), Marcheur (pas) et classement général.</span></li>
@@ -112,7 +112,7 @@ function Board({ m, onLeft }) {
   };
 
   return (
-    <Page tabs={<SectionTabs group="progress" />} title={board.league.name} subtitle={`${board.members.length} membre${board.members.length > 1 ? 's' : ''} · code ${board.league.code}`}
+    <Page title={board.league.name} subtitle={`${board.members.length} membre${board.members.length > 1 ? 's' : ''} · code ${board.league.code}`}
       actions={<button className="icon-btn" aria-label="Actualiser" onClick={load}><Icon name="bolt" /></button>}>
       <div className="row gap-s wrap mb">
         <button className="btn primary sm" onClick={invite}><Icon name="plus" size={14} />Inviter des amis</button>

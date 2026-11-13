@@ -26,7 +26,7 @@ export default function Coach() {
   const maxSets = Math.max(...a.volume.muscles.map((m) => Math.max(m.sets, m.opt_high)), 1);
   const activePains = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
-    <Page tabs={<SectionTabs group="progress" />} title="Analyse">
+    <Page tabs={<SectionTabs group="body" />} title="Analyse">
       <Card title="Carte du corps" icon="body" action={<Link className="btn xs ghost" to="/soins">Soins</Link>}>{map.data ? <BodyMap data={map.data} /> : <Loading />}</Card>
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
