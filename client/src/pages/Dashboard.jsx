@@ -31,20 +31,7 @@ export default function Dashboard() {
           <Link to="/plus" className="icon-btn" aria-label="Réglages et autres outils"><Icon name="menu" /></Link></div>
       </header>
 
-      <section className="hero card">
-        <div className="hero-glow" />
-        {d.next && <IconStrength size={84} className="hero-art" />}
-        <p className="eyebrow">Prochaine séance{d.next?.date ? ` · ${relDay(d.next.date, d.today)}` : ''}</p>
-        {d.next ? (<>
-          <h2 className="hero-title">{d.next.name} <span className="muted">—</span> {d.next.focus}</h2>
-          <p className="muted small">{d.next.date ? fmtDay(d.next.date) : 'Suivante dans ta rotation'}{d.next.deload ? ' · semaine de deload (charges −10 %, moitié des séries)' : ''}</p>
-          {d.next.cardio?.length > 0 && <p className="small hero-cardio"><Icon name="heart" size={14} />{d.next.cardio.map((c) => `${c.label} ${Math.round(c.duration_min)} min ${c.placement === 'debut' ? 'en début' : 'en fin'} de séance`).join(' · ')}</p>}
-          <div className="row gap mt">
-            <button className="btn primary lg" onClick={() => nav(`/seance/${d.next.program_day_id}`)}><Icon name="play" size={18} />Commencer</button>
-            <Link className="btn ghost" to="/programme">Voir le programme</Link>
-          </div>
-        </>) : <p>Aucune séance au programme.</p>}
-      </section>
+      <CoachHero fallbackNext={d.next} />
 
       {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
       <MiniMap />
@@ -99,6 +86,33 @@ export default function Dashboard() {
         <Link to={`/historique/${d.last_workout.id}`} className="recap-link card"><Icon name="dumbbell" size={18} /><span className="grow"><b className="small">Dernière séance : {d.last_workout.name}{d.last_workout.focus ? ` — ${d.last_workout.focus}` : ''}</b><span className="muted small">{relDay(d.last_workout.date, d.today)} · {d.last_workout.sets_done} séries · {n0(d.last_workout.volume_lbs)} lbs</span></span><Icon name="right" size={18} /></Link>
       )}
     </div>
+  );
+}
+
+// Coach du jour : une seule consigne claire, ce qui compte aujourd'hui, et le bouton pour y aller
+function CoachHero({ fallbackNext }) {
+  const { data: c } = useApi('/coach/today'); const nav = useNavigate();
+  if (!c) return <section className="hero card coach-hero"><div className="hero-glow" /><p className="eyebrow">Aujourd’hui</p><h2 className="hero-title">{fallbackNext ? `${fallbackNext.name} · ${fallbackNext.focus || ''}` : '…'}</h2></section>;
+  const eyebrow = { workout: 'Aujourd’hui · séance prévue', free: 'Aujourd’hui · séance conseillée', rest: 'Aujourd’hui · repos', done: 'Aujourd’hui · c’est fait', empty: 'Pour commencer' }[c.kind];
+  const dayId = c.day?.id;
+  return (
+    <section className={`hero card coach-hero k-${c.kind}`}>
+      <div className="hero-glow" />
+      {(c.kind === 'workout' || c.kind === 'free') && <IconStrength size={84} className="hero-art" />}
+      <p className="eyebrow">{eyebrow}</p>
+      <h2 className="hero-title">{c.headline}</h2>
+      {c.sub && <p className="muted small">{c.sub}</p>}
+      {c.day?.muscles?.length > 0 && <div className="coach-mus">{c.day.muscles.map((m) => <span key={m} className={c.day.tired.includes(m) ? 'tired' : ''}>{m}</span>)}</div>}
+      {c.lines.length > 0 && <ul className="coach-lines">{c.lines.map((l, i) => <li key={i} className={l.tone || ''}><Icon name={l.icon} size={15} /><span>{l.text}</span></li>)}</ul>}
+      <div className="row gap mt">
+        {dayId && <button className="btn primary lg" onClick={() => nav(`/seance/${dayId}`)}><Icon name="play" size={18} />Briefing et go</button>}
+        {c.kind === 'done' && <Link className="btn primary" to={`/historique/${c.workout_id}?debrief=1`}><Icon name="trophy" size={16} />Mon débrief</Link>}
+        {c.kind === 'rest' && c.cardio_left !== 0 && <Link className="btn primary" to="/cardio?ajout=1"><Icon name="heart" size={16} />Noter mon cardio</Link>}
+        {c.kind === 'rest' && c.next?.day && <button className="btn ghost" onClick={() => nav(`/seance/${c.next.day.id}`)}>M’entraîner quand même</button>}
+        {c.kind === 'empty' && <Link className="btn primary" to="/programme/creer"><Icon name="sparkles" size={16} />Créer mon programme</Link>}
+        {c.kind !== 'empty' && <Link className="btn ghost" to="/programme">Programme</Link>}
+      </div>
+    </section>
   );
 }
 

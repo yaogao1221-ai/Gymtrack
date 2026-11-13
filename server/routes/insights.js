@@ -1,12 +1,12 @@
 // Progrès détaillés, carte du corps, trophées et journal alimentaire
 import { Router } from 'express';
-import { USER_ID, getProfile, allRecords, activeProgram } from '../services.js';
+import { USER_ID, getProfile, allRecords, activeProgram, getProgram, nextSession } from '../services.js';
 import { toJSON } from '../schema.js';
 import { MUSCLES } from '../seed.js';
-import { RANGES, PAIN_AREAS } from '../analysis.js';
+import { RANGES, PAIN_AREAS, analyse, recoveryScore } from '../analysis.js';
 import { e1rm, toLbs, r1 } from '../formulas.js';
 import { nutritionState } from '../nutrition.js';
-import { num, str, oneOf, date, bad, notFound, addDays, weekStart, diffDays } from '../util.js';
+import { num, str, oneOf, date, bad, notFound, addDays, weekStart, diffDays, dayKey } from '../util.js';
 
 const r0 = (x) => (x == null ? null : Math.round(x));
 const MEALS = ['petit_dej', 'dejeuner', 'collation', 'diner'];
@@ -46,6 +46,28 @@ const GAP_FILL = { pectoraux: ['dev_couche', 1], dos_largeur: ['tirage_vertical'
   lombaires: ['hyperextension', 2], trapezes: ['shrugs', 2], avant_bras: ['curl_marteau', 2], adducteurs: ['adduct_abduct', 2], abducteurs: ['abduction', 2] };
 const LOWER_M = new Set(['quadriceps', 'ischios', 'fessiers', 'mollets', 'adducteurs', 'abducteurs', 'lombaires']);
 const BIG = new Set(['quadriceps', 'ischios', 'fessiers', 'adducteurs', 'pectoraux', 'dos_largeur', 'lombaires']);
+
+function bodyStatus(db, today) {
+    const { sets, last } = muscleSets(db, addDays(today, -6), today);
+    const older = muscleSets(db, addDays(today, -13), today).last;
+    const level = getProfile(db).level || 'intermediaire'; const [minS, optLow, optHigh] = RANGES[level] || RANGES.intermediaire;
+    const loads = dailyLoads(db, addDays(today, -6), today);
+    const sore = db.all('SELECT muscle, MAX(date) date FROM muscle_soreness WHERE user_id = ? AND date >= ? GROUP BY muscle', USER_ID, addDays(today, -3));
+    const muscles = Object.fromEntries(Object.entries(MUSCLES).map(([k, label]) => {
+      const s = r1(sets[k] || 0);
+      // Dernier jour où le muscle a vraiment travaillé (≥ 1,5 série, cardio compris) et charge de ce jour-là
+      const lastLoad = Object.keys(loads).filter((d) => loads[d][k] >= 1.5).sort().at(-1) || null;
+      const l = [last[k], lastLoad, older[k]].filter(Boolean).sort().at(-1) || null; const days = l ? diffDays(l, today) : null;
+      const dose = lastLoad ? loads[lastLoad][k] : 0; const dDose = lastLoad ? diffDays(lastLoad, today) : 99;
+      // Récupération : 48 h pour les petits muscles, 72 h pour les gros, plus quand la séance était chargée (courbatures maximales à 24-72 h : Cheung et al., 2003)
+      const need = (BIG.has(k) ? 3 : 2) + (dose >= 6 ? 1 : 0);
+      let status = days == null || days > 9 ? 'oublie' : dDose <= 1 && dose >= 2 ? 'fatigue' : dDose < need ? 'recup' : 'pret';
+      const so = sore.find((x) => x.muscle === k); const soreDays = so ? diffDays(so.date, today) : null;
+      if (so && soreDays <= 1) status = 'fatigue'; else if (so && soreDays <= 2 && status !== 'fatigue') status = 'recup';
+      return [k, { label, sets: s, last: l, days, status, sore: so ? so.date : null, zone: s < minS / 2 ? 'bas' : s < optLow ? 'correct' : s <= optHigh ? 'optimal' : 'haut' }];
+    }));
+    return { muscles, range: { min: minS, low: optLow, high: optHigh } };
+}
 
 // Trophées : calculés à partir des données, rien n'est stocké
 function badges(db, today) {
@@ -128,26 +150,68 @@ export default function insightsRoutes(db) {
 
   // Carte du corps : charge de la semaine et récupération estimée de chaque muscle
   r.get('/bodymap', (req, res) => {
-    const today = req.today; const { sets, last } = muscleSets(db, addDays(today, -6), today);
-    const older = muscleSets(db, addDays(today, -13), today).last;
-    const level = getProfile(db).level || 'intermediaire'; const [minS, optLow, optHigh] = RANGES[level] || RANGES.intermediaire;
-    const loads = dailyLoads(db, addDays(today, -6), today);
-    const sore = db.all('SELECT muscle, MAX(date) date FROM muscle_soreness WHERE user_id = ? AND date >= ? GROUP BY muscle', USER_ID, addDays(today, -3));
-    const muscles = Object.fromEntries(Object.entries(MUSCLES).map(([k, label]) => {
-      const s = r1(sets[k] || 0);
-      // Dernier jour où le muscle a vraiment travaillé (≥ 1,5 série, cardio compris) et charge de ce jour-là
-      const lastLoad = Object.keys(loads).filter((d) => loads[d][k] >= 1.5).sort().at(-1) || null;
-      const l = [last[k], lastLoad, older[k]].filter(Boolean).sort().at(-1) || null; const days = l ? diffDays(l, today) : null;
-      const dose = lastLoad ? loads[lastLoad][k] : 0; const dDose = lastLoad ? diffDays(lastLoad, today) : 99;
-      // Récupération : 48 h pour les petits muscles, 72 h pour les gros, plus quand la séance était chargée (courbatures maximales à 24-72 h : Cheung et al., 2003)
-      const need = (BIG.has(k) ? 3 : 2) + (dose >= 6 ? 1 : 0);
-      let status = days == null || days > 9 ? 'oublie' : dDose <= 1 && dose >= 2 ? 'fatigue' : dDose < need ? 'recup' : 'pret';
-      const so = sore.find((x) => x.muscle === k); const soreDays = so ? diffDays(so.date, today) : null;
-      if (so && soreDays <= 1) status = 'fatigue'; else if (so && soreDays <= 2 && status !== 'fatigue') status = 'recup';
-      return [k, { label, sets: s, last: l, days, status, sore: so ? so.date : null, zone: s < minS / 2 ? 'bas' : s < optLow ? 'correct' : s <= optHigh ? 'optimal' : 'haut' }];
-    }));
+    const { muscles, range } = bodyStatus(db, req.today);
     const pains = db.all('SELECT * FROM pain_reports WHERE user_id = ? AND resolved = 0 ORDER BY date DESC', USER_ID).map((p) => ({ ...p, label: PAIN_AREAS[p.area]?.label || p.area }));
-    res.json({ muscles, pains, range: { min: minS, low: optLow, high: optHigh } });
+    res.json({ muscles, pains, range });
+  });
+
+  // Coach du jour : une consigne claire (séance, repos actif, séance faite), avec ce qui compte pour aujourd'hui
+  r.get('/coach/today', (req, res) => {
+    const today = req.today; const profile = getProfile(db);
+    const prog = getProgram(db, { withLast: false });
+    const rest = profile.default_rest_seconds || 90;
+    const doneW = db.one('SELECT id, program_day_id, name, duration_sec FROM workouts WHERE user_id = ? AND date = ? ORDER BY id DESC LIMIT 1', USER_ID, today);
+    const ev = db.one("SELECT * FROM calendar_events WHERE user_id = ? AND date = ? AND type = 'workout' ORDER BY id LIMIT 1", USER_ID, today);
+    const code = profile.schedule?.[dayKey(today)];
+    const dayId = ev?.program_day_id ?? (code && code !== 'rest' ? prog.days.find((d) => d.code === code)?.id : null);
+    const status = bodyStatus(db, today).muscles;
+    let ana = null; try { ana = analyse(db, today); } catch { /* historique insuffisant */ }
+    const rec = recoveryScore(db, profile, today);
+    const describe = (id) => {
+      const d = prog.days.find((x) => x.id === id); if (!d) return null;
+      const mus = {}; for (const e of d.exercises) for (const [k, c] of Object.entries(e.muscles || {})) if (c >= 1) mus[k] = (mus[k] || 0) + (e.sets || 0);
+      const main = Object.entries(mus).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+      const tired = main.filter((k) => status[k]?.status === 'fatigue').map((k) => MUSCLES[k]);
+      const cardio = d.cardio.reduce((a, c) => a + (c.duration_min || 0), 0);
+      return { id: d.id, name: d.name, focus: d.focus, n_ex: d.exercises.length, sets: d.exercises.reduce((a, e) => a + (e.sets || 0), 0), cardio_min: Math.round(cardio),
+        est_minutes: Math.round(d.exercises.reduce((a, e) => a + (e.sets || 0) * (40 + (e.rest_seconds || rest)), 0) / 60 + cardio),
+        muscles: main.slice(0, 3).map((k) => MUSCLES[k]), tired,
+        increases: (ana?.progression || []).filter((p) => p.day_id === d.id && p.type === 'increase').length };
+    };
+    const cardioToday = db.one('SELECT COALESCE(SUM(duration_min),0) m FROM cardio_sessions WHERE user_id = ? AND date = ?', USER_ID, today).m;
+    const cardioPlanned = db.one("SELECT COALESCE(SUM(planned_minutes),0) m FROM calendar_events WHERE user_id = ? AND date = ? AND type = 'cardio'", USER_ID, today).m;
+    const nextOf = (from) => { const n = nextSession(db, from); return n ? { ...n, day: describe(n.program_day_id) } : null; };
+    const lines = [];
+    let out;
+    if (doneW) {
+      const n = nextOf(addDays(today, 1));
+      lines.push({ icon: 'flame', text: 'Récupération : protéines à chaque repas et 7 à 9 h de sommeil, c’est là que le muscle se construit.' });
+      if (n) lines.push({ icon: 'calendar', text: `Prochaine séance : ${n.name}${n.focus ? ` (${n.focus})` : ''}${n.date ? `, ${n.date === addDays(today, 1) ? 'demain' : 'le ' + n.date.slice(8) + '/' + n.date.slice(5, 7)}` : ''}.` });
+      out = { kind: 'done', headline: 'Séance faite, bravo', sub: doneW.name, workout_id: doneW.id, next: n };
+    } else if (dayId) {
+      const d = describe(dayId);
+      if (d.tired.length) lines.push({ icon: 'alert', tone: 'warn', text: `${d.tired.join(', ')} encore fatigué${d.tired.length > 1 ? 's' : ''} : échauffement plus long, garde tes charges et arrête-toi à 2 répétitions de l’échec.` });
+      else if (rec.score < 55) lines.push({ icon: 'alert', tone: 'warn', text: `Récupération ${rec.label.toLowerCase()} (${rec.score}/100) : séance normale mais sans chercher de record.` });
+      if (d.increases) lines.push({ icon: 'up', tone: 'good', text: 'Des hausses de charge sont prêtes : tu choisis de les appliquer dans le briefing.' });
+      if (ev?.deload) lines.push({ icon: 'moon', text: 'Semaine de deload : moitié des séries, charges −10 %, déjà calculées.' });
+      if (d.cardio_min) lines.push({ icon: 'heart', text: `${d.cardio_min} min de cardio inclus dans la séance.` });
+      out = { kind: 'workout', headline: `${d.name}${d.focus ? ` · ${d.focus}` : ''}`, sub: `≈ ${d.est_minutes} min · ${d.n_ex} exercices · ${d.sets} séries`, day: d, deload: !!ev?.deload, recovery: rec };
+    } else if (!ev && code === 'rest') {
+      const n = nextOf(addDays(today, 1));
+      const left = Math.max(0, Math.round(cardioPlanned - cardioToday));
+      lines.push({ icon: 'heart', text: cardioPlanned ? (left ? `${left} min de cardio prévues aujourd’hui.` : 'Cardio du jour fait.') : '20 à 30 min de marche ou de vélo facile aident à récupérer sans fatiguer.' });
+      lines.push({ icon: 'body', text: '10 min de mobilité sur les muscles encore fatigués (onglet Corps).' });
+      if (n) lines.push({ icon: 'calendar', text: `Prochaine séance : ${n.name}${n.focus ? ` (${n.focus})` : ''}.` });
+      out = { kind: 'rest', headline: 'Repos actif', sub: 'Le muscle se construit pendant la récupération.', next: n, cardio_left: left };
+    } else {
+      const n = nextOf(today);
+      if (rec.score < 55) lines.push({ icon: 'moon', text: `Récupération ${rec.label.toLowerCase()} (${rec.score}/100) : une journée de repos actif serait plus utile.` });
+      if (n?.day?.tired.length) lines.push({ icon: 'alert', tone: 'warn', text: `${n.day.tired.join(', ')} encore fatigué${n.day.tired.length > 1 ? 's' : ''}.` });
+      if (n?.day?.increases) lines.push({ icon: 'up', tone: 'good', text: 'Des hausses de charge sont prêtes pour cette séance.' });
+      out = n ? { kind: 'free', headline: `${n.name}${n.focus ? ` · ${n.focus}` : ''}`, sub: n.day ? `Séance conseillée · ≈ ${n.day.est_minutes} min · ${n.day.n_ex} exercices` : 'Séance conseillée', day: n.day, recovery: rec }
+        : { kind: 'empty', headline: 'Crée ton programme', sub: 'Choisis un objectif, le créateur te propose un programme.' };
+    }
+    res.json({ ...out, lines, recovery: rec ? { score: rec.score, label: rec.label } : null });
   });
 
   // Muscles oubliés : ni travaillés depuis 4 semaines (muscu + cardio) ni prévus dans le programme actif → exercice suggéré + jour conseillé

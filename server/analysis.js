@@ -155,6 +155,8 @@ function bestSchedule(days, available) {
 }
 
 // Progression double : on ne propose une hausse que si TOUTES les séries prévues ont été réussies.
+const frDate = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : d);
+const grid = (x, unit) => { const g = unit === 'kg' ? 1.25 : 2.5; return Math.round(x / g) * g; };
 function progressionFor(db, pe, painPatterns, recovery) {
   const last = lastPerformance(db, pe.exercise_id);
   const base = { program_exercise_id: pe.id, exercise_id: pe.exercise_id, exercise: pe.name, day_id: pe.day_id };
@@ -179,17 +181,17 @@ function progressionFor(db, pe, painPatterns, recovery) {
   }
   if (allHit) {
     if (pe.kind === 'assisted' && lastW != null) {
-      const proposed = Math.max(0, lastW - (unit === 'kg' ? 5 : 10));
-      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : réduire l’assistance`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit} d’assistance`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Les ${pe.sets} × ${target} ont été réussies le ${last.date} avec ${lastW} ${unit} d’assistance.` };
+      const proposed = Math.max(0, grid(lastW - (unit === 'kg' ? 5 : 10), unit));
+      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : réduire l’assistance`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit} d’assistance`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Les ${pe.sets} × ${target} ont été réussies le ${frDate(last.date)} avec ${lastW} ${unit} d’assistance.` };
     }
     if (lastW != null && pe.kind !== 'bodyweight') {
-      let proposed = lastW + (unit === 'kg' ? 2.5 : 5);
+      let proposed = grid(lastW + (unit === 'kg' ? 2.5 : 5), unit);
       if (pe.target_weight_max && lastW < pe.target_weight_max) proposed = pe.target_weight_max;
-      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : passer à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.weight_note ? ' ' + pe.weight_note : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Toutes les séries (${pe.sets} × ${target ?? '?'}) réussies le ${last.date}. Petite hausse, à condition que la technique reste propre.` };
+      return { ...base, key: `prog:${pe.id}:inc:${proposed}`, type: 'increase', title: `${pe.name} : passer à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.weight_note ? ' ' + pe.weight_note : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Toutes les séries (${pe.sets} × ${target ?? '?'}) réussies le ${frDate(last.date)}. Petite hausse, à condition que la technique reste propre.` };
     }
     if (target && target < 15) {
       const proposed = Math.min(15, target + 2);
-      return { ...base, key: `prog:${pe.id}:reps:${proposed}`, type: 'increase', title: `${pe.name} : viser ${proposed} répétitions`, current: `${target} reps`, proposed_label: `${pe.sets} × ${proposed}`, patch: { reps: proposed }, reason: `Toutes les séries réussies le ${last.date}. Au poids du corps, on progresse d’abord en répétitions (ou en ajoutant du lest au-delà de 15).` };
+      return { ...base, key: `prog:${pe.id}:reps:${proposed}`, type: 'increase', title: `${pe.name} : viser ${proposed} répétitions`, current: `${target} reps`, proposed_label: `${pe.sets} × ${proposed}`, patch: { reps: proposed }, reason: `Toutes les séries réussies le ${frDate(last.date)}. Au poids du corps, on progresse d’abord en répétitions (ou en ajoutant du lest au-delà de 15).` };
     }
     return null;
   }
@@ -200,7 +202,7 @@ function progressionFor(db, pe, painPatterns, recovery) {
     const prevSets = prevWorkout ? db.all('SELECT * FROM workout_sets WHERE workout_id = ? AND exercise_id = ? AND completed = 1', prevWorkout.id, pe.exercise_id) : [];
     if (missBy(done) >= 2 && prevSets.length && missBy(prevSets) >= 2) {
       const proposed = pe.kind === 'assisted' ? lastW + (unit === 'kg' ? 5 : 10) : Math.max(0, Math.round(lastW * 0.9 / 5) * 5);
-      return { ...base, key: `prog:${pe.id}:dec:${proposed}`, type: 'decrease', title: `${pe.name} : consolider à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.kind === 'assisted' ? ' d’assistance' : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Répétitions manquées sur les deux dernières séances (${prevWorkout.date} et ${last.date}). Une baisse d’environ 10 % permet de retrouver une technique propre et de repartir.` };
+      return { ...base, key: `prog:${pe.id}:dec:${proposed}`, type: 'decrease', title: `${pe.name} : consolider à ${proposed} ${unit}`, current: `${lastW} ${unit}`, proposed_label: `${proposed} ${unit}${pe.kind === 'assisted' ? ' d’assistance' : ''}`, patch: { target_weight: proposed, target_weight_max: null }, reason: `Répétitions manquées sur les deux dernières séances (${frDate(prevWorkout.date)} et ${frDate(last.date)}). Une baisse d’environ 10 % permet de retrouver une technique propre et de repartir.` };
     }
   }
   return null;

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Loading, ErrorBox, Confirm, NumInput, Field, useToast } from '../components/ui.jsx';
 import { patch, del, post } from '../lib/api.js';
 import ExercisePicker from '../components/ExercisePicker.jsx';
 import { fmtDay, dur, n0 } from '../lib/format.js';
 
 export default function WorkoutDetail() {
-  const { id } = useParams(); const nav = useNavigate(); const toast = useToast();
+  const { id } = useParams(); const nav = useNavigate(); const toast = useToast(); const [sp] = useSearchParams();
   const { data: w, error, reload, setData } = useApi(`/workouts/${id}`);
   const [edit, setEdit] = useState(false); const [confirm, setConfirm] = useState(false); const [picker, setPicker] = useState(null); const [rmEx, setRmEx] = useState(null);
   if (error && !w) return <ErrorBox error={error} retry={reload} />;
@@ -38,6 +38,7 @@ export default function WorkoutDetail() {
           {w.review.first_time && <p className="muted small">Première fois que tu fais cette séance : elle sert de référence pour la prochaine.</p>}
         </Card>
       )}
+      {sp.get('debrief') && !edit && <Debrief w={w} />}
       {w.exercises.map((ex) => (
         <Card key={`${ex.position}-${ex.exercise_id}`} title={ex.name}
           action={edit ? <button className="btn xs ghost" onClick={() => setPicker({ ex, title: `Changer ${ex.name}` })}><Icon name="skip" size={14} />Changer</button> : null}>
@@ -72,4 +73,38 @@ export default function WorkoutDetail() {
 function Cell({ value, onSave }) {
   const [v, setV] = useState(value);
   return <NumInput className="cell" value={v} onChange={setV} onBlur={(e) => { const t = e.target.value.replace(',', '.'); const n = t === '' ? null : Number(t); if (n !== value && (n == null || !Number.isNaN(n))) onSave(n); }} />;
+}
+
+// Débrief du coach : muscles travaillés, ce qui change la prochaine fois (à valider), prochaine séance
+const MUS = { pectoraux: 'Pectoraux', epaules_ant: 'Épaules avant', epaules_lat: 'Épaules latérales', epaules_post: 'Épaules arrière', triceps: 'Triceps', biceps: 'Biceps', avant_bras: 'Avant-bras',
+  dos_largeur: 'Grand dorsal', dos_epaisseur: 'Milieu du dos', trapezes: 'Trapèzes', lombaires: 'Lombaires', abdominaux: 'Abdos', quadriceps: 'Quadriceps', ischios: 'Ischios', fessiers: 'Fessiers', adducteurs: 'Adducteurs', abducteurs: 'Abducteurs', mollets: 'Mollets' };
+function Debrief({ w }) {
+  const ana = useApi('/analysis'); const dash = useApi('/dashboard'); const toast = useToast();
+  const [done, setDone] = useState({});
+  const mus = {}; for (const ex of w.exercises) for (const [k, c] of Object.entries(ex.muscles || {})) mus[k] = (mus[k] || 0) + c * ex.sets.length;
+  const top = Object.entries(mus).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]);
+  const exIds = new Set(w.exercises.map((e) => e.exercise_id));
+  const prog = (ana.data?.progression || []).filter((p) => exIds.has(p.exercise_id) && (!w.program_day_id || p.day_id === w.program_day_id));
+  const next = prog.filter((p) => p.patch); const holds = prog.filter((p) => p.type === 'hold');
+  const missed = w.exercises.filter((ex) => ex.sets.some((x) => x.target_reps && x.reps < x.target_reps - 1));
+  const act = async (p, ok) => { try { await post(ok ? '/analysis/apply' : '/analysis/dismiss', { key: p.key }); setDone({ ...done, [p.key]: ok ? 'ok' : 'no' }); if (ok) toast('Programme mis à jour pour la prochaine fois'); } catch (e) { toast(e.message, 'err'); } };
+  const n = dash.data?.next;
+  return (
+    <Card title="Débrief du coach" icon="chat" className="debrief">
+      {top.length > 0 && <><h3>Muscles travaillés</h3><div className="db-mus">{top.map(([k, v]) => <span key={k}>{MUS[k] || k} <b>{Math.round(v * 10) / 10}</b></span>)}</div></>}
+      <h3>La prochaine fois</h3>
+      {!ana.data ? <p className="muted small">Calcul…</p> : next.length ? <ul className="db-next">{next.map((p) => (
+        <li key={p.key} className={done[p.key] || ''}>
+          <span className="grow"><b>{p.title}</b><br /><span className="muted small">{p.reason}</span></span>
+          {p.patch && !done[p.key] && <span className="col gap-s"><button className="btn xs primary" onClick={() => act(p, true)}>Valider</button><button className="btn xs ghost" onClick={() => act(p, false)}>Non</button></span>}
+          {done[p.key] === 'ok' && <Icon name="check" size={18} />}
+        </li>))}</ul>
+        : !holds.length && <p className="small">Rien à changer : garde les mêmes charges et vise toutes tes répétitions.</p>}
+      {holds.length > 0 && <p className="small muted">On garde la charge sur {holds.map((p) => p.exercise).join(', ')}{holds.some((p) => p.key.endsWith(':pain')) ? ' (douleur suivie : technique parfaite, amplitude réduite si besoin)' : ' (récupération à surveiller)'}.</p>}
+      {missed.length > 0 && <p className="small muted">Répétitions manquées sur {missed.map((e) => e.name).join(', ')} : si ça se répète à la prochaine séance, je te proposerai de baisser un peu.</p>}
+      <h3>Ce soir</h3>
+      <p className="small">Un repas avec 30 à 40 g de protéines et 7 à 9 h de sommeil{w.rpe >= 9 ? ' : séance très dure, demain repos ou cardio léger' : ''}.</p>
+      {n && <p className="small">Prochaine séance : <b>{n.name}{n.focus ? ` · ${n.focus}` : ''}</b>{n.date ? ` le ${fmtDay(n.date)}` : ''}. <Link className="link" to="/">Accueil</Link></p>}
+    </Card>
+  );
 }

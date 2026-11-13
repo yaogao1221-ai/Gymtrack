@@ -16,6 +16,35 @@ const isRecord = (it, set) => {
   const e = e1rm(v, Number(set.reps)); return !!(e && b.e1rm_lbs && e > b.e1rm_lbs + 0.5);
 };
 
+// Coach pendant la séance : une consigne après chaque série, selon les répétitions faites par rapport à l'objectif
+export function coachCue(it, si) {
+  const set = it.sets[si]; const target = Number(it.target.reps) || null; const reps = Number(set.reps);
+  if (!target || !Number.isFinite(reps)) return set.pr ? { tone: 'gold', text: 'Record ! Garde cette technique.' } : null;
+  const remaining = it.sets.filter((x) => !x.done).length;
+  const step = it.unit === 'kg' ? 2.5 : 5; const w = Number(set.weight) || null;
+  const assisted = it.kind === 'assisted'; const bw = it.kind === 'bodyweight' || w == null;
+  const prev = si > 0 ? it.sets[si - 1] : null; const drop = prev?.done ? (Number(prev.reps) || 0) - reps : 0;
+  const pre = set.pr && reps >= target - 1 ? 'Record ! ' : '';
+  const fmt = (x) => `${x.toLocaleString('fr-FR')} ${it.unit}${assisted ? ' d’assistance' : ''}`;
+  if (reps >= target + 3 && remaining > 0) {
+    if (bw) return { tone: 'good', text: `${pre}${reps} reps pour ${target} : trop facile, ralentis la descente ou ajoute du lest.` };
+    const g = step / 2; const nw = Math.round((assisted ? Math.max(0, w - step) : w + step) / g) * g;
+    return { tone: 'good', text: `${pre}${reps} reps pour ${target} : trop facile. Passe à ${fmt(nw)} pour la prochaine série.`, action: { type: 'set', weight: nw, label: `Mettre ${fmt(nw)}` } };
+  }
+  if (reps >= target) {
+    if (remaining > 0) return { tone: 'good', text: `${pre}Objectif atteint (${reps}/${target}). Garde ${bw ? 'le rythme' : fmt(w)}, même technique.` };
+    const all = it.sets.every((x) => x.done && Number(x.reps) >= target);
+    return { tone: 'good', text: `${pre}${all ? 'Toutes les séries réussies : je te proposerai une hausse au débrief.' : 'Exercice terminé.'}` };
+  }
+  if (reps === target - 1) return { tone: 'mid', text: `${pre}Presque (${reps}/${target}). Garde la charge, prends tout ton repos et vise ${target}.` };
+  // Répétitions manquées
+  if (remaining === 0) return { tone: 'warn', text: `${pre}${target - reps} reps manquées sur la dernière série : on garde cette charge la prochaine fois.` };
+  if (drop >= 3) return { tone: 'warn', text: `${pre}Tu as perdu ${drop} reps par rapport à la série d’avant : allonge ton repos de 30 s.`, action: { type: 'rest', label: 'Repos +30 s' } };
+  if (bw) return { tone: 'warn', text: `${pre}${reps}/${target} : fais ce que tu peux en gardant une technique propre.` };
+  const nw = assisted ? w + step : Math.max(0, Math.round((w * 0.92) / step) * step);
+  return { tone: 'warn', text: `${pre}${reps}/${target} : trop lourd aujourd’hui. Passe à ${fmt(nw)} pour rester dans ta plage.`, action: { type: 'set', weight: nw, label: `Mettre ${fmt(nw)}` } };
+}
+
 const KEY = 'gt_active_workout';
 let audioCtx;
 const unlockAudio = () => { try { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch { /* */ } };
@@ -53,7 +82,7 @@ function buildSession(day, profile, deload = false) {
   });
   const cardio = (day.cardio || []).map((c) => ({ pc_id: c.id, activity: c.activity, custom_name: c.custom_name, label: c.label, placement: c.placement,
     duration_min: c.duration_min, speed_kmh: c.speed_kmh, incline_pct: c.incline_pct, last: c.last, done: false }));
-  return { dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, deload, current: 0, rest: null, notes: '', rpe: null };
+  return { briefed: false, dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, deload, current: 0, rest: null, notes: '', rpe: null };
 }
 
 export default function Workout() {
@@ -62,7 +91,8 @@ export default function Workout() {
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [rmIt, setRmIt] = useState(null); const [demo, setDemo] = useState(null);
-  const blockRefs = useRef([]);
+  const blockRefs = useRef([]); const [bm, setBm] = useState(null);
+  useEffect(() => { get('/bodymap').then(setBm).catch(() => {}); }, []);
 
   useEffect(() => {
     if (s) return;
@@ -146,11 +176,12 @@ export default function Workout() {
     update((y) => {
       const it = y.items[ii]; const set = it.sets[si];
       set.done = !set.done;
-      if (!set.done) { set.pr = false; return; }
+      if (!set.done) { set.pr = false; if (y.cue?.ii === ii) y.cue = null; return; }
       if (set.reps == null && it.target.reps) set.reps = it.target.reps;
       const prev = { ...it, best: it.best ? { ...it.best } : null };
       for (const x of it.sets) if (x !== set && x.done && x.pr && Number(x.weight) && prev.best) { const v = toLbs(Number(x.weight), it.unit); if (it.kind === 'assisted') prev.best.top_lbs = Math.min(prev.best.top_lbs, v); else { prev.best.top_lbs = Math.max(prev.best.top_lbs ?? 0, v); prev.best.e1rm_lbs = Math.max(prev.best.e1rm_lbs ?? 0, e1rm(v, Number(x.reps)) || 0); } }
       set.pr = isRecord(prev, set);
+      const cue = coachCue(it, si); y.cue = cue ? { ...cue, ii, name: it.name } : null;
       const block = y.blocks[bi];
       // En superset, le repos démarre quand le tour est complet
       const roundDone = block.items.every((k) => y.items[k].removed || !y.items[k].sets[si] || y.items[k].sets[si].done);
@@ -167,6 +198,12 @@ export default function Workout() {
       }
     });
   };
+  const applyCue = () => update((y) => {
+    const c = y.cue; if (!c?.action) return; const it = y.items[c.ii];
+    if (c.action.type === 'set') it.sets.forEach((x) => { if (!x.done) x.weight = c.action.weight; });
+    if (c.action.type === 'rest') { it.rest += 30; if (y.rest) { y.rest.endsAt += 30000; y.rest.duration += 30; } }
+    y.cue = { ...c, action: null, text: c.action.type === 'rest' ? 'Repos allongé de 30 s pour cet exercice.' : `C’est noté : ${c.action.label.replace('Mettre ', '')} sur les séries restantes.` };
+  });
   const setVal = (ii, si, k, v) => update((y) => { y.items[ii].sets[si][k] = v; });
   const bump = (ii, si, k, d) => update((y) => { const set = y.items[ii].sets[si]; const cur = Number(set[k]) || 0; set[k] = Math.max(0, Math.round((cur + d) * 10) / 10); });
   const addSet = (ii) => update((y) => { const l = y.items[ii].sets.at(-1); y.items[ii].sets.push({ weight: l?.weight ?? null, reps: l?.reps ?? y.items[ii].target.reps, done: false }); });
@@ -210,7 +247,7 @@ export default function Workout() {
       const r = await postOrQueue('/workouts', body);
       store.del(KEY);
       toast(r.queued ? 'Hors ligne : séance gardée, elle sera synchronisée automatiquement' : 'Séance enregistrée', r.queued ? 'warn' : 'ok');
-      nav(r.queued ? '/' : `/historique/${r.data.id}`, { replace: true });
+      nav(r.queued ? '/' : `/historique/${r.data.id}?debrief=1`, { replace: true });
     } catch (e) { toast(e.message, 'err'); setSaving(false); }
   };
 
@@ -224,6 +261,8 @@ export default function Workout() {
       </header>
       <div className="wk-progress"><span style={{ width: `${total ? (done / total) * 100 : (cardio.length ? (cardioDone / cardio.length) * 100 : 0)}%` }} /></div>
       <p className="muted small center">{total ? `${done} / ${total} séries validées` : ''}{cardio.length ? `${total ? ' · ' : ''}cardio ${cardioDone}/${cardio.length}` : ''}</p>
+      {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
+        : done === 0 && <button className="link small brief-reopen" onClick={() => update((y) => { y.briefed = false; })}>Revoir le briefing</button>}
       {s.deload && <div className="deload-banner"><Icon name="moon" size={16} /><span><b>Semaine de deload</b> : moitié des séries et charges −10 % déjà appliquées. Arrête chaque série à 3 ou 4 répétitions de l’échec, cardio facile.</span></div>}
       {cardio.map((c, ci) => (c.placement === 'debut' ? cardioCard(c, ci) : null))}
 
@@ -248,7 +287,7 @@ export default function Workout() {
                       {it.technique && <button className="link small" onClick={() => setTips({ ...tips, [ii]: !tips[ii] })}>Technique</button>}
                       {it.lib_id && <button className="link small" onClick={() => setDemo(it.lib_id)}>Démo</button>}
                     </div>
-                    {it.sugg && !it.sets.some((x) => x.done) && (
+                    {it.sugg && !it.applied && !it.sets.some((x) => x.done) && (
                       <div className="sugg"><Icon name="up" size={16} /><span className="grow"><b>Aujourd’hui : {it.sugg.text}</b><br />{it.sugg.why}</span>
                         <button className="btn xs" onClick={() => update((y) => { y.items[ii].sets.forEach((x) => { if (!x.done) { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; } }); })}>Appliquer</button></div>
                     )}
@@ -279,6 +318,7 @@ export default function Workout() {
                         <button className={`check-btn ${x.done ? 'on' : ''}`} onClick={() => toggleSet(bi, ii, si)} aria-label={x.done ? 'Annuler la série' : 'Valider la série'}><Icon name="check" size={20} stroke={3} /></button>
                       </div>
                     ))}
+                    {!s.rest && s.cue?.ii === ii && <div className={`coach-cue inline ${s.cue.tone}`}><Icon name="chat" size={15} /><span className="grow">{s.cue.text}</span>{s.cue.action && <button className="btn xs" onClick={applyCue}>{s.cue.action.label}</button>}</div>}
                     <div className="row gap-s wrap mt-s"><button className="btn xs ghost" onClick={() => addSet(ii)}><Icon name="plus" size={14} />Série</button>{it.sets.length > 1 && <button className="btn xs ghost" onClick={() => removeSet(ii)}>Retirer une série</button>}
                       {it.kind === 'weighted' && <button className={`btn xs ghost ${warm[ii] ? 'on' : ''}`} onClick={() => setWarm({ ...warm, [ii]: !warm[ii] })}><Icon name="flame" size={14} />Échauffement</button>}
                       <button className="btn xs ghost" onClick={() => setPicker({ ii, like: it, title: it.sets.some((x) => x.done) ? `Changer ${it.name} (séries gardées)` : `Remplacer ${it.name}` })}><Icon name="skip" size={14} />{it.sets.some((x) => x.done) ? 'Changer' : 'Remplacer'}</button>
@@ -297,6 +337,7 @@ export default function Workout() {
       {s.rest && (
         <div className={`rest-bar ${restLeft <= 0 ? 'over' : ''}`}>
           <div className="rest-fill" style={{ width: `${Math.max(0, Math.min(100, (restLeft / s.rest.duration) * 100))}%` }} />
+          {s.cue && <div className={`coach-cue ${s.cue.tone}`}><Icon name="chat" size={15} /><span className="grow">{s.cue.text}</span>{s.cue.action && <button className="btn xs" onClick={applyCue}>{s.cue.action.label}</button>}</div>}
           <div className="rest-content">
             <div><span className="muted small">{restLeft > 0 ? 'Repos' : 'C’est reparti !'}</span><b className="rest-time">{restLeft > 0 ? clock(restLeft) : `+${clock(-restLeft)}`}</b></div>
             <div className="row gap-s">
@@ -328,5 +369,44 @@ export default function Workout() {
       <Confirm open={cancel} onClose={() => setCancel(false)} danger title="Abandonner la séance ?" confirmLabel="Abandonner" text="Les séries saisies seront perdues."
         onConfirm={() => { store.del(KEY); nav('/'); }} />
     </div>
+  );
+}
+
+// Briefing avant la séance : durée, échauffement, charges du jour (hausses à valider), muscles encore fatigués
+function Briefing({ s, bm, onApply, onGo }) {
+  const items = s.items.filter((it) => !it.removed);
+  const cardioMin = (s.cardio || []).reduce((a, c) => a + (Number(c.duration_min) || 0), 0);
+  const est = Math.round(items.reduce((a, it) => a + it.sets.length * (40 + it.rest), 0) / 60 + cardioMin);
+  const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
+  const mus = new Set(items.flatMap((it) => Object.entries(it.muscles || {}).filter(([, c]) => c >= 1).map(([k]) => k)));
+  const tired = bm ? [...mus].filter((k) => bm.muscles[k]?.status === 'fatigue').map((k) => bm.muscles[k].label) : [];
+  const first = items.find((it) => it.kind === 'weighted' && it.sets.some((x) => Number(x.weight) > 0));
+  const top = first ? Math.max(...first.sets.map((x) => Number(x.weight) || 0)) : 0;
+  const wu = first ? warmupFor(top, first.unit, first.kind) : [];
+  const debut = (s.cardio || []).find((c) => c.placement === 'debut');
+  const lastTxt = (it) => (it.last ? ` (dernière fois ${it.last.text})` : '');
+  const setsText = (it) => { const w = it.sets[0]?.weight; const r = it.sets[0]?.reps; return `${it.sets.length} × ${r ?? '?'}${w != null && w !== '' ? ` à ${Number(w).toLocaleString('fr-FR')} ${it.unit}` : it.kind === 'bodyweight' ? ' au poids du corps' : ' · charge à choisir'}`; };
+  return (
+    <section className="card briefing">
+      <p className="eyebrow">Briefing</p>
+      <h2>{s.name}{s.focus ? ` · ${s.focus}` : ''}</h2>
+      <div className="brief-kpi"><span><b>≈ {est}</b> min</span><span><b>{items.length}</b> exercices</span><span><b>{items.reduce((a, it) => a + it.sets.length, 0)}</b> séries</span>{cardioMin > 0 && <span><b>{Math.round(cardioMin)}</b> min cardio</span>}</div>
+      {tired.length > 0 && <p className="brief-warn"><Icon name="alert" size={15} />{tired.join(', ')} encore fatigué{tired.length > 1 ? 's' : ''} : échauffe-toi plus longtemps et arrête chaque série à 2 reps de l’échec.</p>}
+      <h3>1. Échauffement</h3>
+      <ul className="brief-list">
+        <li>{debut ? `${debut.label} ${debut.duration_min} min (prévu dans ta séance)` : '5 min de cardio léger pour monter en température'}</li>
+        {first && wu.length > 0 && <li>Montée en charge sur {first.name} : {wu.map((x) => `${x.w.toLocaleString('fr-FR')} × ${x.reps}`).join(' · ')} ({first.unit})</li>}
+      </ul>
+      <h3>2. Charges du jour</h3>
+      <ul className="brief-list ex">
+        {items.map((it) => { const ii = s.items.indexOf(it); const up = ups.includes(ii); return (
+          <li key={ii} className={up ? 'up' : ''}><span className="grow"><b>{it.name}</b><br /><span className="muted small">{up ? `Proposé : ${it.sugg.text}${lastTxt(it)}` : `${setsText(it)}${lastTxt(it)}`}</span></span>{up && <Icon name="up" size={16} />}</li>
+        ); })}
+      </ul>
+      {ups.length > 0 && <button className="btn block" onClick={() => onApply(ups)}><Icon name="up" size={16} />Appliquer {ups.length > 1 ? `les ${ups.length} hausses` : 'la hausse'} pour aujourd’hui</button>}
+      <h3>3. Objectif</h3>
+      <p className="small">{ups.length ? 'Réussir les hausses avec une technique propre. Si une série casse de plus de 2 reps, je te dirai de baisser.' : 'Toutes les séries dans ta plage, en gardant 1 à 2 répétitions en réserve. Je te guide après chaque série.'}</p>
+      <button className="btn primary lg block mt" onClick={onGo}><Icon name="play" size={18} />C’est parti</button>
+    </section>
   );
 }

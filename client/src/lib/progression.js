@@ -14,7 +14,7 @@ export function suggestNext(pe) {
   const wa = pe.kind === 'assisted' ? Math.min(...last.map((x) => Number(x.weight) || Infinity)) : w;
   if (!wa || !Number.isFinite(wa)) return null;
   if (allHit) {
-    const nw = pe.kind === 'assisted' ? Math.max(0, wa - step) : wa + step;
+    const g = step / 2; const nw = Math.round((pe.kind === 'assisted' ? Math.max(0, wa - step) : wa + step) / g) * g;
     return { weight: nw, reps: target, text: `${nw.toLocaleString('fr-FR')} ${pe.weight_unit}${pe.kind === 'assisted' ? ' d’assistance' : ''} × ${target}`, why: `Toutes tes séries à ${target} répétitions la dernière fois : on ${pe.kind === 'assisted' ? 'retire' : 'ajoute'} ${step.toLocaleString('fr-FR')} ${pe.weight_unit}.` };
   }
   const goal = Math.min(target, Math.max(...reps) + 1);

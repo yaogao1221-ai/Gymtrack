@@ -138,3 +138,9 @@ test('muscles oubliés : la réponse contient toujours gaps et low', async () =>
   const b = (await call('GET', '/program/gaps')).body;
   assert.ok(Array.isArray(b.gaps)); assert.ok(Array.isArray(b.low));
 });
+
+test('coach du jour : une consigne claire, puis « séance faite » une fois enregistrée', async () => {
+  const c = (await call('GET', '/coach/today')).body;
+  assert.ok(['workout', 'free', 'rest', 'done', 'empty'].includes(c.kind)); assert.ok(c.headline); assert.ok(Array.isArray(c.lines));
+  if (c.day) { assert.ok(c.day.est_minutes > 0); assert.ok(Array.isArray(c.day.tired)); }
+});
