@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApi, Page, Card, Stat, Icon, Sheet, Field, NumInput, Chips, Loading, Empty, Confirm, useToast } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { BarChart, COLORS } from '../components/charts.jsx';
 import { post, put, del, postOrQueue, uid, today } from '../lib/api.js';
 import { CARDIO, CARDIO_ICON, fmtDate, mins, n1, n0, DAY_LONG, weekStart, addDays } from '../lib/format.js';
@@ -14,10 +15,12 @@ export default function Cardio() {
   const [form, setForm] = useState(null); const [confirm, setConfirm] = useState(null); const toast = useToast();
   const ws = weekStart(today());
   const week = (list.data || []).filter((c) => c.date >= ws && c.date <= addDays(ws, 6));
+  const [sp, setSp] = useSearchParams();
+  useEffect(() => { if (sp.get('ajout')) { setForm(EMPTY()); setSp({}, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const reloadAll = () => { list.reload(); plan.reload(); stats.reload(); };
   const schedule = async () => { try { const r = await post('/analysis/cardio-plan/schedule'); toast(r.created ? `${r.created} séance(s) cardio ajoutée(s) au calendrier` : 'Déjà planifié dans le calendrier'); } catch (e) { toast(e.message, 'err'); } };
   return (
-    <Page title="Cardio" subtitle="Séances, progression et plan adapté à ta récupération" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
+    <Page tabs={<SectionTabs group="training" />} title="Cardio" subtitle="Séances, progression et plan adapté à ta récupération" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
       <div className="stats-grid">
         <Stat icon="timer" label="Cette semaine" value={mins(week.reduce((a, c) => a + c.duration_min, 0))} hint={`${week.length} séance(s)`} tone="mint" />
         <Stat icon="flame" label={week.every((c) => !c.calories_estimated) && week.length ? 'Calories (montre)' : week.some((c) => !c.calories_estimated) ? 'Calories (en partie estimées)' : 'Calories (estimées)'} value={`${week.some((c) => c.calories_estimated) ? '≈ ' : ''}${n0(week.reduce((a, c) => a + (c.calories || 0), 0))}`} unit="kcal" tone="orange" />

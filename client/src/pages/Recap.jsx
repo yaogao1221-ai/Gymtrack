@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Page, Card, Icon, Segmented, Loading, ErrorBox, useApi, useToast } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { addDays, n0, n1, mins } from '../lib/format.js';
 import { drawRecap, verdict, recapRange } from '../lib/recapImage.js';
 import { LEAGUE_ON } from '../lib/api.js';
@@ -36,8 +37,8 @@ export default function Recap() {
   const [format, setFormat] = useState('story'); const [photo, setPhoto] = useState(null);
   useEffect(() => { if (m) myPhoto().then(setPhoto); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const img = useRecapImage(r, m?.pseudo || r?.name || '', format, photo);
-  if (error && !r) return <Page title="Bilan"><ErrorBox error={error} retry={reload} /></Page>;
-  if (!r) return <Page title="Bilan"><Loading /></Page>;
+  if (error && !r) return <Page tabs={<SectionTabs group="progress" />} title="Bilan"><ErrorBox error={error} retry={reload} /></Page>;
+  if (!r) return <Page tabs={<SectionTabs group="progress" />} title="Bilan"><Loading /></Page>;
   const name = m?.pseudo || r.name || '';
   const dW = delta(r.cur.workouts, r.prev.workouts); const dV = delta(r.cur.volume_lbs, r.prev.volume_lbs);
   const file = img ? new File([img.blob], `gymtrack-bilan-${r.from}-${img.format}.jpg`, { type: 'image/jpeg' }) : null;
@@ -55,7 +56,7 @@ export default function Recap() {
   };
   const Delta = ({ v }) => (v == null || v === 0 ? null : <span className={`delta small ${v > 0 ? 'up' : 'down'}`}>{v > 0 ? '+' : ''}{v} %</span>);
   return (
-    <Page title="Bilan de la semaine" subtitle={range(r)} back="/">
+    <Page tabs={<SectionTabs group="progress" />} title="Bilan de la semaine" subtitle={range(r)}>
       <Segmented value={off} onChange={setOff} options={[[0, 'Cette semaine'], [1, 'Semaine dernière']]} />
       <div className="recap-card">
         <p className="recap-verdict">{verdict(r)}</p>

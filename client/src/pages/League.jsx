@@ -1,3 +1,4 @@
+import { TROPHY_BY_CAT, TrophyChampion, Badge3D, BADGE_ART } from '../components/Art3D.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { Page, Card, Icon, Field, Segmented, Sheet, Confirm, Loading, NumInput, useToast } from '../components/ui.jsx';
 import {
@@ -132,6 +133,7 @@ function Board({ m, onLeft }) {
         <div className="titles">
           {titles.map(({ c, winner }) => (
             <div key={c.id} className={`title-card t-${c.id}`}>
+              {(() => { const T = TROPHY_BY_CAT[c.id] || TrophyChampion; return <T size={64} animated={!!winner} />; })()}
               <span className="muted small">{c.short === 'Champion' ? 'Champion' : `${c.short} of the ${kind}`}</span>
               <b>{winner ? winner.pseudo : '—'}</b>
               <span className="small mono">{winner ? `${fmt(c, winner.value)} ${c.unit}` : 'personne'}</span>
@@ -171,7 +173,7 @@ function Board({ m, onLeft }) {
 
       <Card title="Mes badges" icon="sparkles">
         <div className="badges">
-          {summary.badges.map((b) => <span key={b.id} className={`badge-pill ${b.got ? 'got' : ''}`}>{b.got && <Icon name="check" size={12} />}{b.label}</span>)}
+          {summary.badges.map((b) => { const [glyph, tone] = BADGE_ART[b.id] || ['record', 'violet']; return <div key={b.id} className={`badge3d ${b.got ? 'got' : ''}`}><Badge3D unlocked={b.got} glyph={glyph} tone={tone} label={b.label} size={68} /><span className="small">{b.label}</span></div>; })}
         </div>
         <p className="muted small mt">Série en cours : {summary.streak} semaine{summary.streak > 1 ? 's' : ''} d’affilée avec au moins une séance.</p>
       </Card>

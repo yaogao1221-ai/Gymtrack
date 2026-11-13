@@ -22,12 +22,25 @@ import Reminders from './pages/Reminders.jsx';
 import Recap from './pages/Recap.jsx';
 import Nutrition from './pages/Nutrition.jsx';
 import Tools from './pages/Tools.jsx';
+import Plan from './pages/Plan.jsx';
 
+// Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [
-  ['/', 'home', 'Accueil'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'], ['/corps', 'scale', 'Corps'], ['/plus', 'menu', 'Plus'],
+  ['/', 'home', "Aujourd'hui", null],
+  ['/programme', 'dumbbell', 'Entraînement', /^\/(programme|calendrier|cardio|historique)/],
+  ['/corps', 'scale', 'Corps', /^\/(corps|plan)/],
+  ['/progres', 'chart', 'Progrès', /^\/(progres|objectifs|bilan|coach)/],
+  LEAGUE_ON ? ['/ligue', 'trophy', 'Ligue', /^\/ligue/] : ['/plus', 'menu', 'Plus', /^\/(plus|profil|donnees|rappels|outils)/],
 ];
-// Barre du bas : les 4 écrans de tous les jours (s'entraîner, bouger, se peser) ; le reste est regroupé dans « Plus »
-const SIDE = [...NAV.slice(0, 4), ['/progres', 'chart', 'Progrès'], ['/calendrier', 'calendar', 'Calendrier'], ['/coach', 'brain', 'Analyse'], ...(LEAGUE_ON ? [['/ligue', 'trophy', 'Ligue']] : []), ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données']];
+// Barre latérale (ordinateur) : tout est visible, rangé par espace
+const SIDE = [
+  ['/', 'home', "Aujourd'hui"],
+  ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/calendrier', 'calendar', 'Calendrier'], ['/cardio', 'heart', 'Cardio'],
+  ['Corps'], ['/corps', 'scale', 'Poids, calories, cure'], ['/plan', 'target', 'Mon plan'],
+  ['Progrès'], ['/progres', 'chart', 'Progrès'], ['/objectifs', 'target', 'Objectifs'], ['/bilan', 'upload', 'Bilan'], ['/coach', 'brain', 'Analyse'],
+  ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
+  ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Tout le reste'],
+];
 
 export default function App() {
   const [auth, setAuth] = useState(null); // null = vérification, false = connexion requise
@@ -116,7 +129,7 @@ export default function App() {
       {!inWorkout && (
         <aside className="sidebar">
           <div className="brand"><img src={iconUrl} alt="" /><span>GymTrack</span></div>
-          <nav>{SIDE.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} />{label}</NavLink>)}</nav>
+          <nav>{SIDE.map(([to, icon, label]) => (icon ? <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} />{label}</NavLink> : <p key={to} className="side-group">{to}</p>))}</nav>
         </aside>
       )}
       <main className="main">
@@ -145,12 +158,13 @@ export default function App() {
           <Route path="/bilan" element={<Recap />} />
           <Route path="/corps" element={<Nutrition />} />
           <Route path="/outils" element={<Tools />} />
+          <Route path="/plan" element={<Plan />} />
           {LEAGUE_ON && <Route path="/ligue" element={<League />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       {!inWorkout && (
-        <nav className="tabbar">{NAV.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'}><Icon name={icon} size={22} /><span>{label}</span></NavLink>)}</nav>
+        <nav className="tabbar">{NAV.map(([to, icon, label, re]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive || re?.test(loc.pathname) ? 'active' : '')}><Icon name={icon} size={22} /><span>{label}</span></NavLink>)}</nav>
       )}
     </div>
   );

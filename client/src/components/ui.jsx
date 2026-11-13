@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { get, onDataChange } from '../lib/api.js';
 
 const P = {
@@ -88,16 +89,19 @@ export function ToastProvider({ children }) {
   );
 }
 
-export function Page({ title, subtitle, actions, children, back }) {
+export function Page({ title, subtitle, actions, children, back, tabs }) {
+  const nav = useNavigate();
+  const goBack = typeof back === 'string' ? () => nav(back) : back;
   return (
     <div className="page fade-in">
       <header className="page-head">
         <div className="page-title">
-          {back && <button className="icon-btn" onClick={back} aria-label="Retour"><Icon name="left" /></button>}
+          {back && <button className="icon-btn" onClick={goBack} aria-label="Retour"><Icon name="left" /></button>}
           <div><h1>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
         </div>
         {actions && <div className="page-actions">{actions}</div>}
       </header>
+      {tabs}
       {children}
     </div>
   );

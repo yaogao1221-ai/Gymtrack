@@ -4,6 +4,7 @@ import { useApi, Page, Card, Field, Loading, ErrorBox, NumInput, Icon, Sheet, Se
 import { LineChart, COLORS } from '../components/charts.jsx';
 import { put, post, del, today } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 
 const f1 = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
 const f0 = (v) => (v == null ? '—' : Math.round(v).toLocaleString('fr-FR'));
@@ -36,7 +37,7 @@ export default function Nutrition() {
   const p = st.plan;
 
   return (
-    <Page title="Corps" subtitle="Pesées, composition, calories et cures">
+    <Page tabs={<SectionTabs group="body" />} title="Corps" subtitle="Pesées, composition, calories et cures">
       {st.missing.length > 0 && (
         <Card title="Pour calculer tes besoins" icon="info">
           <p className="small">Il manque : <b>{st.missing.join(', ')}</b>.</p>
@@ -49,6 +50,8 @@ export default function Nutrition() {
           {!st.weight_kg && <p className="muted small">Ajoute ton poids juste en dessous.</p>}
         </Card>
       )}
+
+      <Link to="/plan" className="card plan-link"><Icon name="target" /><span className="grow"><b>Mon plan selon mon objectif</b><span className="muted small">Fréquence, calories, cure et programme calculés pour toi</span></span><Icon name="right" size={18} /></Link>
 
       <Card title="Pesée et mensurations" icon="user" className="weigh-card">
         <div className="row gap-s">
@@ -135,7 +138,7 @@ export default function Nutrition() {
   );
 }
 
-function Macros({ p }) {
+export function Macros({ p }) {
   const rows = [['Protéines', p.protein_g, 4, 'p'], ['Lipides', p.fat_g, 9, 'l'], ['Glucides', p.carbs_g, 4, 'g']];
   const tot = rows.reduce((a, [, g, k]) => a + g * k, 0) || 1;
   return (

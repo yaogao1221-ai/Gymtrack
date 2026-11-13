@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES } from '../services.js';
+import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfile } from '../services.js';
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
 
@@ -49,7 +49,21 @@ export default function programRoutes(db) {
     res.status(201).json(exerciseRow(db.one('SELECT * FROM exercises WHERE id = ?', info.lastInsertRowid)));
   });
 
-  r.get('/program', (req, res) => res.json(getProgram(db)));
+  // Programme + liens avec le calendrier (prochaine date prévue, dernière séance faite) et le planning type
+  r.get('/program', (req, res) => {
+    const p = getProgram(db);
+    for (const d of p.days) {
+      d.next_date = db.one("SELECT MIN(date) d FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND program_day_id = ? AND date >= ?", USER_ID, d.id, req.today).d;
+      d.last_date = db.one('SELECT MAX(date) d FROM workouts WHERE user_id = ? AND program_day_id = ?', USER_ID, d.id).d;
+      d.total_sets = d.exercises.reduce((a, e) => a + (e.sets || 0), 0);
+      // Durée estimée : ~40 s par série + repos prévu, + cardio du jour
+      const rest = getProfile(db).default_rest_seconds || 90;
+      d.est_minutes = Math.round((d.exercises.reduce((a, e) => a + (e.sets || 0) * (40 + (e.rest_seconds || rest)), 0)) / 60 + d.cardio.reduce((a, c) => a + (c.duration_min || 0), 0));
+      const mus = {}; for (const e of d.exercises) for (const [k, v] of Object.entries(e.muscles || {})) mus[k] = (mus[k] || 0) + v * (e.sets || 0);
+      d.top_muscles = Object.entries(mus).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => MUSCLES[k] || k);
+    }
+    res.json({ ...p, schedule: getProfile(db).schedule });
+  });
 
   r.post('/program/days', (req, res) => {
     const prog = activeProgram(db);

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { USER_ID, goalsWithProgress } from '../services.js';
 import { nutritionState, targets, PLAN_TYPES } from '../nutrition.js';
+import { strategy, applyStrategy, MODES } from '../strategy.js';
+import { replanFuture } from '../planning.js';
 import { num, oneOf, date, bad, notFound, addDays } from '../util.js';
 import { r1 } from '../formulas.js';
 
@@ -20,18 +22,17 @@ export default function nutritionRoutes(db) {
   });
 
   // Démarrer une cure : fige le poids, le métabolisme et les cibles de départ
-  r.post('/nutrition/plan', (req, res) => {
-    const b = req.body;
+  const startPlan = (b, today) => {
     const type = oneOf(b.type, 'type de cure', Object.keys(PLAN_TYPES), { required: true });
     const T = PLAN_TYPES[type];
     const weeks = num(b.weeks, 'durée', { min: 4, max: 52, int: true }) ?? T.weeks[2];
     const rate = num(b.rate_pct, 'vitesse', { min: 0, max: 1.5 });
-    const st = nutritionState(db, req.today);
+    const st = nutritionState(db, today);
     if (!st.weight_kg || !st.tdee) throw bad(`Complète d’abord : ${st.missing.join(', ') || 'ton poids'}`);
     const t = targets(type, { kg: st.weight_kg, tdee: st.tdee, bf: st.body_fat?.value, level: st.profile.level, rate });
-    const start = date(b.start_date || req.today);
+    const start = date(b.start_date || today);
     db.tx(() => {
-      for (const old of db.all("SELECT id FROM nutrition_plans WHERE user_id = ? AND status = 'active'", USER_ID)) closePlan(old.id, 'stopped', req.today);
+      for (const old of db.all("SELECT id FROM nutrition_plans WHERE user_id = ? AND status = 'active'", USER_ID)) closePlan(old.id, 'stopped', today);
       const pid = Number(db.run(`INSERT INTO nutrition_plans (user_id, type, start_date, weeks, rate_pct, start_weight_kg, start_tdee, kcal_base, kcal_adjust, status)
         VALUES (?,?,?,?,?,?,?,?,0,'active')`, USER_ID, type, start, weeks, t.rate_pct, st.weight_kg, st.tdee, t.kcal).lastInsertRowid);
       // La cure crée son objectif : poids visé en fin de cure (sèche, masse) ou tour de taille (recomposition : le poids bouge peu)
@@ -46,7 +47,32 @@ export default function nutritionRoutes(db) {
           USER_ID, `${T.label} : tour de taille ${String(r1(waist - Math.max(2, weeks / 4))).replace('.', ',')} cm`, waist, r1(waist - Math.max(2, weeks / 4)), end, pid);
       }
     });
-    res.status(201).json(nutritionState(db, req.today));
+  };
+  r.post('/nutrition/plan', (req, res) => { startPlan(req.body, req.today); res.status(201).json(nutritionState(db, req.today)); });
+
+  // Plan selon l'objectif : propositions calculées, puis application des seuls éléments cochés
+  const readTarget = (b) => ({
+    mode: b.mode === 'auto' || b.mode == null || b.mode === '' ? null : oneOf(b.mode, 'mode', Object.keys(MODES)),
+    target_kg: num(b.target_kg, 'poids visé', { min: 35, max: 250 }), target_bf: num(b.target_bf, '% de gras visé', { min: 5, max: 45 }),
+    weeks: num(b.weeks, 'durée', { min: 4, max: 52, int: true }),
+  });
+  const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null));
+  r.get('/strategy', (req, res) => res.json(strategy(db, req.today, clean(readTarget(req.query)))));
+  r.put('/strategy/target', (req, res) => {
+    const t = clean(readTarget(req.body || {}));
+    db.run('UPDATE profiles SET body_target = ? WHERE user_id = ?', Object.keys(t).length ? JSON.stringify(t) : null, USER_ID);
+    res.json(strategy(db, req.today));
+  });
+  r.post('/strategy/apply', (req, res) => {
+    const keys = Array.isArray(req.body.keys) ? req.body.keys.map(String) : [];
+    if (!keys.length) throw bad('Coche au moins un élément à appliquer');
+    const s = strategy(db, req.today);
+    if (!s.ready) throw bad(`Complète d’abord : ${s.missing.join(', ') || 'ton poids'}`);
+    const applied = applyStrategy(db, req.today, s, keys, {
+      startPlan: (b) => startPlan(b, req.today),
+      setSchedule: (schedule, n) => { db.run('UPDATE profiles SET schedule = ?, sessions_per_week = ? WHERE user_id = ?', JSON.stringify(schedule), n, USER_ID); replanFuture(db, req.today); },
+    });
+    res.json({ applied, strategy: strategy(db, req.today) });
   });
 
   // Ajustement validé par l'utilisateur (proposé par le contrôle de la semaine)

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Loading, Empty, Confirm, useToast } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { post, patch, del } from '../lib/api.js';
 import { fmtDate } from '../lib/format.js';
 
@@ -21,7 +22,7 @@ export default function Goals() {
   if (!data) return <Loading />;
   const active = data.filter((g) => g.status === 'actif'); const others = data.filter((g) => g.status !== 'actif');
   return (
-    <Page title="Objectifs" subtitle="Calculés automatiquement à partir de tes séances, de ton cardio et de tes pesées" back="/plus" actions={<button className="btn primary sm" onClick={() => setForm({ type: 'charge', title: '', target_value: null })}><Icon name="plus" size={16} />Nouveau</button>}>
+    <Page tabs={<SectionTabs group="progress" />} title="Objectifs" subtitle="Calculés automatiquement à partir de tes séances, de ton cardio et de tes pesées" actions={<button className="btn primary sm" onClick={() => setForm({ type: 'charge', title: '', target_value: null })}><Icon name="plus" size={16} />Nouveau</button>}>
       {active.length ? active.map((g) => (
         <Card key={g.id} className="goal-card">
           <div className="row-between"><div><b>{g.title}</b><p className="muted small">{TYPES[g.type]}{g.deadline ? ` · échéance ${fmtDate(g.deadline)}` : ''}</p></div>

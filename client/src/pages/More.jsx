@@ -3,6 +3,10 @@ import { Page, Icon } from '../components/ui.jsx';
 import { getToken, setToken, LEAGUE_ON } from '../lib/api.js';
 
 const GROUPS = [
+  ['Corps', [
+    ['/plan', 'target', 'Mon plan', 'Fréquence, calories et cure selon ton objectif'],
+    ['/corps', 'scale', 'Poids et cure', 'Pesées, composition, calories'],
+  ]],
   ['Suivi', [
     ['/progres', 'chart', 'Progrès', 'Graphiques, exercices, comparaisons, historique'],
     ['/objectifs', 'target', 'Objectifs', 'Calculés tout seuls depuis tes séances et pesées'],
@@ -35,7 +39,7 @@ export default function More() {
         </section>
       ))}
       {getToken() && <button className="btn ghost block mt" onClick={() => { setToken(null); window.location.reload(); }}>Se déconnecter</button>}
-      <p className="muted small center mt">GymTrack · v2.2</p>
+      <p className="muted small center mt">GymTrack · v2.3</p>
     </Page>
   );
 }

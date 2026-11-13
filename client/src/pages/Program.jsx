@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Segmented, Loading, ErrorBox, Confirm, useToast } from '../components/ui.jsx';
-import { post, patch, del } from '../lib/api.js';
+import { post, patch, put, del } from '../lib/api.js';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { repsLabel, weightLabel, fmtDate, CARDIO, CARDIO_ICON } from '../lib/format.js';
 import { Chips } from '../components/ui.jsx';
 
@@ -9,22 +10,25 @@ export default function Program() {
   const { data, error, reload } = useApi('/program');
   const lib = useApi('/exercises');
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
+  const [wd, setWd] = useState(null);
   const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
   const nav = useNavigate(); const toast = useToast();
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
   const day = data.days[Math.min(sel, data.days.length - 1)];
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, 'err'); } };
+  const saveDay = (code) => run(async () => { await put('/profile', { schedule: { ...data.schedule, [wd]: code } }); setWd(null); }, 'Semaine type et calendrier mis à jour');
   const move = (i, dir) => {
     const ids = day.exercises.map((e) => e.id); const j = i + dir; if (j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
     run(() => post(`/program/days/${day.id}/order`, { ids }));
   };
   return (
-    <Page title="Programme" subtitle={data.program?.name}
+    <Page tabs={<SectionTabs group="training" />} title="Programme" subtitle={data.program?.name}
       actions={<button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button>}>
+      <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
-        {data.days.map((d, i) => <button key={d.id} className={`tab ${i === sel ? 'on' : ''}`} onClick={() => setSel(i)}><b>{d.name}</b><span>{d.focus}</span></button>)}
+        {data.days.map((d, i) => <button key={d.id} className={`tab ${i === sel ? 'on' : ''}`} onClick={() => setSel(i)}><b>{d.name}</b><span>{d.focus}</span>{d.next_date && <span className="tab-next">{fmtDate(d.next_date, { weekday: 'short', day: 'numeric' })}</span>}</button>)}
         {edit && <button className="tab add" onClick={() => run(async () => { await post('/program/days', {}); setSel(data.days.length); }, 'Jour ajouté')}><Icon name="plus" /><span>Ajouter un jour</span></button>}
       </div>
       {day && (
@@ -32,6 +36,11 @@ export default function Program() {
           ? <div className="row gap-s"><button className="icon-btn" aria-label="Renommer" onClick={() => setDayEdit({ ...day })}><Icon name="edit" size={18} /></button>
               <button className="icon-btn danger" aria-label="Supprimer le jour" onClick={() => setConfirm(day)}><Icon name="trash" size={18} /></button></div>
           : <button className="btn primary sm" onClick={() => nav(`/seance/${day.id}`)}><Icon name="play" size={14} />Commencer</button>}>
+          <div className="day-sum">
+            <span><b>{day.exercises.length}</b> exercices</span><span><b>{day.total_sets}</b> séries</span><span>≈ <b>{day.est_minutes}</b> min</span>
+            {day.top_muscles?.length > 0 && <span className="muted">{day.top_muscles.join(' · ')}</span>}
+          </div>
+          <p className="muted small day-dates">{day.next_date ? `Prochaine fois : ${fmtDate(day.next_date, { weekday: 'long', day: 'numeric', month: 'short' })}` : 'Pas encore planifié dans le calendrier'}{day.last_date ? ` · dernière fois le ${fmtDate(day.last_date, { day: 'numeric', month: 'short' })}` : ''}</p>
           <ol className="ex-list">
             {day.exercises.map((e, i) => (
               <li key={e.id} className={`ex-item ${e.superset_group ? 'superset' : ''}`} onClick={() => edit && setPe({ ...e })}>
@@ -82,6 +91,13 @@ export default function Program() {
         footer={<button className="btn primary" onClick={() => run(async () => { await patch(`/program/days/${dayEdit.id}`, { name: dayEdit.name, focus: dayEdit.focus }); setDayEdit(null); }, 'Jour renommé')}>Enregistrer</button>}>
         {dayEdit && <><Field label="Nom"><input value={dayEdit.name} onChange={(e) => setDayEdit({ ...dayEdit, name: e.target.value })} /></Field>
           <Field label="Groupes musculaires"><input value={dayEdit.focus || ''} onChange={(e) => setDayEdit({ ...dayEdit, focus: e.target.value })} /></Field></>}
+      </Sheet>
+      <Sheet open={!!wd} onClose={() => setWd(null)} title={wd ? `Le ${WD_LABEL[wd]}` : ''}>
+        {wd && <div className="pick-days">
+          <button className={`chip ${data.schedule[wd] === 'rest' ? 'on' : ''}`} onClick={() => saveDay('rest')}>Repos</button>
+          {data.days.map((d) => <button key={d.id} className={`chip ${data.schedule[wd] === d.code ? 'on' : ''}`} onClick={() => saveDay(d.code)}><b>{d.name}</b> · {d.focus}</button>)}
+        </div>}
+        <p className="muted small mt">Le calendrier des semaines à venir suit automatiquement. Les séances déjà faites ne bougent pas.</p>
       </Sheet>
       <Confirm open={!!confirm} onClose={() => setConfirm(null)} danger title="Supprimer ce jour ?" confirmLabel="Supprimer"
         text={`« ${confirm?.name} — ${confirm?.focus} » sera retiré du programme et des planifications futures. Ton historique de séances est conservé.`}
@@ -177,5 +193,26 @@ function CardioBlockSheet({ pc, onClose, onSave, onDelete }) {
       <Field label="Moment"><Segmented value={f.placement} onChange={(v) => set({ placement: v })} options={[['debut', 'Échauffement'], ['fin', 'Fin de séance']]} /></Field>
       <p className="tip"><Icon name="info" size={14} />En fin de séance de jambes, garde une intensité où tu peux parler : le cardio ne doit pas voler la récupération musculaire.</p>
     </Sheet>
+  );
+}
+
+const WD = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const WD_LABEL = { mon: 'lundi', tue: 'mardi', wed: 'mercredi', thu: 'jeudi', fri: 'vendredi', sat: 'samedi', sun: 'dimanche' };
+// Semaine type : relie le programme au calendrier (modifier un jour replanifie les semaines à venir)
+function WeekType({ schedule, days, onPick, onOpen }) {
+  const todayKey = WD[(new Date().getDay() + 6) % 7];
+  return (
+    <div className="week-type">
+      {WD.map((k) => {
+        const code = schedule?.[k] || 'rest'; const i = days.findIndex((d) => d.code === code); const d = days[i];
+        return (
+          <button key={k} className={`wt-day ${d ? 'train' : 'rest'} ${k === todayKey ? 'today' : ''}`} onClick={() => onPick(k)} onDoubleClick={() => d && onOpen(i)} title={d ? `${d.name} — ${d.focus}` : 'Repos'}>
+            <span className="wt-dow">{WD_LABEL[k].slice(0, 3)}</span>
+            <b>{d ? d.name.replace('Jour ', 'J') : '—'}</b>
+            <span className="wt-focus">{d ? (d.focus || '').split(/[ /]+/)[0] : 'repos'}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

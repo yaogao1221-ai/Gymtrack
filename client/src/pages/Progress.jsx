@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Segmented, Field, Loading, Empty, Icon } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { LineChart, BarChart, COLORS } from '../components/charts.jsx';
 import { get, today } from '../lib/api.js';
 import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
@@ -8,7 +9,7 @@ import { fmtDate, n0, n1, mins, dur, addDays, CARDIO, CARDIO_ICON } from '../lib
 export default function Progress() {
   const [tab, setTab] = useState('overview');
   return (
-    <Page title="Progrès" subtitle="Graphiques, comparaisons et historique complet" back="/plus"
+    <Page tabs={<SectionTabs group="progress" />} title="Progrès" subtitle="Graphiques, comparaisons et historique complet"
       actions={<div className="row gap-s"><Link className="btn sm ghost" to="/objectifs"><Icon name="target" size={14} />Objectifs</Link><Link className="btn sm ghost" to="/bilan"><Icon name="upload" size={14} />Bilan</Link></div>}>
       <Segmented value={tab} onChange={setTab} options={[['overview', 'Vue globale'], ['exercise', 'Exercices'], ['compare', 'Comparer'], ['history', 'Historique']]} />
       <div className="mt">

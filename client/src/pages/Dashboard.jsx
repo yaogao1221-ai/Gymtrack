@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty } from '../components/ui.jsx';
+import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty, Sheet, Field, NumInput, useToast } from '../components/ui.jsx';
+import { post, today } from '../lib/api.js';
 import { Spark, COLORS } from '../components/charts.jsx';
+import { IconStrength } from '../components/Art3D.jsx';
 import { fmtDate, fmtDay, relDay, dur, mins, n0, addDays, CARDIO, CARDIO_ICON } from '../lib/format.js';
 
 export default function Dashboard() {
   const { data: d, error, reload } = useApi('/dashboard');
-  const nav = useNavigate();
+  const nav = useNavigate(); const toast = useToast();
+  const [weigh, setWeigh] = useState(null);
   if (error && !d) return <ErrorBox error={error} retry={reload} />;
   if (!d) return <Loading />;
   const hour = new Date().getHours();
@@ -21,11 +25,13 @@ export default function Dashboard() {
     <div className="page fade-in">
       <header className="page-head">
         <div><p className="eyebrow">{fmtDay(d.today)}</p><h1>{hello}{d.name && d.name !== 'Athlète' ? `, ${d.name}` : ''}</h1></div>
-        <Link to="/coach" className={`pill recovery ${d.recovery.score >= 75 ? 'good' : d.recovery.score >= 55 ? 'mid' : 'low'}`} title="Récupération estimée"><Icon name="bolt" size={14} />Récup. {d.recovery.score}</Link>
+        <div className="row gap-s"><Link to="/coach" className={`pill recovery ${d.recovery.score >= 75 ? 'good' : d.recovery.score >= 55 ? 'mid' : 'low'}`} title="Récupération estimée"><Icon name="bolt" size={14} />Récup. {d.recovery.score}</Link>
+          <Link to="/plus" className="icon-btn" aria-label="Réglages et autres outils"><Icon name="menu" /></Link></div>
       </header>
 
       <section className="hero card">
         <div className="hero-glow" />
+        {d.next && <IconStrength size={84} className="hero-art" />}
         <p className="eyebrow">Prochaine séance{d.next?.date ? ` · ${relDay(d.next.date, d.today)}` : ''}</p>
         {d.next ? (<>
           <h2 className="hero-title">{d.next.name} <span className="muted">—</span> {d.next.focus}</h2>
@@ -37,6 +43,19 @@ export default function Dashboard() {
           </div>
         </>) : <p>Aucune séance au programme.</p>}
       </section>
+
+      <div className="quick">
+        <button onClick={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })}><Icon name="scale" /><span>Pesée</span></button>
+        <Link to="/cardio?ajout=1"><Icon name="heart" /><span>Cardio</span></Link>
+        <Link to="/calendrier"><Icon name="calendar" /><span>Planning</span></Link>
+        <Link to="/plan"><Icon name="target" /><span>Mon plan</span></Link>
+      </div>
+      <Sheet open={!!weigh} onClose={() => setWeigh(null)} title="Pesée du jour"
+        footer={<button className="btn primary block" disabled={!weigh?.weight_kg} onClick={async () => {
+          try { await post('/body-metrics', { date: weigh.date || today(), weight_kg: Number(weigh.weight_kg) }); setWeigh(null); toast('Pesée enregistrée : poids, objectifs et calories mis à jour'); } catch (e) { toast(e.message, 'err'); }
+        }}>Enregistrer</button>}>
+        {weigh && <Field label="Poids (kg)" hint="Idéalement le matin, à jeun : la moyenne sur 7 jours lisse les variations d’eau."><NumInput value={weigh.weight_kg} onChange={(v) => setWeigh({ ...weigh, weight_kg: v })} step={0.1} autoFocus /></Field>}
+      </Sheet>
 
       <section className="card week-rings">
         <ActivityRings size={156} rings={rings.map((r) => ({ value: r.value, grad: r.grad }))}

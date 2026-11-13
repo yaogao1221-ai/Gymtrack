@@ -1,6 +1,8 @@
+import { IconRecovery } from '../components/Art3D.jsx';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Ring, Sheet, Field, Loading, ErrorBox, useToast } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { post, patch, put, del, today } from '../lib/api.js';
 import { DAYS, fmtDate } from '../lib/format.js';
 import { RadarChart, COLORS } from '../components/charts.jsx';
@@ -23,10 +25,11 @@ export default function Coach() {
   const maxSets = Math.max(...a.volume.muscles.map((m) => Math.max(m.sets, m.opt_high)), 1);
   const activePains = (pains.data?.reports || []).filter((p) => !p.resolved);
   return (
-    <Page title="Analyse" subtitle="Analyse de ton programme, de ta récupération et de ta progression">
+    <Page tabs={<SectionTabs group="progress" />} title="Analyse" subtitle="Analyse de ton programme, de ta récupération et de ta progression">
       <div className="grid-2col">
         <Card title="Récupération estimée" icon="bolt">
           <div className="row gap">
+            <IconRecovery size={72} />
             <Ring value={a.recovery.score / 100} size={88} stroke={10} label={a.recovery.score} grad={a.recovery.score >= 75 ? 'aqua' : a.recovery.score >= 55 ? 'fire' : 'violet'} />
             <div><b className="big">{a.recovery.label}</b><ul className="factors">{a.recovery.factors.map((f, i) => <li key={i} className={f.impact < 0 ? 'neg' : ''}>{f.text}{f.impact ? ` (${f.impact})` : ''}</li>)}</ul></div>
           </div>

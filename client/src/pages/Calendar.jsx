@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi, Page, Icon, Sheet, Field, NumInput, Segmented, Loading, useToast } from '../components/ui.jsx';
+import { SectionTabs } from '../components/SectionTabs.jsx';
 import { post, patch, del, today } from '../lib/api.js';
 import { addDays, weekStart, fmtDay, iso, CARDIO, CARDIO_ICON, mins } from '../lib/format.js';
 
@@ -20,20 +21,35 @@ export default function Calendar() {
   const program = useApi('/program');
   const shift = (n) => { const d = new Date(first + 'T12:00:00'); d.setMonth(d.getMonth() + n); setMonth(iso(d).slice(0, 7)); };
   const run = async (fn, msg) => { try { const r = await fn(); if (msg) toast(typeof msg === 'function' ? msg(r) : msg); reload(); } catch (e) { toast(e.message, 'err'); } };
+  const [view, setView] = useState('month');
   const by = (date) => ({
     events: data?.events.filter((e) => e.date === date) || [],
     workouts: data?.workouts.filter((w) => w.date === date) || [],
     cardio: data?.cardio.filter((c) => c.date === date) || [],
+    metrics: data?.metrics?.filter((m) => m.date === date) || [],
+    plan: data?.plans?.find((p) => p.start_date <= date && p.end_date >= date) || null,
+    deadlines: data?.deadlines?.filter((g) => g.date === date) || [],
+    blocks: (data?.events || []).filter((e) => e.date === date && e.type === 'workout' && e.status === 'planned').flatMap((e) => data?.blocks?.[e.program_day_id] || []),
   });
+  const inMonth = (d) => monthOf(d) === month;
+  const sum = data ? {
+    done: data.workouts.filter((w) => inMonth(w.date)).length,
+    planned: data.events.filter((e) => inMonth(e.date) && e.type === 'workout' && e.status === 'planned' && e.date >= t).length,
+    cardio: data.cardio.filter((c) => inMonth(c.date)).length,
+    weigh: (data.metrics || []).filter((m) => inMonth(m.date) && m.weight_kg != null).length,
+  } : null;
   const title = new Date(first + 'T12:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const sel = selected && by(selected);
 
   return (
-    <Page title="Calendrier" subtitle="Planifie, déplace et consulte tes séances">
+    <Page tabs={<SectionTabs group="training" />} title="Calendrier" subtitle="Planifie, déplace et consulte tes séances">
       <div className="row gap-s wrap cal-actions">
         <button className="btn sm primary" onClick={() => setReflow({ from: t, program_day_id: program.data?.days[0]?.id, weeks: 4 })}><Icon name="calendar" size={16} />Reprendre par…</button>
         <button className="btn sm" onClick={() => run(() => post('/calendar/plan', { from: weekStart(t), weeks: 4 }), (r) => `${r.created} jour(s) planifié(s)${r.skipped ? `, ${r.skipped} déjà occupé(s)` : ''}`)}><Icon name="sparkles" size={16} />Planifier 4 sem.</button>
       </div>
+      <Segmented value={view} onChange={setView} options={[['month', 'Mois'], ['agenda', 'Agenda']]} />
+      {view === 'agenda' ? <Agenda from={t} by={by} data={data} onPick={setSelected} onGo={(id) => nav(`/seance/${id}`)} /> : <>
+      {sum && <div className="cal-sum"><span><b>{sum.done}</b> séance{sum.done > 1 ? 's' : ''} faite{sum.done > 1 ? 's' : ''}</span><span><b>{sum.planned}</b> à venir</span><span><b>{sum.cardio}</b> cardio</span><span><b>{sum.weigh}</b> pesée{sum.weigh > 1 ? 's' : ''}</span></div>}
       <div className="cal card">
         <div className="cal-head">
           <button className="icon-btn" onClick={() => shift(-1)} aria-label="Mois précédent"><Icon name="left" /></button>
@@ -55,15 +71,21 @@ export default function Calendar() {
                     <i key={e.id} className="cal-chip planned" draggable onDragStart={() => setDragId(e.id)} onDragEnd={() => setDragId(null)}>{(e.day_name || '').replace('Jour ', 'J')}</i>
                   ))}
                   {x.events.filter((e) => e.type === 'workout' && e.status === 'skipped').map((e) => <i key={e.id} className="cal-chip skipped">{(e.day_name || '').replace('Jour ', 'J')}</i>)}
-                  {x.cardio.length > 0 ? <i className="cal-dot mint" /> : x.events.some((e) => e.type === 'cardio' && e.status === 'planned') ? <i className="cal-dot ring-mint" /> : null}
-                  {x.events.some((e) => e.type === 'rest') && !x.workouts.length && <i className="cal-rest">repos</i>}
+                  {x.events.some((e) => e.type === 'rest') && !x.workouts.length && !x.cardio.length && <i className="cal-rest">repos</i>}
                 </span>
+                <span className="cal-marks">
+                  {x.cardio.length > 0 ? <i className="mk cardio" title="Cardio fait" /> : (x.blocks.length || x.events.some((e) => e.type === 'cardio' && e.status === 'planned')) ? <i className="mk cardio ring" title="Cardio prévu" /> : null}
+                  {x.metrics.some((m) => m.weight_kg != null || m.waist_cm != null) && <i className="mk body" title="Pesée / mesure" />}
+                  {x.deadlines.length > 0 && <i className="mk goal" title="Échéance d’objectif" />}
+                </span>
+                {x.plan && <span className={`cal-plan ${x.plan.start_date === date ? 'start' : ''} ${x.plan.end_date === date ? 'end' : ''}`} title={`Cure : ${x.plan.label}`} />}
               </button>
             );
           })}
         </div>
-        <div className="legend small muted"><span><i className="cal-chip done">J1</i>faite</span><span><i className="cal-chip planned">J2</i>prévue</span><span><i className="cal-dot mint" />cardio</span><span className="hide-mobile">Glisse une séance prévue pour la déplacer</span></div>
+        <div className="legend small muted cal-legend"><span><i className="cal-chip done">J1</i>faite</span><span><i className="cal-chip planned">J2</i>prévue</span><span><i className="mk cardio" />cardio</span><span><i className="mk cardio ring" />cardio prévu</span><span><i className="mk body" />pesée</span><span><i className="mk goal" />échéance</span>{data?.plans?.length > 0 && <span><i className="cal-plan-key" />cure</span>}<span className="hide-mobile">Glisse une séance prévue pour la déplacer</span></div>
       </div>
+      </>}
 
       <Sheet open={!!reflow} onClose={() => setReflow(null)} title="Reprendre le programme"
         footer={<button className="btn primary" disabled={!reflow?.program_day_id} onClick={() => run(async () => { const r = await post('/calendar/reflow', reflow); setReflow(null); return r; }, (r) => `Programme recalé à partir du ${fmtDay(r.from)}`)}>Recaler le calendrier</button>}>
@@ -97,7 +119,11 @@ export default function Calendar() {
               </div>
             </div>
           ))}
-          {!sel.workouts.length && !sel.cardio.length && !sel.events.length && <p className="muted">Rien de prévu ce jour-là.</p>}
+          {sel.blocks.length > 0 && <p className="small cal-blocks"><Icon name="heart" size={14} />Avec la séance : {sel.blocks.map((b) => `${b.label} ${Math.round(b.duration_min)} min ${b.placement === 'debut' ? 'en début' : 'en fin'}`).join(' · ')}</p>}
+          {sel.metrics.map((m) => <Link key={m.id} className="cal-row done body" to="/corps"><Icon name="scale" size={16} /><span className="grow"><b>{[m.weight_kg != null && `${String(m.weight_kg).replace('.', ',')} kg`, m.waist_cm != null && `taille ${m.waist_cm} cm`, m.body_fat_pct != null && `${m.body_fat_pct} % de gras`].filter(Boolean).join(' · ')}</b></span><span className="muted small">pesée</span></Link>)}
+          {sel.deadlines.map((g) => <Link key={g.id} className="cal-row" to="/objectifs"><Icon name="target" size={16} /><span className="grow"><b>Échéance : {g.title}</b></span></Link>)}
+          {sel.plan && <p className="muted small">Cure {sel.plan.label.toLowerCase()} · semaine {Math.floor((new Date(selected) - new Date(sel.plan.start_date)) / 864e5 / 7) + 1} sur {sel.plan.weeks}</p>}
+          {!sel.workouts.length && !sel.cardio.length && !sel.events.length && !sel.metrics.length && <p className="muted">Rien de prévu ce jour-là.</p>}
           <h3 className="sub">Ajouter</h3>
           {adding ? (
             <div className="add-box">
@@ -114,9 +140,42 @@ export default function Calendar() {
             <button className="btn sm" onClick={() => setAdding({ type: 'workout' })}>Séance muscu</button>
             <button className="btn sm" onClick={() => setAdding({ type: 'cardio', cardio_activity: 'marche_inclinee', planned_minutes: 20 })}>Cardio</button>
             <button className="btn sm" onClick={() => run(() => post('/calendar', { type: 'rest', date: selected, title: 'Repos' }), 'Jour de repos ajouté')}>Repos</button>
+            {selected <= t && <Link className="btn sm" to="/corps"><Icon name="scale" size={14} />Pesée</Link>}
           </div>}
         </>)}
       </Sheet>
     </Page>
+  );
+}
+
+// Agenda : les 14 prochains jours en liste, avec tout ce qui les concerne (muscu, cardio, pesée, cure, échéances)
+function Agenda({ from, by, data, onPick, onGo }) {
+  if (!data) return <Loading />;
+  const days = Array.from({ length: 14 }, (_, i) => addDays(from, i));
+  return (
+    <div className="agenda">
+      {days.map((d) => {
+        const x = by(d); const w = x.events.find((e) => e.type === 'workout' && e.status === 'planned');
+        const rest = x.events.some((e) => e.type === 'rest') && !w && !x.workouts.length;
+        return (
+          <div key={d} className={`ag-day ${d === from ? 'today' : ''} ${rest ? 'rest' : ''}`} onClick={() => onPick(d)}>
+            <div className="ag-date"><span className="muted small">{new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short' })}</span><b>{Number(d.slice(8))}</b></div>
+            <div className="ag-body">
+              {x.workouts.map((wk) => <div key={wk.id} className="ag-item done mus"><Icon name="check" size={14} /><span className="grow"><b>{wk.name}</b> <span className="muted">{wk.focus}</span></span></div>)}
+              {w && <div className="ag-item mus"><Icon name="dumbbell" size={14} /><span className="grow"><b>{w.day_name}</b> <span className="muted">{w.focus}</span>{w.deload ? <span className="tag">deload</span> : null}</span>
+                {d === from && <button className="btn xs primary" onClick={(e) => { e.stopPropagation(); onGo(w.program_day_id); }}><Icon name="play" size={12} />Go</button>}</div>}
+              {x.blocks.map((b, i) => <div key={i} className="ag-item car sub"><Icon name="heart" size={14} /><span>{b.label} · {Math.round(b.duration_min)} min {b.placement === 'debut' ? 'avant' : 'après'}</span></div>)}
+              {x.cardio.map((c) => <div key={c.id} className="ag-item done car"><Icon name="heart" size={14} /><span>{c.custom_name || CARDIO[c.activity]} · {mins(c.duration_min)}{c.distance_km ? ` · ${String(c.distance_km).replace('.', ',')} km` : ''}</span></div>)}
+              {x.events.filter((e) => e.type === 'cardio' && e.status === 'planned').map((e) => <div key={e.id} className="ag-item car"><Icon name="heart" size={14} /><span>Cardio {CARDIO[e.cardio_activity] || ''} {e.planned_minutes ? `· ${e.planned_minutes} min` : ''}</span></div>)}
+              {x.metrics.filter((m) => m.weight_kg != null).map((m) => <div key={m.id} className="ag-item body"><Icon name="scale" size={14} /><span>Pesée · {String(m.weight_kg).replace('.', ',')} kg</span></div>)}
+              {x.deadlines.map((g) => <div key={g.id} className="ag-item goal"><Icon name="target" size={14} /><span>Échéance : {g.title}</span></div>)}
+              {rest && <span className="muted small">Repos</span>}
+              {!rest && !w && !x.workouts.length && !x.cardio.length && !x.metrics.length && !x.deadlines.length && <span className="muted small">Libre</span>}
+              {x.plan && x.plan.start_date === d && <span className="tag">Début de la cure : {x.plan.label}</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { USER_ID, getProfile, getProgram } from '../services.js';
+import { USER_ID, getProfile, getProgram, CARDIO_TYPES } from '../services.js';
 import { deloadStatus } from '../analysis.js';
 import { planDays } from '../planning.js';
 import { num, str, date, oneOf, bad, notFound, patchRow, addDays, dayKey } from '../util.js';
@@ -14,7 +14,14 @@ export default function calendarRoutes(db) {
     res.json({
       events: db.all('SELECT ce.*, pd.name day_name, pd.focus, pd.code FROM calendar_events ce LEFT JOIN program_days pd ON pd.id = ce.program_day_id WHERE ce.user_id = ? AND ce.date BETWEEN ? AND ? ORDER BY ce.date, ce.id', USER_ID, from, to),
       workouts: db.all('SELECT w.id, w.date, w.name, w.duration_sec, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? AND w.date BETWEEN ? AND ? ORDER BY w.date', USER_ID, from, to),
-      cardio: db.all('SELECT id, date, activity, custom_name, duration_min FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date', USER_ID, from, to),
+      cardio: db.all('SELECT id, date, activity, custom_name, duration_min, distance_km FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date', USER_ID, from, to),
+      // Tout ce qui se passe sur ces jours, depuis les autres modules
+      metrics: db.all('SELECT id, date, weight_kg, waist_cm, body_fat_pct FROM body_metrics WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date, id', USER_ID, from, to),
+      blocks: Object.fromEntries(db.all('SELECT day_id, activity, custom_name, duration_min, placement FROM program_cardio ORDER BY placement, id').reduce((m, c) => { const k = c.day_id; (m.get(k) || m.set(k, []).get(k)).push({ ...c, label: c.custom_name || CARDIO_TYPES[c.activity]?.label || c.activity }); return m; }, new Map())),
+      plans: db.all("SELECT id, type, start_date, weeks, status, ended_at FROM nutrition_plans WHERE user_id = ? AND start_date <= ? ORDER BY start_date", USER_ID, to)
+        .map((p) => ({ ...p, end_date: p.status === 'active' ? addDays(p.start_date, p.weeks * 7 - 1) : (p.ended_at || addDays(p.start_date, p.weeks * 7 - 1)), label: { seche: 'Sèche', masse: 'Prise de masse', recompo: 'Recomposition' }[p.type] }))
+        .filter((p) => p.end_date >= from),
+      deadlines: db.all("SELECT id, title, deadline date FROM goals WHERE user_id = ? AND status = 'actif' AND deadline BETWEEN ? AND ?", USER_ID, from, to),
     });
   });
   r.post('/calendar', (req, res) => {

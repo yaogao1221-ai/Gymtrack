@@ -252,12 +252,16 @@ export function setupDb(db) {
   if (!cols('calendar_events').has('deload')) db.exec('ALTER TABLE calendar_events ADD COLUMN deload INTEGER NOT NULL DEFAULT 0');
   for (const c of ['neck_cm', 'hip_cm']) if (!cols('body_metrics').has(c)) db.exec(`ALTER TABLE body_metrics ADD COLUMN ${c} REAL`);
   if (!cols('goals').has('nutrition_plan_id')) db.exec('ALTER TABLE goals ADD COLUMN nutrition_plan_id INTEGER REFERENCES nutrition_plans(id) ON DELETE SET NULL');
+  if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
+  // Transactions imbriquables : seule la plus externe ouvre et valide (une action composée reste atomique)
+  let depth = 0;
   db.tx = (fn) => {
-    db.exec('BEGIN');
-    try { const r = fn(); db.exec('COMMIT'); return r; }
-    catch (e) { db.exec('ROLLBACK'); throw e; }
+    if (depth) { depth++; try { return fn(); } finally { depth--; } }
+    db.exec('BEGIN'); depth = 1;
+    try { const r = fn(); depth = 0; db.exec('COMMIT'); return r; }
+    catch (e) { depth = 0; db.exec('ROLLBACK'); throw e; }
   };
   db.one = (sql, ...p) => db.prepare(sql).get(...p);
   db.all = (sql, ...p) => db.prepare(sql).all(...p);
