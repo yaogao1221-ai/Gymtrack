@@ -2,12 +2,12 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Segmented, Loading, ErrorBox, Confirm, useToast } from '../components/ui.jsx';
 import { post, patch, put, del } from '../lib/api.js';
-import { SectionTabs } from '../components/SectionTabs.jsx';
 import { repsLabel, weightLabel, fmtDate, CARDIO, CARDIO_ICON } from '../lib/format.js';
 import { Chips } from '../components/ui.jsx';
 import { ExerciseBrowser } from '../components/ExercisePicker.jsx';
 import { DemoImages, ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { thumb } from '../lib/exlib.js';
+import { CardioWeek } from './Cardio.jsx';
 
 export default function Program() {
   const { data, error, reload } = useApi('/program');
@@ -62,7 +62,7 @@ export default function Program() {
     </li>
   );
   return (
-    <Page tabs={<SectionTabs group="training" />} title="Programme" subtitle={data.program?.name}
+    <Page title="Programme" subtitle={data.program?.name}
       actions={<div className="row gap-s"><button className="btn sm ghost" onClick={() => nav('/programme/creer')}><Icon name="sparkles" size={16} />Créer</button><button className={`btn sm ${edit ? 'primary' : ''}`} onClick={() => setEdit(!edit)}><Icon name={edit ? 'check' : 'edit'} size={16} />{edit ? 'Terminer' : 'Modifier'}</button></div>}>
       <WeekType schedule={data.schedule} days={data.days} onPick={setWd} onOpen={(i) => setSel(i)} />
       <div className="tabs scroll-x">
@@ -104,6 +104,7 @@ export default function Program() {
         </Card>
       )}
 
+      {!edit && <CardioWeek prog={data} day={day} onChanged={reload} />}
       <ExerciseInfo open={!!demo} libId={demo} onClose={() => setDemo(null)} />
       <ExerciseSheet pe={pe} onClose={() => setPe(null)} lib={lib.data?.exercises || []}
         onSave={(body) => run(async () => { await patch(`/program/exercises/${pe.id}`, body); setPe(null); }, 'Exercice mis à jour')}

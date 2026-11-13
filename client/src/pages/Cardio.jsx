@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApi, Page, Card, Stat, Icon, Sheet, Field, NumInput, Chips, Loading, Empty, Confirm, useToast } from '../components/ui.jsx';
-import { SectionTabs } from '../components/SectionTabs.jsx';
 import { BarChart, COLORS } from '../components/charts.jsx';
 import { post, put, del, postOrQueue, uid, today } from '../lib/api.js';
 import { CARDIO, CARDIO_ICON, fmtDate, mins, n1, n0, DAY_LONG, weekStart, addDays } from '../lib/format.js';
@@ -22,7 +21,7 @@ export default function Cardio() {
   const planned = prog.data ? WDS.flatMap((wd) => { const day = prog.data.days.find((d) => d.code === prog.data.schedule?.[wd]); return day ? day.cardio.map((c) => ({ wd, day, c })) : []; }) : [];
   const plannedMin = planned.reduce((a, x) => a + x.c.duration_min, 0);
   return (
-    <Page tabs={<SectionTabs group="training" />} title="Cardio" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
+    <Page back="/programme" title="Cardio" actions={<button className="btn primary sm" onClick={() => setForm(EMPTY())}><Icon name="plus" size={16} />Ajouter</button>}>
       <div className="stats-grid">
         <Stat icon="timer" label="Cette semaine" value={mins(week.reduce((a, c) => a + c.duration_min, 0))} hint={`${week.length} séance(s)`} tone="mint" />
         <Stat icon="flame" label={week.every((c) => !c.calories_estimated) && week.length ? 'Calories (montre)' : week.some((c) => !c.calories_estimated) ? 'Calories (en partie estimées)' : 'Calories (estimées)'} value={`${week.some((c) => c.calories_estimated) ? '≈ ' : ''}${n0(week.reduce((a, c) => a + (c.calories || 0), 0))}`} unit="kcal" tone="orange" />
@@ -60,6 +59,43 @@ export default function Cardio() {
       <Confirm open={!!confirm} onClose={() => setConfirm(null)} danger title="Supprimer cette séance cardio ?" confirmLabel="Supprimer" text="Elle sera retirée de l’historique et des statistiques."
         onConfirm={async () => { try { await del(`/cardio/${confirm.id}`); setForm(null); reloadAll(); toast('Séance supprimée'); } catch (e) { toast(e.message, 'err'); } }} />
     </Page>
+  );
+}
+
+// Cardio dans la page Programme : ce qui est prévu cette semaine, ce qui est fait (tout cardio noté compte), et ajout au programme
+export function CardioWeek({ prog, day, onChanged }) {
+  const ws = weekStart(today()); const t = today();
+  const recent = useApi(`/cardio?from=${addDays(t, -35)}`);
+  const [form, setForm] = useState(null); const [confirm, setConfirm] = useState(null); const toast = useToast();
+  if (!recent.data) return null;
+  const WDS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const week = recent.data.filter((c) => c.date >= ws && c.date <= addDays(ws, 6));
+  const planned = WDS.flatMap((wd, i) => { const d = prog.days.find((x) => x.code === prog.schedule?.[wd]); const date = addDays(ws, i); return d ? d.cardio.map((c) => ({ date, wd, d, c, done: week.some((s) => s.date === date) })) : []; });
+  const plannedMin = planned.reduce((a, x) => a + x.c.duration_min, 0); const doneMin = week.reduce((a, c) => a + c.duration_min, 0);
+  // Suggestion à partir de ce que tu fais déjà (activité la plus fréquente, durée moyenne)
+  const freq = {}; recent.data.forEach((c) => { (freq[c.activity] ||= []).push(c); });
+  const top = Object.entries(freq).filter(([a]) => a !== 'autre').sort((a, b) => b[1].length - a[1].length)[0];
+  const sugg = top ? { activity: top[0], duration_min: Math.max(10, Math.round(top[1].reduce((a, c) => a + c.duration_min, 0) / top[1].length / 5) * 5),
+    speed_kmh: top[1][0].speed_kmh ?? null, incline_pct: top[1][0].incline_pct ?? null, placement: 'fin' } : null;
+  const addToDay = async () => { try { await post(`/program/days/${day.id}/cardio`, sugg); toast(`${CARDIO[sugg.activity]} ${sugg.duration_min} min ajoutée à ${day.name}`); onChanged?.(); } catch (e) { toast(e.message, 'err'); } };
+  const reload = () => { recent.reload(); onChanged?.(); };
+  return (
+    <section className="card cw">
+      <div className="card-head"><h2><Icon name="heart" size={16} />Cardio de la semaine</h2><button className="btn sm primary" onClick={() => setForm(EMPTY())}><Icon name="plus" size={14} />Noter</button></div>
+      <div className="cw-bar"><div className="cw-fill" style={{ width: `${plannedMin ? Math.min(100, doneMin / plannedMin * 100) : doneMin ? 100 : 0}%` }} /></div>
+      <p className="small"><b>{mins(doneMin)}</b> faites{plannedMin ? <> sur <b>{mins(plannedMin)}</b> prévues</> : ''} · {week.length} séance{week.length > 1 ? 's' : ''}{week.some((c) => c.calories) ? ` · ≈ ${n0(week.reduce((a, c) => a + (c.calories || 0), 0))} kcal` : ''}</p>
+      {(planned.length > 0 || week.length > 0) && <ul className="cw-list">
+        {planned.map((x, i) => <li key={`p${i}`} className={x.done ? 'done' : x.date < t ? 'missed' : ''}><span className="cw-ic">{x.done ? <Icon name="check" size={14} /> : CARDIO_ICON[x.c.activity]}</span>
+          <span className="grow"><b>{DAY_LONG[x.wd]}</b> · {x.c.label} {x.c.duration_min} min<span className="muted xs"> · {x.d.exercises.length ? `après ${x.d.name}` : x.d.name}</span></span></li>)}
+        {week.filter((c) => !planned.some((x) => x.date === c.date)).map((c) => <li key={c.id} className="done extra" onClick={() => setForm({ ...c })}><span className="cw-ic"><Icon name="check" size={14} /></span>
+          <span className="grow"><b>{DAY_LONG[WDS[(new Date(`${c.date}T12:00:00`).getDay() + 6) % 7]]}</b> · {c.custom_name || CARDIO[c.activity]} {mins(c.duration_min)}<span className="muted xs"> · hors programme, compté</span></span></li>)}
+      </ul>}
+      {!planned.length && sugg && day && <button className="btn block mt-s" onClick={addToDay}><Icon name="plus" size={14} />Mettre {CARDIO[sugg.activity].toLowerCase()} {sugg.duration_min} min dans {day.name}</button>}
+      <Link className="link small" to="/cardio">Historique et statistiques cardio</Link>
+      <CardioForm value={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); reload(); }} onDelete={(c) => setConfirm(c)} />
+      <Confirm open={!!confirm} onClose={() => setConfirm(null)} danger title="Supprimer cette séance cardio ?" confirmLabel="Supprimer" text="Elle sera retirée de l’historique et des statistiques."
+        onConfirm={async () => { try { await del(`/cardio/${confirm.id}`); setForm(null); reload(); toast('Séance supprimée'); } catch (e) { toast(e.message, 'err'); } }} />
+    </section>
   );
 }
 

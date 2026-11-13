@@ -5,7 +5,7 @@ import { LEAGUE_ON } from '../lib/api.js';
 
 // Sous-onglets d'un espace : on passe d'un écran lié à l'autre sans repasser par un menu
 export const SECTIONS = {
-  training: [['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio']],
+  training: [],
   body: [['/corps', 'body', 'Mon corps'], ['/progres', 'chart', 'Progrès'], ['/nutrition', 'food', 'Nutrition'], ['/soins', 'heal', 'Soins']],
 };
 export const SPACE_OF = (path) => {

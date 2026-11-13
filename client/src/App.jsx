@@ -42,7 +42,7 @@ const NAV = [
 // Barre latérale (ordinateur) : tout est visible, rangé par espace
 const SIDE = [
   ['/', 'home', "Aujourd'hui"],
-  ['Entraînement'], ['/programme', 'dumbbell', 'Programme'], ['/cardio', 'heart', 'Cardio'],
+  ['Entraînement'], ['/programme', 'dumbbell', 'Programme'],
   ['Corps'], ['/corps', 'body', 'Mon corps'], ['/progres', 'chart', 'Progrès'], ['/nutrition', 'food', 'Nutrition'], ['/soins', 'heal', 'Soins et mobilité'],
   ...(LEAGUE_ON ? [['Entre amis'], ['/ligue', 'trophy', 'Ligue']] : []),
   ['Réglages'], ['/profil', 'user', 'Profil'], ['/donnees', 'database', 'Données'], ['/plus', 'menu', 'Outils'],
