@@ -1,6 +1,6 @@
 node_modules/
 dist/
-data/
+/data/
 *.sqlite*
 dist-standalone/
 dist-pages
