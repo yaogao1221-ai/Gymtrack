@@ -25,6 +25,23 @@ function muscleSets(db, from, to) {
   return { sets, last };
 }
 
+// Charge par muscle et par jour : séries de muscu + cardio (marche inclinée, course… sollicitent mollets et jambes)
+const CARDIO_LOAD = { marche_inclinee: { mollets: 0.15, fessiers: 0.08, ischios: 0.05 }, course: { mollets: 0.15, quadriceps: 0.1, ischios: 0.05 }, marche: { mollets: 0.05 },
+  velo: { quadriceps: 0.12, fessiers: 0.04 }, elliptique: { quadriceps: 0.06, fessiers: 0.05, mollets: 0.04 }, rameur: { dos_largeur: 0.08, quadriceps: 0.06, dos_epaisseur: 0.05 } };
+function dailyLoads(db, from, to) {
+  const out = {}; const add = (d, m, v) => { (out[d] ||= {})[m] = (out[d][m] || 0) + v; };
+  for (const r of db.all(`SELECT w.date, e.muscles, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
+    WHERE w.user_id = ? AND s.completed = 1 AND w.date BETWEEN ? AND ? GROUP BY w.date, e.id`, USER_ID, from, to)) for (const [m, c] of Object.entries(toJSON(r.muscles, {}))) add(r.date, m, r.n * c);
+  // Cardio : ≈ 1 série équivalente par 7 à 10 min sur le muscle principal, plafonné à 4 (marche inclinée 30 min ≈ 3-4 séries de mollets)
+  for (const c of db.all('SELECT date, activity, duration_min, incline_pct FROM cardio_sessions WHERE user_id = ? AND date BETWEEN ? AND ?', USER_ID, from, to)) {
+    const k = CARDIO_LOAD[c.activity]; if (!k) continue;
+    const boost = c.activity === 'marche' && c.incline_pct >= 5 ? CARDIO_LOAD.marche_inclinee : k;
+    for (const [m, per] of Object.entries(boost)) add(c.date, m, Math.min(4, per * (c.duration_min || 0)));
+  }
+  return out;
+}
+const BIG = new Set(['quadriceps', 'ischios', 'fessiers', 'adducteurs', 'pectoraux', 'dos_largeur', 'lombaires']);
+
 // Trophées : calculés à partir des données, rien n'est stocké
 function badges(db, today) {
   const ws = db.all('SELECT date FROM workouts WHERE user_id = ? ORDER BY date', USER_ID).map((w) => w.date);
@@ -109,14 +126,32 @@ export default function insightsRoutes(db) {
     const today = req.today; const { sets, last } = muscleSets(db, addDays(today, -6), today);
     const older = muscleSets(db, addDays(today, -13), today).last;
     const level = getProfile(db).level || 'intermediaire'; const [minS, optLow, optHigh] = RANGES[level] || RANGES.intermediaire;
+    const loads = dailyLoads(db, addDays(today, -6), today);
+    const sore = db.all('SELECT muscle, MAX(date) date FROM muscle_soreness WHERE user_id = ? AND date >= ? GROUP BY muscle', USER_ID, addDays(today, -3));
     const muscles = Object.fromEntries(Object.entries(MUSCLES).map(([k, label]) => {
-      const s = r1(sets[k] || 0); const l = last[k] || older[k] || null; const days = l ? diffDays(l, today) : null;
-      // Muscle chargé hier ou aujourd'hui avec un vrai volume = encore en récupération (48 à 72 h selon le volume)
-      const status = days == null || days > 9 ? 'oublie' : days <= 1 && s >= 3 ? 'fatigue' : days <= 2 && s >= 6 ? 'recup' : 'pret';
-      return [k, { label, sets: s, last: l, days, status, zone: s < minS / 2 ? 'bas' : s < optLow ? 'correct' : s <= optHigh ? 'optimal' : 'haut' }];
+      const s = r1(sets[k] || 0);
+      // Dernier jour où le muscle a vraiment travaillé (≥ 1,5 série, cardio compris) et charge de ce jour-là
+      const lastLoad = Object.keys(loads).filter((d) => loads[d][k] >= 1.5).sort().at(-1) || null;
+      const l = [last[k], lastLoad, older[k]].filter(Boolean).sort().at(-1) || null; const days = l ? diffDays(l, today) : null;
+      const dose = lastLoad ? loads[lastLoad][k] : 0; const dDose = lastLoad ? diffDays(lastLoad, today) : 99;
+      // Récupération : 48 h pour les petits muscles, 72 h pour les gros, plus quand la séance était chargée (courbatures maximales à 24-72 h : Cheung et al., 2003)
+      const need = (BIG.has(k) ? 3 : 2) + (dose >= 6 ? 1 : 0);
+      let status = days == null || days > 9 ? 'oublie' : dDose <= 1 && dose >= 2 ? 'fatigue' : dDose < need ? 'recup' : 'pret';
+      const so = sore.find((x) => x.muscle === k); const soreDays = so ? diffDays(so.date, today) : null;
+      if (so && soreDays <= 1) status = 'fatigue'; else if (so && soreDays <= 2 && status !== 'fatigue') status = 'recup';
+      return [k, { label, sets: s, last: l, days, status, sore: so ? so.date : null, zone: s < minS / 2 ? 'bas' : s < optLow ? 'correct' : s <= optHigh ? 'optimal' : 'haut' }];
     }));
     const pains = db.all('SELECT * FROM pain_reports WHERE user_id = ? AND resolved = 0 ORDER BY date DESC', USER_ID).map((p) => ({ ...p, label: PAIN_AREAS[p.area]?.label || p.area }));
     res.json({ muscles, pains, range: { min: minS, low: optLow, high: optHigh } });
+  });
+
+  // Courbatures signalées par l'utilisateur (toggle du jour)
+  r.post('/soreness', (req, res) => {
+    const m = String(req.body.muscle || ''); if (!MUSCLES[m]) throw bad('Muscle inconnu');
+    const ex = db.one('SELECT id FROM muscle_soreness WHERE user_id = ? AND muscle = ? AND date = ?', USER_ID, m, req.today);
+    if (req.body.on === false) db.run('DELETE FROM muscle_soreness WHERE user_id = ? AND muscle = ? AND date >= ?', USER_ID, m, addDays(req.today, -3));
+    else if (!ex) db.run('INSERT INTO muscle_soreness (user_id, date, muscle) VALUES (?,?,?)', USER_ID, req.today, m);
+    res.json({ ok: true });
   });
 
   r.get('/badges', (req, res) => res.json(badges(db, req.today)));

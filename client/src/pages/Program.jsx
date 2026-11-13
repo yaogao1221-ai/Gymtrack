@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Segmented, Loading, ErrorBox, Confirm, useToast } from '../components/ui.jsx';
 import { post, patch, put, del } from '../lib/api.js';
@@ -15,17 +15,39 @@ export default function Program() {
   const [sel, setSel] = useState(0); const [edit, setEdit] = useState(false);
   const [wd, setWd] = useState(null);
   const [pe, setPe] = useState(null); const [adding, setAdding] = useState(false); const [dayEdit, setDayEdit] = useState(null); const [confirm, setConfirm] = useState(null); const [pc, setPc] = useState(null);
-  const [demo, setDemo] = useState(null);
+  const [demo, setDemo] = useState(null); const [drag, setDrag] = useState(null); const rows = useRef([]);
   const nav = useNavigate(); const toast = useToast();
   if (error && !data) return <ErrorBox error={error} retry={reload} />;
   if (!data) return <Loading />;
   const day = data.days[Math.min(sel, data.days.length - 1)];
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, 'err'); } };
   const saveDay = (code) => run(async () => { await put('/profile', { schedule: { ...data.schedule, [wd]: code } }); setWd(null); }, 'Semaine type et calendrier mis à jour');
-  const move = (i, dir) => {
-    const ids = day.exercises.map((e) => e.id); const j = i + dir; if (j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+  // Glisser-déposer tactile : on attrape la poignée, l'exercice suit le doigt, les autres se décalent
+  const dragStart = (ev, i) => {
+    ev.preventDefault(); ev.stopPropagation(); ev.currentTarget.setPointerCapture?.(ev.pointerId);
+    const rects = day.exercises.map((_, k) => rows.current[k]?.getBoundingClientRect());
+    setDrag({ from: i, over: i, y0: ev.clientY, dy: 0, rects, h: rects[i]?.height || 80 });
+    navigator.vibrate?.(15);
+  };
+  const dragMove = (ev) => {
+    if (!drag) return;
+    const dy = ev.clientY - drag.y0; const mid = drag.rects[drag.from].top + drag.rects[drag.from].height / 2 + dy;
+    let over = drag.from;
+    drag.rects.forEach((r, k) => { if (k < drag.from && mid < r.top + r.height / 2) over = Math.min(over, k); if (k > drag.from && mid > r.top + r.height / 2) over = Math.max(over, k); });
+    setDrag({ ...drag, dy, over });
+  };
+  const dragEnd = () => {
+    if (!drag) return; const { from, over } = drag; setDrag(null);
+    if (from === over) return;
+    const ids = day.exercises.map((e) => e.id); const [m] = ids.splice(from, 1); ids.splice(over, 0, m);
     run(() => post(`/program/days/${day.id}/order`, { ids }));
+  };
+  const shiftOf = (i) => {
+    if (!drag) return undefined;
+    if (i === drag.from) return { transform: `translateY(${drag.dy}px)`, zIndex: 5, position: 'relative' };
+    if (drag.from < drag.over && i > drag.from && i <= drag.over) return { transform: `translateY(${-drag.h}px)` };
+    if (drag.from > drag.over && i < drag.from && i >= drag.over) return { transform: `translateY(${drag.h}px)` };
+    return { transform: 'translateY(0)' };
   };
   const cardioRow = (c) => (
     <li key={`c${c.id}`} className="ex-item cardio" onClick={() => edit && setPc({ ...c })}>
@@ -60,8 +82,8 @@ export default function Program() {
           <ol className="ex-list">
             {day.cardio.filter((c) => c.placement === 'debut').map((c) => cardioRow(c))}
             {day.exercises.map((e, i) => (
-              <li key={e.id} className={`ex-item ${e.superset_group ? 'superset' : ''}`} onClick={() => edit && setPe({ ...e })}>
-                {!edit && thumb(e.lib_id) ? <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /><span className="ex-n">{i + 1}</span></button>
+              <li key={e.id} ref={(el) => { rows.current[i] = el; }} style={shiftOf(i)} className={`ex-item ${e.superset_group ? 'superset' : ''} ${drag?.from === i ? 'dragging' : ''} ${drag ? 'drag-on' : ''}`} onClick={() => edit && !drag && setPe({ ...e })}>
+                {thumb(e.lib_id) ? <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /><span className="ex-n">{i + 1}</span></button>
                   : <span className="ex-num">{i + 1}</span>}
                 <div className="ex-main">
                   <div className="ex-name">{e.name}{e.superset_group && <span className="tag">Superset {e.superset_group}</span>}</div>
@@ -69,10 +91,8 @@ export default function Program() {
                   {e.last && <div className="ex-last">Dernière fois : {e.last.sets.map((s) => `${s.weight != null ? Math.round(s.weight * 10) / 10 : 'PDC'}×${s.reps ?? '?'}`).join(' · ')}</div>}
                   {e.notes && <div className="ex-last">{e.notes}</div>}
                 </div>
-                {edit && <div className="reorder" onClick={(ev) => ev.stopPropagation()}>
-                  <button className="icon-btn sm" aria-label="Monter" onClick={() => move(i, -1)} disabled={i === 0}><Icon name="up" size={16} /></button>
-                  <button className="icon-btn sm" aria-label="Descendre" onClick={() => move(i, 1)} disabled={i === day.exercises.length - 1}><Icon name="down" size={16} /></button>
-                </div>}
+                {edit && <span className="drag-handle" role="button" aria-label="Maintenir et glisser pour déplacer" onClick={(ev) => ev.stopPropagation()}
+                  onPointerDown={(ev) => dragStart(ev, i)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd}><Icon name="grip" size={22} stroke={3.2} /></span>}
               </li>
             ))}
             {day.cardio.filter((c) => c.placement !== 'debut').map((c) => cardioRow(c))}

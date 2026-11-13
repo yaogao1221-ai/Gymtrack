@@ -92,3 +92,14 @@ test('créateur de programme : objectif → muscu + cardio intégrés, objectifs
   const own = await call('POST', '/builder/apply', { custom: true, days: 3, name: 'Perso' });
   assert.equal(own.status, 201); assert.equal((await call('GET', '/program')).body.days.length, 3);
 });
+
+test('carte du corps : jambes 2 jours après = en récupération, marche inclinée sollicite les mollets, courbatures signalées', async () => {
+  const ex = (await call('GET', '/exercises')).body.exercises; const fb = ex.find((e) => e.slug === 'fentes_bulgares');
+  await call('POST', '/workouts', { client_id: 'legs-x', name: 'Jambes', date: '2026-11-11', sets: [1, 2, 3].map((k) => ({ exercise_id: fb.id, position: 0, set_index: k, weight: 20, weight_unit: 'lbs', reps: 10 })) });
+  await call('POST', '/cardio', { client_id: 'mi-x', activity: 'marche_inclinee', date: '2026-11-12', duration_min: 30, speed_kmh: 5, incline_pct: 10 });
+  let m = (await call('GET', '/bodymap')).body.muscles;
+  assert.equal(m.quadriceps.status, 'recup'); assert.equal(m.mollets.status, 'fatigue');
+  await call('POST', '/soreness', { muscle: 'ischios' });
+  m = (await call('GET', '/bodymap')).body.muscles; assert.equal(m.ischios.status, 'fatigue');
+  await call('POST', '/soreness', { muscle: 'ischios', on: false });
+});

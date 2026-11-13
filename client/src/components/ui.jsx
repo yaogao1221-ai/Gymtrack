@@ -22,6 +22,7 @@ const P = {
   edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
   up: 'M12 19V5M5 12l7-7 7 7',
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
   down: 'M12 5v14M5 12l7 7 7-7',
   left: 'M15 5l-7 7 7 7',
   right: 'M9 5l7 7-7 7',

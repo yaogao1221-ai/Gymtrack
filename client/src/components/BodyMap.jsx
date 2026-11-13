@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Segmented, Icon } from './ui.jsx';
 import { ExerciseInfo } from './ExerciseDemo.jsx';
 import { loadLib, thumb } from '../lib/exlib.js';
+import { post } from '../lib/api.js';
 import { fmtDate, n1 } from '../lib/format.js';
 import { AREAS } from '../data/rehab.js';
 
@@ -88,6 +89,7 @@ export default function BodyMap({ data }) {
       {!cur ? <p className="muted small center">Touche un muscle pour voir sa charge, ses exercices et ses étirements.</p> : (
         <div className="bm-panel">
           <div className="row-between"><b>{cur.label}</b><span className="bm-pill" style={{ background: COLORS_REC[cur.status] }}>{REC_LABEL[cur.status]}</span></div>
+          <button className={`btn sm ${cur.sore ? 'primary' : ''} mt-s`} onClick={() => post('/soreness', { muscle: sel, on: !cur.sore }).catch(() => {})}>{cur.sore ? 'Courbatures signalées (toucher pour retirer)' : 'J’ai des courbatures ici'}</button>
           <p className="small">{n1(cur.sets)} série{cur.sets > 1 ? 's' : ''} sur 7 jours · {cur.last ? `dernière fois ${cur.days === 0 ? 'aujourd’hui' : cur.days === 1 ? 'hier' : `le ${fmtDate(cur.last, { day: 'numeric', month: 'short' })}`}` : 'pas travaillé récemment'}</p>
           {picks && (<>
             {picks.stretch.length > 0 && <><h4 className="h-sub">Étirements et mobilité</h4><Thumbs list={picks.stretch} onOpen={setInfo} /></>}

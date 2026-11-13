@@ -331,3 +331,9 @@ body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 
 .cal-tools .btn { flex: 1; justify-content: center; }
 .cal-plan { height: 3px; bottom: 0; left: 0; right: 0; background: var(--accent2); opacity: .55; }
 .agenda { margin-top: 4px; }
+.drag-handle { display: grid; place-items: center; width: 40px; height: 56px; margin-right: -4px; color: var(--muted); touch-action: none; cursor: grab; border-radius: 10px; flex-shrink: 0; }
+.drag-handle:active { background: var(--surface2); color: var(--text); }
+.ex-item.drag-on { transition: transform .18s ease; }
+.ex-item.dragging { transition: none; background: var(--surface); box-shadow: 0 14px 30px -12px rgba(16,24,40,.35); border-radius: 14px; border-bottom-color: transparent; }
+.tab.on { background: var(--text); color: var(--bg); } .tab.on b { color: var(--bg); }
+.tab.on span { color: var(--bg); opacity: .75; }

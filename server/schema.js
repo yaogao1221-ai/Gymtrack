@@ -238,6 +238,15 @@ CREATE TABLE IF NOT EXISTS food_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(user_id, date);
 
+-- Courbatures signalées (muscle par muscle) : comptent dans la récupération de la carte du corps
+CREATE TABLE IF NOT EXISTS muscle_soreness (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  muscle TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 2
+);
+
 -- Historique des recommandations validées / ignorées (aucune modification sans validation)
 CREATE TABLE IF NOT EXISTS recommendation_log (
   id INTEGER PRIMARY KEY,
