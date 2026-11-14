@@ -1,3 +1,4 @@
+import { ExThumb } from '../components/MoveFigure.jsx';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi, Page, Card, Icon, Sheet, Field, NumInput, Segmented, Loading, ErrorBox, Confirm, useToast } from '../components/ui.jsx';
@@ -88,8 +89,7 @@ export default function Program() {
             {day.cardio.filter((c) => c.placement === 'debut').map((c) => cardioRow(c))}
             {day.exercises.map((e, i) => (
               <li key={e.id} ref={(el) => { rows.current[i] = el; }} style={shiftOf(i)} className={`ex-item ${e.superset_group ? 'superset' : ''} ${drag?.from === i ? 'dragging' : ''} ${drag ? 'drag-on' : ''} tappable`} onClick={() => !drag && setPe({ ...e })}>
-                {thumb(e.lib_id) ? <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); setDemo(e.lib_id); }}><img src={thumb(e.lib_id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /><span className="ex-n">{i + 1}</span></button>
-                  : <span className="ex-num">{i + 1}</span>}
+                <button className="ex-thumb" aria-label="Voir la démo" onClick={(ev) => { ev.stopPropagation(); if (e.lib_id) setDemo(e.lib_id); else setPe({ ...e }); }}><ExThumb src={thumb(e.lib_id)} x={e} /><span className="ex-n">{i + 1}</span></button>
                 <div className="ex-main">
                   <div className="ex-name">{e.name}{e.superset_group && <span className="tag">Superset {e.superset_group}</span>}{painOf(e) && <span className="tag warn" title="Douleur suivie : amplitude réduite, pas de hausse de charge">À adapter · {painOf(e).toLowerCase()}</span>}</div>
                   <div className="ex-meta"><span className="pill-sets">{repsLabel(e)}</span><span className={e.target_weight == null && e.kind !== 'bodyweight' ? 'warn-text' : ''}>{weightLabel(e)}</span>{e.rest_seconds && <span className="muted">repos {e.rest_seconds >= 120 ? `${e.rest_seconds / 60} min` : `${e.rest_seconds} s`}</span>}</div>
@@ -189,7 +189,7 @@ function AddSheet({ open, onClose, onAdd, lib, reloadLib }) {
           <option value="">—</option>{Object.entries(MUSCLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
         <div className="row gap"><button className="btn ghost" onClick={() => setCustom(null)}>Annuler</button><button className="btn primary" disabled={!custom.name} onClick={createCustom}>Créer</button></div>
       </>) : pick ? (<>
-        {pick.lib_id && <DemoImages x={{ id: pick.lib_id, img: pick.lib_id.startsWith('x_') ? 0 : 2 }} size="md" />}
+        <DemoImages x={pick.lib_id ? { ...pick, id: pick.lib_id, img: pick.lib_id.startsWith('x_') ? 0 : 2 } : pick} size="md" />
         <div className="grid2">
           <Field label="Séries"><NumInput value={cfg.sets} onChange={(v) => setCfg({ ...cfg, sets: v })} /></Field>
           <Field label="Répétitions"><NumInput value={cfg.reps} onChange={(v) => setCfg({ ...cfg, reps: v })} /></Field>

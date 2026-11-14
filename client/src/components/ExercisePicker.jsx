@@ -1,3 +1,4 @@
+import { ExThumb } from './MoveFigure.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { get, post } from '../lib/api.js';
 import { Sheet, Loading, Icon, useToast } from './ui.jsx';
@@ -52,7 +53,7 @@ export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
           return (
             <li key={it.key}>
               <button className="pick-photo" onClick={() => (it.x ? setInfo(it.x) : choose(it))} aria-label={it.x ? 'Voir la démo' : 'Choisir'}>
-                {src ? <img src={src} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /> : <Icon name="dumbbell" size={22} />}
+                <ExThumb src={src} x={it.x || it.e || { n: it.name }} />
                 {it.x?.img > 0 && <span className="pick-play"><Icon name="play" size={12} /></span>}
               </button>
               <button className="pick-main" onClick={() => choose(it)} disabled={busy === it.key}>

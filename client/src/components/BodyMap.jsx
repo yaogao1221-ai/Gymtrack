@@ -1,3 +1,4 @@
+import { ExThumb } from './MoveFigure.jsx';
 import { BalanceRow } from './Balance.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -144,7 +145,7 @@ export default function BodyMap({ data, balance }) {
             <h4 className="h-sub">Dans ton programme</h4>
             {mine.length ? <ul className="bm-mine">{mine.map((e) => (
               <li key={e.id}><button onClick={() => { const x = lib.find((l) => l.id === e.lib_id); if (x) setInfo(x); }}>
-                {thumb(e.lib_id) ? <img src={thumb(e.lib_id)} alt="" loading="lazy" /> : <span className="pick-thumb empty"><Icon name="dumbbell" size={16} /></span>}
+                <ExThumb src={thumb(e.lib_id)} x={lib.find((l) => l.id === e.lib_id) || e} />
                 <span className="grow"><b>{e.name}</b><span className="muted small">{e.day} · {e.sets} × {e.reps ?? '?'}</span></span>
                 <span className={`tag ${e.role === 'Principal' ? 'good' : ''}`}>{e.role}</span></button></li>))}</ul>
               : <p className="muted small">Aucun exercice de ton programme ne travaille ce muscle.</p>}
@@ -174,7 +175,7 @@ export function Thumbs({ list, onOpen, doses }) {
   return (
     <ul className="thumbs">{list.map((x, i) => (
       <li key={x.id}><button onClick={() => onOpen(x)}>
-        {thumb(x.id) ? <img src={thumb(x.id)} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }} /> : <span className="pick-thumb empty"><Icon name="body" size={18} /></span>}
+        <ExThumb src={thumb(x.id)} x={x} />
         <span className="small">{x.n}</span>{doses?.[i] && <span className="muted xs">{doses[i]}</span>}
       </button></li>
     ))}</ul>

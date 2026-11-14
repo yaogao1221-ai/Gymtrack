@@ -128,6 +128,24 @@ EXTRA2 = [
     ('x_machine_row', 'Rowing assis (machine)', 'Seated Machine Row', 'muscu', 'Machine', W, {S: 1, D: 0.5, EP: 0.5, B: 0.5}, 'b', [
         'Poitrine contre l’appui, poignées bras tendus.',
         'Tire en serrant les omoplates, coudes près du corps ou écartés selon la poignée.']),
+    ('x_machine_row_1arm', 'Rowing assis à un bras (machine)', 'Single-Arm Seated Machine Row', 'muscu', 'Machine', W, {S: 1, D: 1, EP: 0.5, B: 0.5}, 'b', [
+        'Poitrine contre l’appui, une poignée bras tendu, l’autre main sur la machine.',
+        'Tire le coude vers la hanche sans tourner le buste, redescends en contrôlant.']),
+    ('x_machine_row_wide', 'Rowing assis prise large (machine)', 'Wide-Grip Seated Machine Row', 'muscu', 'Machine', W, {S: 1, EP: 1, D: 0.5, B: 0.5}, 'b', [
+        'Poitrine contre l’appui, poignées larges, coudes à hauteur des épaules.',
+        'Tire les coudes vers l’arrière et vers l’extérieur, serre les omoplates.']),
+    ('x_machine_row_neutral', 'Rowing assis prise neutre (machine)', 'Neutral-Grip Seated Machine Row', 'muscu', 'Machine', W, {S: 1, D: 1, B: 0.5}, 'b', [
+        'Poitrine contre l’appui, paumes face à face.',
+        'Tire les coudes le long du corps jusqu’aux hanches, marque une pause, reviens lentement.']),
+    ('x_tbar_machine', 'Rowing T-bar buste appuyé (machine)', 'Chest-Supported T-Bar Row Machine', 'muscu', 'Machine', W, {S: 1, D: 1, EP: 0.5, B: 0.5}, 'i', [
+        'Poitrine sur l’appui incliné, pieds sur la plateforme, poignées bras tendus.',
+        'Tire jusqu’à ce que les poignées touchent presque l’appui, redescends sans rebond.']),
+    ('x_low_row_machine', 'Rowing bas (machine)', 'Low Row Machine', 'muscu', 'Machine', W, {D: 1, S: 1, B: 0.5}, 'b', [
+        'Assis, poitrine contre l’appui, poignées basses bras tendus.',
+        'Tire vers le bas du ventre en gardant les épaules basses, reviens en étirant le dos.']),
+    ('x_high_row_machine', 'Rowing haut (machine)', 'High Row Machine', 'muscu', 'Machine', W, {D: 1, S: 0.5, EP: 0.5, B: 0.5}, 'b', [
+        'Assis, cuisses bloquées, poignées hautes devant toi.',
+        'Tire vers le bas et l’arrière jusqu’aux épaules, reviens bras tendus.']),
     ('x_single_arm_pulldown', 'Tirage vertical à un bras (poulie)', 'Single-Arm Lat Pulldown', 'muscu', 'Poulie', W, {D: 1, B: 0.5}, 'i', [
         'Assis ou à genoux, une poignée à la poulie haute.',
         'Tire le coude vers la hanche en gardant le buste stable, étire bien en haut.']),
@@ -279,5 +297,5 @@ EXTRA2 = [
 ]
 
 # Schéma de mouvement corrigé quand la détection par le nom anglais se trompe
-PT = {'x_machine_row': 'horizontal_row', 'x_rower': 'lib', 'x_jm_press_smith': 'triceps_extension', 'x_cable_kickback': 'hip_extension',
+PT = {'x_machine_row': 'horizontal_row', 'x_machine_row_1arm': 'horizontal_row', 'x_machine_row_wide': 'horizontal_row', 'x_machine_row_neutral': 'horizontal_row', 'x_tbar_machine': 'horizontal_row', 'x_low_row_machine': 'horizontal_row', 'x_high_row_machine': 'horizontal_row', 'x_rower': 'lib', 'x_jm_press_smith': 'triceps_extension', 'x_cable_kickback': 'hip_extension',
       'x_leg_press_calf': 'calf', 'x_cable_rear_delt': 'lib', 'x_reverse_pec_deck': 'lib', 'x_reverse_nordic': 'knee_extension', 'x_sissy_machine': 'knee_extension'}

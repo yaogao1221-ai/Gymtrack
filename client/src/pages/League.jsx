@@ -5,7 +5,10 @@ import { Page, Card, Fold, Icon, Field, Segmented, Sheet, Confirm, Loading, NumI
 import {
   getMembership, createLeague, joinLeague, restoreFromKey, leaveLeague, setStake, sendSteps, syncBoard,
   ranking, CATEGORIES, POINTS, personalKey, SANTE_BASE, getHealth, setShortcutUrl, getFeed, feedSeen, markFeedSeen, getChallenges,
+  getComps, getEvents, renameLeague, ago, COMP_BY_ID,
 } from '../lib/league.js';
+import { CompCard, CompList, CompSheet, CreateComp } from './LeagueComps.jsx';
+import { Avatar } from './LeagueSocial.jsx';
 import { Lobby, Feed, ComposeSheet, MemberSheet } from './LeagueSocial.jsx';
 import { ProgramSheet, ChatSheet, Inbox } from './LeagueChat.jsx';
 import { Challenges } from './LeagueChallenges.jsx';
@@ -59,7 +62,10 @@ function Board({ m, onLeft }) {
   const [kind, setKind] = useState('week'); const [cat, setCat] = useState('points');
   const [stakeEdit, setStakeEdit] = useState(null); const [shortcut, setShortcut] = useState(false); const [leave, setLeave] = useState(false);
   const [steps, setSteps] = useState(null);
-  const [view, setView] = useState('lobby'); const [feed, setFeed] = useState([]); const [seen, setSeen] = useState(feedSeen());
+  const [view, setView] = useState('home');
+  const [comps, setComps] = useState(null); const [events, setEvents] = useState([]); const [compId, setCompId] = useState(null); const [creating, setCreating] = useState(false); const [people, setPeople] = useState(false);
+  const loadComps = useCallback(() => { getComps().then(setComps).catch(() => setComps((c) => c || { list: [], trophies: {} })); getEvents(30).then((e) => setEvents(e || [])).catch(() => {}); }, []);
+  useEffect(() => { loadComps(); }, [loadComps]); const [feed, setFeed] = useState([]); const [seen, setSeen] = useState(feedSeen());
   const [draft, setDraft] = useState(null); const [member, setMember] = useState(null);
   const [prog, setProg] = useState(null); const [chat, setChat] = useState(null); const [inboxV, setInboxV] = useState(0); const [unread, setUnread] = useState(0);
   useEffect(() => { setUnread(data?.board?.unread || 0); }, [data]);
@@ -73,8 +79,8 @@ function Board({ m, onLeft }) {
   const load = useCallback(async () => {
     setError(null);
     try { setData(await syncBoard()); } catch (e) { setError(e.message); }
-    loadFeed();
-  }, [loadFeed]);
+    loadFeed(); loadComps();
+  }, [loadFeed, loadComps]);
   useEffect(() => { load(); }, [load]);
   // Les badges débloqués depuis la dernière visite s'animent une fois, puis sont marqués comme vus
   useEffect(() => { if (!data) return; const t = setTimeout(() => { try { localStorage.setItem('gt_badges_seen', JSON.stringify(data.summary.badges.filter((b) => b.got).map((b) => b.id))); } catch { /* */ } }, 4000); return () => clearTimeout(t); }, [data]);
@@ -117,17 +123,16 @@ function Board({ m, onLeft }) {
   return (
     <Page title={board.league.name} subtitle={`${board.members.length} membre${board.members.length > 1 ? 's' : ''} · code ${board.league.code}`}
       actions={<button className="icon-btn" aria-label="Actualiser" onClick={load}><Icon name="bolt" /></button>}>
-      <div className="row gap-s wrap mb">
-        <button className="btn primary sm" onClick={invite}><Icon name="plus" size={14} />Inviter des amis</button>
-      </div>
       {error && <p className="warn-text small">{error}</p>}
-      <Segmented value={view} onChange={switchView} options={[['lobby', 'Lobby'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil'], ['msgs', unread ? `Messages (${unread})` : 'Messages']]} />
-      {(dayLeader?.value > 0 || dayWinner?.value > 0) && <div className="day-winner">
+      <div className="lg-tabs"><Segmented value={view} onChange={switchView} options={[['home', 'Accueil'], ['comps', 'Compétitions'], ['board', 'Classement'], ['feed', fresh ? `Fil (${fresh})` : 'Fil'], ['msgs', unread ? `Messages (${unread})` : 'Messages']]} /></div>
+      {view === 'board' && (dayLeader?.value > 0 || dayWinner?.value > 0) && <div className="day-winner">
         <Icon name="trophy" size={18} />
         <span className="grow">{dayLeader?.value > 0 ? <span>Gagnant du jour : <b>{dayLeader.pseudo}</b> <span className="mono small">{dayLeader.value} pts</span></span> : 'Personne n’a encore marqué aujourd’hui'}{dayWinner?.value > 0 && <span className="muted small">Hier : {dayWinner.pseudo} ({dayWinner.value} pts)</span>}</span>
       </div>}
-      {view === 'lobby' && <Challenges board={board} me={m.member_id} list={challenges} keys={chKeys} onChanged={loadChallenges} compact />}
-      {view === 'lobby' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} onProgram={setProg} onChat={openChat} />}
+      {view === 'home' && <LeagueHome board={board} me={m.member_id} comps={comps} events={events} weekRows={weekRows} onOpen={(c) => setCompId(c.id)} onCreate={() => setCreating(true)}
+        onInvite={invite} onPeople={() => setPeople(true)} onAll={() => setView('comps')} onBoard={() => setView('board')} />}
+      {view === 'comps' && (comps ? <CompList data={comps} board={board} me={m.member_id} onOpen={(c) => setCompId(c.id)} onCreate={() => setCreating(true)} /> : <Loading />)}
+      {view === 'home' && <Lobby board={board} curKey={weekKey} me={m.member_id} rows={weekRows} feed={feed} onReload={load} onCompose={compose} onOpenMember={setMember} onProgram={setProg} onChat={openChat} />}
       {view === 'msgs' && <Inbox board={board} me={m.member_id} onOpen={(x) => openChat(x)} version={inboxV} onCount={setUnread} />}
       {view === 'feed' && <Feed board={board} feed={feed} me={m.member_id} onCompose={compose} onHidden={loadFeed} />}
       {view === 'board' && <>
@@ -194,6 +199,9 @@ function Board({ m, onLeft }) {
       </>}
       <ComposeSheet draft={draft} onClose={() => setDraft(null)} board={board} me={m.member_id} curKey={weekKey} onSent={() => { loadFeed(); setView('feed'); }} />
       <MemberSheet member={member} onClose={() => setMember(null)} board={board} me={m.member_id} curKey={weekKey} monthKey={monthKey} rows={weekRows} feed={feed} onCompose={compose} onProgram={(x) => { setMember(null); setProg(x); }} onChat={(x) => { setMember(null); openChat(x); }} />
+      <CompSheet id={compId} onClose={() => setCompId(null)} board={board} me={m.member_id} onChanged={loadComps} />
+      <CreateComp open={creating} onClose={() => setCreating(false)} board={board} me={m.member_id} today={comps?.today || summary.periods[0].from} onCreated={(id) => { setCreating(false); loadComps(); setView('comps'); setCompId(id); }} />
+      <PeopleSheet open={people} onClose={() => setPeople(false)} board={board} me={m.member_id} trophies={comps?.trophies || {}} onOpen={(x) => { setPeople(false); setMember(x); }} onInvite={invite} onRenamed={load} />
       <ProgramSheet member={prog} onClose={() => setProg(null)} onAdvice={openChat} />
       <ChatSheet chat={chat} onClose={() => setChat(null)} me={m.member_id} onRead={onRead} />
 
@@ -207,6 +215,74 @@ function Board({ m, onLeft }) {
       <Confirm open={leave} onClose={() => setLeave(false)} danger title="Quitter la ligue ?" confirmLabel="Quitter"
         text="Tu disparais du classement. Tes données d’entraînement restent sur ton téléphone." onConfirm={async () => { try { await leaveLeague(); onLeft(); } catch (e) { toast(e.message, 'err'); } }} />
     </Page>
+  );
+}
+
+// Accueil de la ligue : l'essentiel visible tout de suite
+function LeagueHome({ board, me, comps, events, weekRows, onOpen, onCreate, onInvite, onPeople, onAll, onBoard }) {
+  const list = comps?.list || [];
+  const live = list.filter((c) => c.status === 'active' || c.status === 'closing').sort((a, b) => a.end.localeCompare(b.end));
+  const next = list.filter((c) => c.status === 'upcoming').sort((a, b) => a.start.localeCompare(b.start))[0];
+  const invites = list.filter((c) => c.my_state === 'invited' && ['upcoming', 'active'].includes(c.status));
+  const results = list.filter((c) => c.status === 'finished').slice(0, 3);
+  const myRank = weekRows.findIndex((r) => r.id === me) + 1;
+  const name = (id) => board.members.find((x) => x.id === id)?.pseudo || 'Ancien membre';
+  const evText = (e) => ({
+    comp_created: `${name(e.member)} a lancé « ${e.data?.title} »`,
+    comp_finished: e.data?.success != null ? `« ${e.data?.title} » : objectif collectif ${e.data.success ? 'atteint' : 'manqué'}` : e.member ? `${name(e.member)} remporte « ${e.data?.title} »` : `« ${e.data?.title} » est terminée`,
+    workout: `${name(e.member)} a terminé une séance`,
+    record: `${name(e.member)} a battu ${e.data?.n > 1 ? `${e.data.n} records` : 'un record'}`,
+  }[e.kind] || e.kind);
+  const evIcon = { comp_created: 'flame', comp_finished: 'trophy', workout: 'dumbbell', record: 'up' };
+  return (<>
+    <section className="lg-hero">
+      <div className="lg-avatars">{board.members.slice(0, 5).map((x) => <Avatar key={x.id} member={x} size={34} />)}{board.members.length > 5 && <span className="lg-more">+{board.members.length - 5}</span>}</div>
+      <div className="lg-stats">
+        <div><b className="num-l">{board.members.length}</b><span className="xs">membres</span></div>
+        <div><b className="num-l">{live.length}</b><span className="xs">en cours</span></div>
+        <div><b className="num-l">{myRank || '—'}<sup>{myRank === 1 ? 'er' : myRank ? 'e' : ''}</sup></b><span className="xs">ta place (semaine)</span></div>
+      </div>
+      <div className="lg-actions">
+        <button className="btn primary" onClick={onCreate}><Icon name="plus" size={16} />Compétition</button>
+        <button className="btn" onClick={onInvite}><Icon name="user" size={16} />Inviter</button>
+        <button className="btn" onClick={onPeople}><Icon name="menu" size={16} />Membres</button>
+      </div>
+    </section>
+
+    {invites.map((c) => <button key={c.id} className="lg-invite" onClick={() => onOpen(c)}><Icon name="flame" size={18} /><span className="grow"><b>Invitation : {c.title}</b><span className="xs muted">{COMP_BY_ID[c.metric]?.label} · touche pour voir les règles et accepter</span></span><Icon name="right" size={16} /></button>)}
+
+    <div className="lg-sec"><h2>Compétitions en cours</h2><button className="link small" onClick={onAll}>Tout voir</button></div>
+    {!comps ? <Loading /> : live.length ? <div className="comp-rail">{live.map((c) => <CompCard key={c.id} c={c} board={board} me={me} onOpen={onOpen} />)}</div>
+      : <button className="comp-empty" onClick={onCreate}><Icon name="trophy" size={26} /><p>Aucune compétition en cours.<br /><b>Lance la première</b> : pas, séances, régularité…</p></button>}
+    {next && <><div className="lg-sec"><h2>Prochaine</h2></div><CompCard c={next} board={board} me={me} onOpen={onOpen} wide /></>}
+
+    <div className="lg-sec"><h2>Classement de la semaine</h2><button className="link small" onClick={onBoard}>Détail</button></div>
+    <ol className="standings mini">{weekRows.slice(0, 3).concat(myRank > 3 ? [weekRows[myRank - 1]] : []).map((r) => {
+      const rank = weekRows.indexOf(r) + 1;
+      return <li key={r.id} className={r.id === me ? 'me' : ''}><span className="st-rank">{rank}</span><Avatar member={board.members.find((x) => x.id === r.id)} size={30} /><span className="grow"><b>{r.pseudo}</b></span><span className="st-score mono">{r.value}<span className="unit-s"> pts</span></span></li>;
+    })}</ol>
+
+    {results.length > 0 && <><div className="lg-sec"><h2>Résultats récents</h2></div>
+      <ul className="lg-results">{results.map((c) => <li key={c.id}><button onClick={() => onOpen(c)}><Icon name="trophy" size={18} /><span className="grow"><b>{c.title}</b><span className="xs muted">{c.mode === 'team' ? (c.success ? 'Objectif collectif atteint' : 'Objectif collectif manqué') : c.winner ? `Gagné par ${name(c.winner)}` : 'Aucun gagnant'}</span></span><Icon name="right" size={14} /></button></li>)}</ul></>}
+
+    {events.length > 0 && <><div className="lg-sec"><h2>Activité récente</h2></div>
+      <ul className="lg-events">{events.slice(0, 6).map((e) => <li key={e.id}><span className={`lg-ev-ico k-${e.kind}`}><Icon name={evIcon[e.kind] || 'info'} size={14} /></span><span className="grow small">{evText(e)}</span><span className="xs muted">{ago(e.at)}</span></li>)}</ul></>}
+  </>);
+}
+
+// Membres : rôles, palmarès (victoires figées), renommer la ligue (admin)
+function PeopleSheet({ open, onClose, board, me, trophies, onOpen, onInvite, onRenamed }) {
+  const toast = useToast(); const [name, setName] = useState(null);
+  const admin = board.members.find((x) => x.id === me)?.role === 'admin';
+  return (
+    <Sheet open={open} onClose={onClose} title={`Membres (${board.members.length})`} footer={<button className="btn primary block" onClick={onInvite}><Icon name="plus" size={16} />Inviter des amis · code {board.league.code}</button>}>
+      <ul className="comp-people big">{board.members.map((x) => <li key={x.id}><button onClick={() => onOpen(x)}><Avatar member={x} size={36} /><span className="grow"><b>{x.pseudo}</b>{x.id === me && <span className="muted"> (toi)</span>}
+        <span className="xs muted">{x.role === 'admin' ? 'Admin · ' : ''}membre depuis {new Date(x.since).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</span></span>
+        {trophies[x.id] > 0 && <span className="tag good"><Icon name="trophy" size={12} />{trophies[x.id]}</span>}</button></li>)}</ul>
+      {admin && <><h4 className="h-sub">Paramètres (admin)</h4>
+        <Field label="Nom de la ligue"><div className="row gap-s"><input value={name ?? board.league.name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+          <button className="btn sm" disabled={!name || name === board.league.name} onClick={async () => { try { await renameLeague(name); toast('Ligue renommée'); setName(null); onRenamed(); } catch (e) { toast(e.message, 'err'); } }}>Enregistrer</button></div></Field></>}
+    </Sheet>
   );
 }
 

@@ -1,4 +1,5 @@
 import { MuscleFigures } from './BodyMap.jsx';
+import MoveFigure from './MoveFigure.jsx';
 import { useEffect, useState } from 'react';
 import { Sheet, Icon, Loading } from './ui.jsx';
 import { findLib, imgs, CATS, LEVELS, MUSCLE_FR, MUSCLES_APP } from '../lib/exlib.js';
@@ -7,7 +8,8 @@ import { findLib, imgs, CATS, LEVELS, MUSCLE_FR, MUSCLES_APP } from '../lib/exli
 export function DemoImages({ x, size = 'lg' }) {
   const list = imgs(x); const [i, setI] = useState(0); const [err, setErr] = useState(false);
   useEffect(() => { if (list.length < 2) return undefined; const t = setInterval(() => setI((v) => (v + 1) % list.length), 1100); return () => clearInterval(t); }, [list.length]);
-  if (!list.length || err) return <div className={`demo-img ${size} empty`}><Icon name="dumbbell" size={28} /><span className="muted small">{err ? 'Photo indisponible hors connexion' : 'Pas de photo pour cet exercice'}</span></div>;
+  // Pas de photo (ou hors connexion) : illustration animée dessinée à partir du mouvement
+  if (!list.length || err) return <MoveFigure x={x} size={size} />;
   return (
     <div className={`demo-img ${size}`}>
       {list.map((src, k) => <img key={src} src={src} alt="" loading="lazy" className={k === i ? 'on' : ''} onError={() => setErr(true)} />)}

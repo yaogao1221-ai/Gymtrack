@@ -1,3 +1,4 @@
+import { ExThumb } from './MoveFigure.jsx';
 import { useState } from 'react';
 import { useApi, Card, Icon, useToast } from './ui.jsx';
 import { post, patch } from '../lib/api.js';
@@ -45,7 +46,7 @@ export default function MissingMuscles({ days: daysProp, onAdded }) {
           return (
             <li key={g.muscle}>
               <div className="gap-top">
-                {thumb(ex.lib_id) ? <img className="gap-img" src={thumb(ex.lib_id)} alt="" loading="lazy" /> : <span className="gap-img ph"><Icon name="dumbbell" size={18} /></span>}
+                <ExThumb className="gap-img" src={thumb(ex.lib_id)} x={ex} />
                 <div className="gap-main">
                   <div className="gap-m">{g.label}{g.prio === 2 && <span className="tag">secondaire</span>}</div>
                   <div className="gap-why">{g.forgotten ? (g.indirect?.length ? `Aucun exercice dédié, seulement un peu via ${g.indirect.join(', ')}` : 'Rien fait depuis 4 semaines, rien de prévu') : `${String(g.planned).replace('.', ',')} ${g.planned >= 2 ? 'séries prévues' : 'série prévue'} par semaine (conseillé : 6 à 10)`}</div>

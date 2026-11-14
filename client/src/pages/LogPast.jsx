@@ -1,3 +1,4 @@
+import { ExThumb } from '../components/MoveFigure.jsx';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { get, postOrQueue, uid, today } from '../lib/api.js';
@@ -60,7 +61,7 @@ export default function LogPast() {
         <section key={ii} className={`card lp-ex ${it.on ? '' : 'off'}`}>
           <button className="lp-top" onClick={() => up((y) => { y.items[ii].on = !y.items[ii].on; })}>
             <span className={`lp-chk ${it.on ? 'on' : ''}`}>{it.on && <Icon name="check" size={14} stroke={3} />}</span>
-            {thumb(it.lib_id) ? <img src={thumb(it.lib_id)} alt="" loading="lazy" /> : null}
+            <ExThumb src={thumb(it.lib_id)} x={it} />
             <span className="grow"><b>{it.name}</b><br /><span className="muted small">{it.on ? `${it.sets.length} série${it.sets.length > 1 ? 's' : ''}` : 'Pas fait'}</span></span>
           </button>
           {it.on && <>

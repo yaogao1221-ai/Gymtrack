@@ -275,9 +275,9 @@ export const COMP_TYPES = [
   { id: 'workouts', label: 'Séances', icon: 'dumbbell', tone: 'iron', unit: 'séances', team: true, fmt: (v) => nf(v), rule: 'Séances de muscu avec au moins une série validée. Une par jour au maximum, et 6 jours sur 7 au plus : le repos ne coûte rien.', teamGoal: 30 },
   { id: 'active_days', label: 'Régularité', icon: 'calendar', tone: 'reg', unit: 'jours', team: true, fmt: (v) => nf(v), rule: 'Jours avec une séance de muscu ou de cardio. 6 jours sur 7 suffisent pour le maximum.', teamGoal: 40 },
   { id: 'sets', label: 'Volume', icon: 'chart', tone: 'vol', unit: 'séries', fmt: (v) => nf(v), rule: 'Séries validées, 30 par jour au maximum pour ne pas pousser au surentraînement.' },
-  { id: 'prs', label: 'Progression', icon: 'trend', tone: 'prog', unit: 'records', fmt: (v) => nf(v), rule: 'Records personnels battus (ta meilleure charge sur un exercice). 5 par jour au maximum. Chacun se bat contre lui-même.' },
+  { id: 'prs', label: 'Progression', icon: 'up', tone: 'prog', unit: 'records', fmt: (v) => nf(v), rule: 'Records personnels battus (ta meilleure charge sur un exercice). 5 par jour au maximum. Chacun se bat contre lui-même.' },
   { id: 'km', label: 'Cardio km', icon: 'bolt', tone: 'run', unit: 'km', team: true, fmt: (v) => nf(v, 1), rule: 'Kilomètres de cardio enregistrés, 42,2 km par jour au maximum.', teamGoal: 150 },
-  { id: 'cardio_min', label: 'Cardio minutes', icon: 'clock', tone: 'run', unit: 'min', team: true, fmt: (v) => nf(v), rule: 'Minutes de cardio enregistrées, 3 h par jour au maximum.', teamGoal: 1200 },
+  { id: 'cardio_min', label: 'Cardio minutes', icon: 'timer', tone: 'run', unit: 'min', team: true, fmt: (v) => nf(v), rule: 'Minutes de cardio enregistrées, 3 h par jour au maximum.', teamGoal: 1200 },
 ];
 export const COMP_BY_ID = Object.fromEntries(COMP_TYPES.map((t) => [t.id, t]));
 export const DURATIONS = [[1, '24 h'], [3, '3 jours'], [7, '7 jours'], [14, '14 jours'], [30, '30 jours']];
