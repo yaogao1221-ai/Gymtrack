@@ -13,7 +13,8 @@ window.addEventListener('gt-theme', syncChartTheme);
 C.defaults.font.family = '"Inter", system-ui, sans-serif';
 C.defaults.font.size = 11;
 
-export const COLORS = { lime: '#0E8747', mint: '#D21034', blue: '#8E8E93', orange: '#FF9500', pink: '#FF2D55', violet: '#AF52DE' };
+import { COLORS } from './spark.jsx';
+export { COLORS, Spark } from './spark.jsx';
 // Paires de dégradé associées à chaque couleur
 const PAIR = {}; // aplats : une couleur par série
 const vgrad = (color, alphaTop = 'ff', alphaBottom = 'ff') => (ctx) => {
@@ -70,10 +71,3 @@ export function RadarChart({ labels, series, height = 300, max }) {
 }
 
 // Mini courbe sans axes (tableau de bord)
-export function Spark({ points, color = COLORS.lime, height = 40 }) {
-  if (!points?.length) return null;
-  const vals = points.map((p) => p.value); const min = Math.min(...vals), max = Math.max(...vals);
-  const w = 100, h = 30; const span = max - min || 1;
-  const d = vals.map((v, i) => `${i ? 'L' : 'M'}${(i / Math.max(1, vals.length - 1)) * w},${h - ((v - min) / span) * (h - 4) - 2}`).join(' ');
-  return <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height }}><path d={d} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" /></svg>;
-}

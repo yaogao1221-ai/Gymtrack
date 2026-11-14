@@ -2,10 +2,10 @@ import { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi, Card, Icon, ActivityRings, GRADS, Loading, ErrorBox, Empty, Sheet, Field, NumInput, useToast } from '../components/ui.jsx';
 import { post, today } from '../lib/api.js';
-import { Spark, COLORS } from '../components/charts.jsx';
+import { Spark, COLORS } from '../components/spark.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
 import { BodyFigures } from '../components/BodyMap.jsx';
-import { TodayCard } from '../components/MuscleBrain.jsx';
+import { MobilityDone } from '../components/MuscleBrain.jsx';
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 const CalendarView = lazy(() => import('./Calendar.jsx').then((m) => ({ default: m.CalendarView })));
@@ -37,7 +37,6 @@ export default function Dashboard() {
 
       {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
       <MiniMap />
-      <BrainToday />
       {d.pending?.length > 0 && (
         <section className="pending">
           <p className="eyebrow">À valider</p>
@@ -103,6 +102,8 @@ function CoachInbox() {
 // Coach du jour : une seule consigne claire, ce qui compte aujourd'hui, et le bouton pour y aller
 function CoachHero({ fallbackNext }) {
   const { data: c } = useApi('/coach/today'); const nav = useNavigate();
+  // Une seule carte « Aujourd'hui » : la décision du coach + la séance du jour du cerveau musculaire (alternative, mobilité)
+  const brain = useApi('/muscles/state'); const tp = brain.data?.today_plan;
   if (!c) return <section className="hero card coach-hero"><div className="hero-glow" /><p className="eyebrow">Aujourd’hui</p><h2 className="hero-title">{fallbackNext ? `${fallbackNext.name} · ${fallbackNext.focus || ''}` : '…'}</h2></section>;
   const eyebrow = { workout: 'Aujourd’hui · séance prévue', free: 'Aujourd’hui · séance conseillée', rest: 'Aujourd’hui · repos', done: 'Aujourd’hui · c’est fait', empty: 'Pour commencer' }[c.kind];
   const dayId = c.day?.id;
@@ -114,14 +115,20 @@ function CoachHero({ fallbackNext }) {
       {c.sub && <p className="muted small">{c.sub}</p>}
       {c.day?.muscles?.length > 0 && <div className="coach-mus">{c.day.muscles.map((m) => <span key={m} className={c.day.tired.includes(m) ? 'tired' : ''}>{m}</span>)}</div>}
       {c.lines.length > 0 && <ul className="coach-lines">{c.lines.map((l, i) => <li key={i} className={l.tone || ''}><Icon name={l.icon} size={15} /><span>{l.text}</span></li>)}</ul>}
+      {tp && !tp.done && tp.focus?.length > 0 && <p className="small hero-need"><Icon name="target" size={14} /> Ce qui en a le plus besoin : {tp.focus.slice(0, 3).map((f) => f.label.toLowerCase()).join(', ')}.</p>}
       <div className="row gap mt">
         {dayId && <button className="btn primary lg" onClick={() => nav(`/seance/${dayId}`)}><Icon name="play" size={18} />Briefing et go</button>}
         {c.kind === 'done' && <Link className="btn primary" to={`/historique/${c.workout_id}?debrief=1`}><Icon name="trophy" size={16} />Mon débrief</Link>}
         {c.kind === 'rest' && c.cardio_left !== 0 && <Link className="btn primary" to="/cardio?ajout=1"><Icon name="heart" size={16} />Noter mon cardio</Link>}
         {c.kind === 'rest' && c.next?.day && <button className="btn ghost" onClick={() => nav(`/seance/${c.next.day.id}`)}>M’entraîner quand même</button>}
         {c.kind === 'empty' && <Link className="btn primary" to="/programme/creer"><Icon name="sparkles" size={16} />Créer mon programme</Link>}
-        {c.kind !== 'empty' && <Link className="btn ghost" to="/programme">Programme</Link>}
+        {tp?.day && dayId && tp.planned?.clash?.length > 0 && tp.day.id !== dayId && <button className="btn" onClick={() => nav(`/seance/${tp.day.id}`)}>Plutôt {tp.day.name}</button>}
+        {c.kind !== 'empty' && !(tp?.day && tp.planned?.clash?.length) && <Link className="btn ghost" to="/programme">Programme</Link>}
       </div>
+      {tp?.mobility && c.kind !== 'empty' && (
+        <div className="hero-mob"><span className="grow"><b className="small">{tp.mobility.title}</b><span className="muted xs">{tp.mobility.why}</span></span>
+          <MobilityDone routine={tp.mobility.routine} area={tp.mobility.area} done={Object.values(brain.data.joints || {}).some((j) => j.mobility.days === 0 && (tp.mobility.area ? j.key === tp.mobility.area : j.routine === tp.mobility.routine))} onDone={brain.reload} label="Faite" /></div>
+      )}
       {dayId && <Link className="coach-forgot" to={`/noter-seance/${dayId}`}>Déjà faite mais pas enregistrée ? Confirme-la ici</Link>}
     </section>
   );
@@ -171,12 +178,6 @@ function MyDay({ day, onWeigh }) {
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/programme/creer">choisis ton objectif</Link></p>}
     </section>
   );
-}
-
-// Séance du jour du cerveau musculaire (version courte)
-function BrainToday() {
-  const { data } = useApi('/muscles/state');
-  return <TodayCard state={data} compact />;
 }
 
 // Aperçu de la carte du corps sur l'accueil : un coup d'œil sur ce qui est prêt ou fatigué

@@ -331,6 +331,14 @@ export default function Workout() {
                         <button className={`check-btn ${x.done ? 'on' : ''}`} onClick={() => toggleSet(bi, ii, si)} aria-label={x.done ? 'Annuler la série' : 'Valider la série'}><Icon name="check" size={20} stroke={3} /></button>
                       </div>
                     ))}
+                    {(() => {
+                      // Un seul geste : refaire la série d'avant (mêmes charge et reps) et la valider
+                      const ni = it.sets.findIndex((x) => !x.done); const pv = ni > 0 ? it.sets[ni - 1] : null;
+                      if (!pv || !pv.done) return null;
+                      const w = pv.weight != null && pv.weight !== '' ? `${Number(pv.weight).toLocaleString('fr-FR')} ${it.unit} × ` : '';
+                      return <button className="btn sm block repeat-set" onClick={() => { update((y) => { const t = y.items[ii].sets[ni]; t.weight = pv.weight; t.reps = pv.reps; }); toggleSet(bi, ii, ni); }}>
+                        <Icon name="check" size={15} stroke={3} />Série {ni + 1} pareille : {w}{pv.reps ?? '?'} reps<span className="muted xs">· repos {it.rest} s</span></button>;
+                    })()}
                     {!s.rest && s.cue?.ii === ii && <div className={`coach-cue inline ${s.cue.tone}`}><Icon name="chat" size={15} /><span className="grow">{s.cue.text}</span>{s.cue.action && <button className="btn xs" onClick={applyCue}>{s.cue.action.label}</button>}</div>}
                     <div className="row gap-s wrap mt-s"><button className="btn xs ghost" onClick={() => addSet(ii)}><Icon name="plus" size={14} />Série</button>{it.sets.length > 1 && <button className="btn xs ghost" onClick={() => removeSet(ii)}>Retirer une série</button>}
                       {it.kind === 'weighted' && <button className={`btn xs ghost ${warm[ii] ? 'on' : ''}`} onClick={() => setWarm({ ...warm, [ii]: !warm[ii] })}><Icon name="flame" size={14} />Échauffement</button>}

@@ -534,3 +534,18 @@ circle.mf-prop[fill="none"] { fill: none; stroke: color-mix(in srgb, var(--muted
 .bm-score { display: flex; gap: 12px; align-items: center; margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--surface2); }
 .bm-score > b { font-size: 30px; font-variant-numeric: tabular-nums; color: var(--accent); min-width: 48px; text-align: center; }
 .sunday.rec { box-shadow: inset 0 0 0 1.5px var(--accent-line); }
+.hero-need { display: flex; gap: 6px; align-items: flex-start; margin: 8px 0 0; }
+.hero-need svg { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+.hero-mob { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.hero-mob .grow { display: flex; flex-direction: column; }
+.fold-body > .card, .fold-body > div > .card, .fold-body > section.card { box-shadow: none; background: transparent; padding: 0; margin: 0; border: 0; }
+.cs-group { margin-top: 8px; background: var(--surface); border-radius: 14px; padding: 0 12px; }
+.cs-group > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 12px 0; cursor: pointer; }
+.cs-group > summary::-webkit-details-marker { display: none; }
+.cs-group > summary b { flex: 1; }
+.cs-group[open] .fold-chev { transform: rotate(90deg); }
+.cs-mini { list-style: none; padding: 0 0 8px; margin: 0; }
+.cs-mini li { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
+.cs-mini li .grow { display: flex; flex-direction: column; min-width: 0; }
+.repeat-set { margin-top: 8px; gap: 6px; justify-content: center; border: 1px dashed var(--accent, #f60); color: var(--accent, #f60); background: transparent; }
+.repeat-set .muted { margin-left: 4px; }

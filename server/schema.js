@@ -324,6 +324,8 @@ export function setupDb(db) {
   if (!db.one('SELECT id FROM users LIMIT 1')) db.tx(() => seed(db));
   // Photos de démo pour les exercices de base
   for (const [slug, lib] of Object.entries(SEED_LIB)) db.run('UPDATE exercises SET lib_id = ? WHERE slug = ? AND lib_id IS NULL', lib, slug);
+  // v10.1 : le doublon « Rameur » (x_rower) est fusionné avec Rowing_Stationary, qui a des photos
+  db.run("UPDATE exercises SET lib_id = 'Rowing_Stationary' WHERE lib_id = 'x_rower'");
   return db;
 }
 

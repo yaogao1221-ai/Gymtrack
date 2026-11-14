@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Icon, useToast } from './ui.jsx';
-import { Spark } from './charts.jsx';
+import { Spark } from './spark.jsx';
 import { post } from '../lib/api.js';
 import { loadLib, thumb } from '../lib/exlib.js';
 import { ExThumb } from './MoveFigure.jsx';

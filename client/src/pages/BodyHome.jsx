@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApi, Page, Card, Icon, Loading, Ring, Sheet, Field, NumInput, useToast } from '../components/ui.jsx';
+import { useApi, Page, Card, Icon, Loading, Ring, Sheet, Field, NumInput, useToast, Fold } from '../components/ui.jsx';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import BodyMap from '../components/BodyMap.jsx';
 import BalanceCard from '../components/Balance.jsx';
@@ -23,8 +23,9 @@ export default function BodyHome() {
       <CoachCard section="body" />
       <section className="card bm-hero">{map.data ? <BodyMap data={map.data} balance={bal.data} state={brain.data} onChange={() => { brain.reload(); map.reload(); }} /> : <Loading />}</section>
       <TodayCard state={brain.data} onChange={brain.reload} />
-      <BalanceCard data={bal.data} />
-      <div id="oublies"><MissingMuscles onAdded={() => map.reload()} /></div>
+      {/* Détails rangés : l'essentiel est déjà sur la carte (modes Équilibre et Volume, fiche muscle) */}
+      <Fold title="Équilibre musculaire en détail" icon="scale" hint={bal.data?.issues ? `${bal.data.issues} écart${bal.data.issues > 1 ? 's' : ''}` : 'équilibré'}><BalanceCard data={bal.data} /></Fold>
+      <div id="oublies"><Fold title="Muscles oubliés" icon="target" hint="à ajouter au programme" open={typeof location !== 'undefined' && location.hash.includes('oublies')}><MissingMuscles onAdded={() => map.reload()} /></Fold></div>
 
       <div className="grid-2col">
         {r && <Card title="Récupération" icon="bolt" action={<Link className="link small" to="/progres?v=analyse">Analyse</Link>}>

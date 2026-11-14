@@ -279,9 +279,6 @@ EXTRA2 = [
         'Mains sur des parallettes ou le sol, bras tendus.',
         'Décolle les fesses, jambes tendues à l’horizontale, et tiens.']),
     # ---- Cardio / conditionnement ----
-    ('x_rower', 'Rameur', 'Rowing Machine', 'cardio', 'Machine', BW, {S: 0.5, Q: 0.5}, 'b', [
-        'Pousse d’abord avec les jambes, puis bascule le buste, puis tire les bras.',
-        'Au retour : bras, buste, puis jambes.']),
     ('x_assault_bike', 'Vélo à air (assault bike)', 'Air Bike', 'cardio', 'Machine', BW, {Q: 0.5}, 'b', [
         'Pousse et tire les poignées en pédalant : bras et jambes travaillent ensemble.',
         'Idéal en intervalles courts (10 à 30 s).']),

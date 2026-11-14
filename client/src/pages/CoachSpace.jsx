@@ -46,7 +46,8 @@ export default function CoachSpace() {
 }
 
 function Questions({ list, open, setOpen }) {
-  const [ans, setAns] = useState(null); const [err, setErr] = useState(null);
+  const [ans, setAns] = useState(null); const [err, setErr] = useState(null); const [more, setMore] = useState(false);
+  const qs = more || (open && list.findIndex((x) => x.id === open) >= 3) ? list : list.slice(0, 3);
   useEffect(() => {
     if (!open) return; setAns(null); setErr(null);
     get(`/coach/ask/${open}`).then(setAns).catch(setErr);
@@ -56,7 +57,7 @@ function Questions({ list, open, setOpen }) {
     <section className="cs-sec">
       <div className="cs-sec-h"><h2>Pose ta question</h2><span className="muted small">10 questions, réponses chiffrées</span></div>
       <ol className="cs-q">
-        {list.map((x, i) => (
+        {qs.map((x, i) => (
           <li key={x.id}><button className={open === x.id ? 'on' : ''} onClick={() => setOpen(open === x.id ? null : x.id)}><span className="cs-qn">{String(i + 1).padStart(2, '0')}</span><span className="grow">{x.q}</span><Icon name={open === x.id ? 'down' : 'right'} size={16} /></button>
             {open === x.id && <div id="cs-answer" className="cs-answer">
               {err ? <p className="warn-text small">{err.message}</p> : !ans ? <p className="muted small">Calcul…</p> : <Answer a={ans} />}
@@ -64,6 +65,7 @@ function Questions({ list, open, setOpen }) {
           </li>
         ))}
       </ol>
+      {qs.length < list.length && <button className="btn sm ghost mt-s" onClick={() => setMore(true)}>Voir les {list.length} questions</button>}
     </section>
   );
 }
@@ -81,7 +83,10 @@ function Answer({ a }) {
 function Inbox({ box, reload }) {
   const toast = useToast(); const nav = useNavigate(); const [busy, setBusy] = useState(null); const [why, setWhy] = useState(null); const [all, setAll] = useState(false);
   const conf = box.items.filter((it) => it.state === 'confirmee' && it.accept.type === 'analysis');
-  const shown = all ? box.items : box.items.slice(0, 5);
+  // Les 3 propositions les plus utiles en grand, le reste rangé par type en lignes compactes
+  const shown = box.items.slice(0, 3); const rest = box.items.slice(3);
+  const KIND = { charge: 'Hausses de charge', baisse: 'Charges à consolider', serie: 'Séries en plus', exercice: 'Exercices à ajouter', programme: 'Programme' };
+  const groups = Object.entries(rest.reduce((g, it) => ({ ...g, [it.kind]: [...(g[it.kind] || []), it] }), {}));
   const acceptAll = async () => {
     setBusy('all');
     try { for (const it of conf) await post('/analysis/apply', { key: it.accept.key }); toast(`${conf.length} hausse${conf.length > 1 ? 's' : ''} confirmée${conf.length > 1 ? 's' : ''} validée${conf.length > 1 ? 's' : ''}`); reload(); } catch (e) { toast(e.message, 'err'); } finally { setBusy(null); }
@@ -115,7 +120,15 @@ function Inbox({ box, reload }) {
               <button className="btn sm" disabled={busy === it.key} onClick={() => refuse(it)}>Refuser</button>
             </div>
           </li>))}</ul>
-        {box.items.length > 5 && <button className="btn block mt-s" onClick={() => setAll(!all)}>{all ? 'Réduire' : `Voir les ${box.items.length - 5} autres propositions`}</button>}</>}
+        {groups.map(([k, list]) => (
+          <details key={k} className="cs-group" open={all}>
+            <summary><b className="small">{KIND[k] || 'Autres'}</b><span className="cs-count">{list.length}</span><Icon name="right" size={14} className="fold-chev" /></summary>
+            <ul className="cs-mini">{list.map((it) => (
+              <li key={it.key}><span className="grow"><b className="small">{it.title}</b><span className="xs muted">{it.state_label}{it.day ? ` · ${it.day}` : ''}{it.current ? ` · ${it.current} → ${it.proposed}` : ''}</span></span>
+                <button className="btn xs primary" disabled={busy === it.key} onClick={() => accept(it)} aria-label="Valider"><Icon name="check" size={13} /></button>
+                <button className="btn xs" disabled={busy === it.key} onClick={() => refuse(it)} aria-label="Refuser"><Icon name="x" size={13} /></button></li>))}</ul>
+          </details>))}
+        {rest.length > 0 && !all && <button className="btn sm ghost mt-s" onClick={() => setAll(true)}>Tout déplier</button>}</>}
       {(box.holds.length > 0 || box.setup.length > 0) && <details className="cs-more">
         <summary>{box.holds.length} en pause · {box.setup.length} sans données suffisantes</summary>
         <ul>{[...box.holds, ...box.setup].map((x) => <li key={x.title}><b>{x.title}</b><span className="small muted"> {x.reason}</span></li>)}</ul>

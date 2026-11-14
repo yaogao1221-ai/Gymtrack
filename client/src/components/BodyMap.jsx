@@ -104,7 +104,7 @@ const MUSCLES_KEYS = { ...Object.fromEntries(Object.keys({ ...FRONT, ...BACK }).
 // Carte du corps : séries de la semaine ou récupération, muscle sélectionné avec exercices et étirements illustrés
 export default function BodyMap({ data, balance, state, onChange }) {
   const [mode, setMode] = useState('rec'); const [selJ, setSelJ] = useState(null); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
-  const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState('');
+  const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState(''); const [more, setMore] = useState(false);
   useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); }, []);
   useEffect(() => { setAll(false); setEq(''); }, [sel, role]);
   const m = useMemo(() => Object.fromEntries(Object.entries(data.muscles).map(([k, v]) => [k, { ...v, key: k }])), [data.muscles]);
@@ -141,6 +141,14 @@ export default function BodyMap({ data, balance, state, onChange }) {
     return prog.days.flatMap((d) => d.exercises.filter((e) => (e.muscles?.[sel] || 0) > 0).map((e) => ({ ...e, day: d.name, role: e.muscles[sel] >= 1 ? 'Principal' : 'Secondaire' })))
       .sort((a, b) => (b.muscles[sel] || 0) - (a.muscles[sel] || 0));
   }, [sel, prog]);
+  // Les 3 meilleurs choix : exercices principaux hors programme, avec le matériel que tu utilises déjà, une photo, niveau accessible
+  const best = useMemo(() => {
+    if (!picks || !lib) return [];
+    const inProg = new Set(mine.map((e) => e.lib_id));
+    const myEq = new Set((prog?.days || []).flatMap((d) => d.exercises).map((e) => lib.find((l) => l.id === e.lib_id)?.q).filter(Boolean));
+    const score = (x) => (myEq.has(x.q) ? 4 : 0) + (x.img ? 2 : 0) + (x.l === 'b' ? 1 : x.l === 'i' ? 0.5 : 0);
+    return picks.main.filter((x) => !inProg.has(x.id)).map((x) => ({ x, s: score(x) })).sort((a, b) => b.s - a.s).slice(0, 3).map((o) => o.x);
+  }, [picks, lib, mine, prog]);
   const area = sel ? Object.entries(AREAS).find(([, a]) => a.muscles.includes(sel)) : null;
   return (
     <div className="bodymap">
@@ -176,7 +184,11 @@ export default function BodyMap({ data, balance, state, onChange }) {
                 <span className="grow"><b>{e.name}</b><span className="muted small">{e.day} · {e.sets} × {e.reps ?? '?'}</span></span>
                 <span className={`tag ${e.role === 'Principal' ? 'good' : ''}`}>{e.role}</span></button></li>))}</ul>
               : <p className="muted small">Aucun exercice de ton programme ne travaille ce muscle.</p>}
-            <h4 className="h-sub">Tous les exercices qui le travaillent</h4>
+            {best.length > 0 && <><h4 className="h-sub">Les 3 meilleurs choix pour toi</h4>
+              <p className="muted xs">Ciblent ce muscle en principal, avec le matériel que tu utilises déjà quand c’est possible.</p>
+              <Thumbs list={best} onOpen={setInfo} /></>}
+            <button className="btn sm block mt-s" onClick={() => setMore(!more)}>{more ? 'Masquer la liste complète' : `Voir tous les exercices (${picks.main.length + picks.second.length})`}</button>
+            {more && <><h4 className="h-sub">Tous les exercices qui le travaillent</h4>
             <Segmented value={role} onChange={setRole} options={[['main', `Principal (${picks.main.length})`], ['second', `Secondaire (${picks.second.length})`]]} />
             {(() => {
               const src = role === 'main' ? picks.main : picks.second;
@@ -188,7 +200,7 @@ export default function BodyMap({ data, balance, state, onChange }) {
                 <Thumbs list={all ? list : list.slice(0, 9)} onOpen={setInfo} />
                 {list.length > 9 && <button className="btn sm block mt-s" onClick={() => setAll(!all)}>{all ? 'Réduire' : `Voir les ${list.length} exercices`}</button>}
               </>);
-            })()}
+            })()}</>}
           </>)}
           {area && <Link className="btn sm ghost mt-s" to={`/soins?zone=${area[0]}`}><Icon name="heal" size={14} />Douleur {area[1].label.toLowerCase()} : que faire ?</Link>}
         </div>

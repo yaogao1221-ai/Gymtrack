@@ -16,5 +16,6 @@ export const MUSCLE_FR = {
 // Ce que le serveur attend pour créer l'exercice (une seule fois par exercice de la bibliothèque)
 export const toExercise = (x) => ({ lib_id: x.id, name: x.n, pattern: x.pt, muscles: x.m, equipment: x.q, kind: x.k, default_unit: 'lbs' });
 export const norm = (t) => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-export async function findLib(id) { if (!id) return null; return (await loadLib()).find((x) => x.id === id) || null; }
+const ALIAS = { x_rower: 'Rowing_Stationary' }; // doublons fusionnés
+export async function findLib(id) { if (!id) return null; id = ALIAS[id] || id; return (await loadLib()).find((x) => x.id === id) || null; }
 export const MUSCLES_APP = { pectoraux: 'Pectoraux', epaules_ant: 'Épaules (avant)', epaules_lat: 'Épaules (latéral)', epaules_post: 'Épaules (arrière)', triceps: 'Triceps', biceps: 'Biceps', avant_bras: 'Avant-bras', dos_largeur: 'Grand dorsal', dos_epaisseur: 'Milieu du dos', trapezes: 'Trapèzes', lombaires: 'Lombaires', abdominaux: 'Abdominaux', quadriceps: 'Quadriceps', ischios: 'Ischio-jambiers', fessiers: 'Fessiers', adducteurs: 'Adducteurs', abducteurs: 'Abducteurs', mollets: 'Mollets' };

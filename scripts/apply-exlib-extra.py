@@ -9,7 +9,10 @@ exec(src[src.index('PATTERNS = ['):src.index('data = json.load')], ns)  # PATTER
 out = root.parent / 'client/src/data/exlib.json'
 lib = json.loads(out.read_text())
 ids = {x[0] for x in EXTRA2}
-lib = [x for x in lib if x['id'] not in ids]
+lib = [x for x in lib if x['id'] not in ids and x['id'] != 'x_rower']  # x_rower fusionné avec Rowing_Stationary (v10.1)
+for x in lib:
+    if x['id'] == 'Rowing_Stationary':
+        x.update(n='Rameur', l='b', fr=1, i=['Pieds sanglés, dos droit, bras tendus vers la poignée.', 'Pousse d’abord avec les jambes, puis bascule le buste en arrière, puis tire la poignée vers le bas des côtes.', 'Au retour, dans l’ordre inverse : bras, buste, puis jambes.', 'Garde un rythme régulier : la puissance vient des jambes, pas des bras.'])
 for i, n, en, c, q, k, m, l, steps in EXTRA2:
     lib.append({'id': i, 'n': n, 'en': en, 'c': c, 'q': q, 'l': l, 'k': k, 'pt': PT.get(i) or ns['pattern']({'name': en, 'category': c}), 'm': m, 'p': [], 'img': 0, 'i': steps, 'fr': 1})
 missing = tag_lib(lib)
