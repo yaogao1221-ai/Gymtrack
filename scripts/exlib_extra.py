@@ -1,0 +1,283 @@
+# Exercices modernes absents de free-exercise-db (v9) : noms, matériel, muscles et consignes en français, sans photo.
+# Format : (id, nom, nom anglais, catégorie, matériel, type, muscles {clé: 1 principal | 0.5 secondaire}, niveau b/i/e, consignes)
+Q, F, G, I, P, D, S, A = 'quadriceps', 'fessiers', 'ischios', 'mollets', 'pectoraux', 'dos_largeur', 'dos_epaisseur', 'abdominaux'
+EA, EL, EP, T, B, AB, LO, TR = 'epaules_ant', 'epaules_lat', 'epaules_post', 'triceps', 'biceps', 'avant_bras', 'lombaires', 'trapezes'
+AD, ABD = 'adducteurs', 'abducteurs'
+W, BW = 'weighted', 'bodyweight'
+
+EXTRA2 = [
+    # ---- Jambes ----
+    ('x_sissy_squat', 'Sissy squat (poids du corps)', 'Sissy Squat', 'muscu', 'Poids du corps', BW, {Q: 1}, 'i', [
+        'Debout, tiens-toi d’une main à un support, pieds largeur de hanches, talons qui peuvent se décoller.',
+        'Pousse les genoux vers l’avant et descends en penchant tout le corps en arrière : genoux, hanches et épaules restent alignés.',
+        'Descends tant que tes genoux le tolèrent, puis remonte en contractant les quadriceps.',
+        'Commence avec une petite amplitude : c’est très exigeant pour le tendon rotulien.']),
+    ('x_sissy_machine', 'Sissy squat (machine / banc)', 'Sissy Squat Machine', 'muscu', 'Machine', BW, {Q: 1}, 'i', [
+        'Bloque les tibias sous les rouleaux et les talons sur le repose-pied.',
+        'Descends en laissant les genoux avancer, le buste reste droit et part en arrière.',
+        'Remonte en poussant les genoux vers l’arrière, sans t’aider des bras.']),
+    ('x_heel_elev_squat', 'Squat talons surélevés (haltères)', 'Heel-Elevated Goblet Squat', 'muscu', 'Haltères', W, {Q: 1, F: 0.5}, 'b', [
+        'Talons sur une cale de 2 à 5 cm, haltère tenue contre la poitrine.',
+        'Descends buste droit, genoux qui avancent loin au-dessus des orteils.',
+        'Remonte en poussant dans tout le pied : l’accent est mis sur les quadriceps.']),
+    ('x_cyclist_squat', 'Squat cycliste', 'Cyclist Squat', 'muscu', 'Haltères', W, {Q: 1}, 'i', [
+        'Talons sur une cale haute, pieds serrés, haltères le long du corps ou contre la poitrine.',
+        'Descends tout droit, genoux très en avant, buste vertical.',
+        'Remonte sans verrouiller complètement les genoux pour garder la tension.']),
+    ('x_bulgarian', 'Squat bulgare (haltères)', 'Bulgarian Split Squat', 'muscu', 'Haltères', W, {Q: 1, F: 1, AD: 0.5}, 'i', [
+        'Dos au banc, pose le dessus du pied arrière dessus ; pied avant assez loin devant.',
+        'Descends le genou arrière vers le sol, buste légèrement penché pour plus de fessiers, droit pour plus de quadriceps.',
+        'Remonte en poussant dans le talon avant. Fais toutes les répétitions d’un côté, puis change.']),
+    ('x_bulgarian_smith', 'Squat bulgare (Smith)', 'Smith Machine Bulgarian Split Squat', 'muscu', 'Barre', W, {Q: 1, F: 1}, 'i', [
+        'Barre du Smith sur le haut du dos, pied arrière posé sur un banc.',
+        'Descends sous contrôle jusqu’à ce que le genou arrière frôle le sol.',
+        'Remonte en poussant dans le pied avant, sans rebond.']),
+    ('x_belt_squat', 'Belt squat', 'Belt Squat', 'muscu', 'Machine', W, {Q: 1, F: 1, AD: 0.5}, 'i', [
+        'Ceinture de lestage autour des hanches, charge accrochée entre les jambes (ou machine dédiée).',
+        'Descends en squat, buste droit, sans charge sur la colonne.',
+        'Remonte en poussant le sol. Idéal quand le dos ou les épaules sont fatigués.']),
+    ('x_pendulum_squat', 'Pendulum squat', 'Pendulum Squat', 'muscu', 'Machine', W, {Q: 1, F: 0.5}, 'i', [
+        'Épaules sous les coussins, dos plaqué, pieds au milieu de la plateforme.',
+        'Descends profondément en laissant les genoux avancer.',
+        'Remonte sans verrouiller les genoux en haut.']),
+    ('x_ssb_squat', 'Squat barre de sécurité (SSB)', 'Safety Bar Squat', 'muscu', 'Barre', W, {Q: 1, F: 1, LO: 0.5, S: 0.5}, 'i', [
+        'Barre de sécurité sur les trapèzes, mains sur les poignées devant toi.',
+        'Descends en squat en gardant le haut du dos droit : la barre pousse vers l’avant.',
+        'Remonte en poussant la nuque contre la barre.']),
+    ('x_pause_squat', 'Squat avec pause (barre)', 'Pause Squat', 'muscu', 'Barre', W, {Q: 1, F: 1, LO: 0.5}, 'i', [
+        'Squat classique, mais tiens 2 à 3 secondes en bas, gainage serré.',
+        'Remonte sans rebond. Charge 15 à 20 % plus légère qu’au squat normal.']),
+    ('x_cossack', 'Squat cosaque', 'Cossack Squat', 'muscu', 'Poids du corps', BW, {Q: 0.5, F: 1, AD: 1}, 'i', [
+        'Pieds très écartés, pointes légèrement ouvertes.',
+        'Descends sur une jambe pliée, l’autre tendue sur le côté, pointe vers le haut.',
+        'Remonte et passe de l’autre côté. Tiens une haltère devant toi pour l’équilibre.']),
+    ('x_curtsy_lunge', 'Fente croisée (curtsy)', 'Curtsy Lunge', 'muscu', 'Haltères', W, {F: 1, Q: 0.5, ABD: 0.5}, 'b', [
+        'Debout, haltères en main.',
+        'Recule une jambe en diagonale derrière l’autre, comme une révérence, et descends.',
+        'Remonte en poussant dans le pied avant.']),
+    ('x_reverse_nordic', 'Reverse nordic', 'Reverse Nordic Curl', 'muscu', 'Poids du corps', BW, {Q: 1}, 'i', [
+        'À genoux sur un tapis, corps droit des genoux à la tête.',
+        'Penche-toi en arrière lentement en gardant les hanches tendues.',
+        'Reviens en contractant les quadriceps. Petite amplitude au début.']),
+    ('x_slider_leg_curl', 'Leg curl glissé (au sol)', 'Sliding Leg Curl', 'muscu', 'Poids du corps', BW, {G: 1, F: 0.5}, 'b', [
+        'Sur le dos, talons sur des patins (ou chaussettes sur parquet), bassin levé.',
+        'Tends les jambes en gardant le bassin haut, puis ramène les talons vers les fesses.']),
+    ('x_single_leg_rdl', 'Soulevé de terre roumain sur une jambe', 'Single-Leg Romanian Deadlift', 'muscu', 'Haltères', W, {G: 1, F: 1, LO: 0.5}, 'i', [
+        'Debout sur une jambe, haltère dans la main opposée.',
+        'Penche le buste en avant, jambe libre tendue derrière, dos plat, bassin bien horizontal.',
+        'Remonte en serrant le fessier de la jambe d’appui.']),
+    ('x_trap_bar_dl', 'Soulevé de terre barre hexagonale', 'Trap Bar Deadlift', 'muscu', 'Barre', W, {Q: 0.5, F: 1, G: 0.5, LO: 0.5, TR: 0.5}, 'b', [
+        'Place-toi au centre de la barre hexagonale, mains sur les poignées.',
+        'Hanches basses, dos plat, poitrine sortie.',
+        'Pousse le sol pour te redresser, puis redescends en contrôlant.']),
+    ('x_deficit_dl', 'Soulevé de terre en déficit', 'Deficit Deadlift', 'muscu', 'Barre', W, {G: 1, F: 1, LO: 1, Q: 0.5}, 'e', [
+        'Debout sur une plateforme de 3 à 8 cm, barre au sol.',
+        'Même technique que le soulevé de terre, dos plat : l’amplitude est plus grande.',
+        'Charge plus légère que ton soulevé habituel.']),
+    ('x_block_pull', 'Soulevé de terre partiel (blocs)', 'Block Pull', 'muscu', 'Barre', W, {LO: 1, F: 1, G: 0.5, TR: 0.5}, 'i', [
+        'Barre posée sur des blocs, juste sous ou au-dessus des genoux.',
+        'Dos plat, verrouille les hanches en fin de mouvement.']),
+    ('x_kas_glute_bridge', 'Kas glute bridge (barre)', 'Kas Glute Bridge', 'muscu', 'Barre', W, {F: 1, G: 0.5}, 'i', [
+        'Haut du dos sur un banc, barre sur les hanches (avec un coussin).',
+        'Monte les hanches jusqu’à l’horizontale seulement, menton rentré, et serre les fessiers 1 s.',
+        'Petite amplitude, tension constante.']),
+    ('x_b_stance_hip_thrust', 'Hip thrust B-stance', 'B-Stance Hip Thrust', 'muscu', 'Barre', W, {F: 1, G: 0.5}, 'i', [
+        'Position de hip thrust, un pied en appui, l’autre posé légèrement devant, sur le talon (béquille).',
+        'Pousse surtout avec la jambe d’appui, puis change de côté.']),
+    ('x_frog_pump', 'Frog pump', 'Frog Pump', 'muscu', 'Poids du corps', BW, {F: 1}, 'b', [
+        'Sur le dos, plantes des pieds collées, genoux ouverts.',
+        'Monte le bassin en serrant fort les fessiers, redescends. Séries longues.']),
+    ('x_cable_pull_through', 'Pull-through à la poulie', 'Cable Pull-Through', 'muscu', 'Poulie', W, {F: 1, G: 1}, 'b', [
+        'Dos à la poulie basse, corde entre les jambes.',
+        'Recule les hanches en gardant le dos plat, puis pousse les hanches vers l’avant en serrant les fessiers.']),
+    ('x_45_back_ext', 'Extension lombaire à 45° (fessiers)', '45-Degree Back Extension', 'muscu', 'Machine', BW, {F: 1, G: 1, LO: 0.5}, 'b', [
+        'Hanches juste au bord du coussin, pieds bloqués.',
+        'Descends le buste, puis remonte en poussant les hanches dans le coussin : arrête-toi quand le corps est aligné.',
+        'Haut du dos légèrement arrondi pour cibler les fessiers.']),
+    ('x_hip_abduction_machine', 'Abduction de hanche (machine)', 'Hip Abduction Machine', 'muscu', 'Machine', W, {ABD: 1, F: 1}, 'b', [
+        'Assis, cuisses contre les coussins.',
+        'Écarte les jambes, tiens 1 s, ramène lentement. Buste penché en avant pour plus de grand fessier.']),
+    ('x_hip_adduction_machine', 'Adduction de hanche (machine)', 'Hip Adduction Machine', 'muscu', 'Machine', W, {AD: 1}, 'b', [
+        'Assis, coussins contre l’intérieur des genoux.',
+        'Serre les jambes, puis laisse-les s’ouvrir lentement jusqu’à un étirement confortable.']),
+    ('x_cable_kickback', 'Kickback fessier à la poulie', 'Cable Glute Kickback', 'muscu', 'Poulie', W, {F: 1}, 'b', [
+        'Sangle à la cheville, face à la poulie basse, mains en appui.',
+        'Pousse la jambe vers l’arrière et légèrement vers l’extérieur, sans cambrer.']),
+    ('x_standing_calf_machine', 'Mollets debout (machine)', 'Standing Calf Raise Machine', 'muscu', 'Machine', W, {I: 1}, 'b', [
+        'Épaules sous les coussins, avant des pieds sur la marche.',
+        'Descends les talons au maximum, pause 1 s, monte sur la pointe, pause 1 s.']),
+    ('x_leg_press_calf', 'Mollets à la presse', 'Leg Press Calf Raise', 'muscu', 'Machine', W, {I: 1}, 'b', [
+        'Pointe des pieds en bas de la plateforme, jambes presque tendues.',
+        'Pousse avec les orteils, puis laisse revenir lentement en étirement.']),
+    # ---- Dos ----
+    ('x_pendlay_row', 'Rowing Pendlay (barre)', 'Pendlay Row', 'muscu', 'Barre', W, {S: 1, D: 0.5, EP: 0.5, B: 0.5}, 'i', [
+        'Buste parallèle au sol, dos plat, barre posée au sol à chaque répétition.',
+        'Tire la barre de façon explosive vers le bas de la poitrine, repose-la.']),
+    ('x_seal_row', 'Seal row', 'Seal Row', 'muscu', 'Barre', W, {S: 1, D: 0.5, EP: 0.5}, 'i', [
+        'Allongé à plat ventre sur un banc surélevé, barre ou haltères sous toi.',
+        'Tire vers le banc sans décoller la poitrine : aucune triche possible.']),
+    ('x_chest_supported_row', 'Rowing buste appuyé (haltères)', 'Chest-Supported Dumbbell Row', 'muscu', 'Haltères', W, {S: 1, D: 0.5, EP: 0.5, B: 0.5}, 'b', [
+        'Poitrine contre un banc incliné à 30-45°, haltères bras tendus.',
+        'Tire les coudes vers l’arrière, serre les omoplates, redescends lentement.']),
+    ('x_meadows_row', 'Rowing Meadows (landmine)', 'Meadows Row', 'muscu', 'Barre', W, {D: 1, S: 1, B: 0.5}, 'i', [
+        'Perpendiculaire à une barre en landmine, main en pronation sur le bout de la barre.',
+        'Tire le coude haut et vers l’arrière, puis laisse la barre étirer le dos en bas.']),
+    ('x_kroc_row', 'Rowing Kroc (haltère lourde)', 'Kroc Row', 'muscu', 'Haltères', W, {D: 1, S: 1, B: 0.5, AB: 0.5}, 'e', [
+        'Une main sur un support, haltère lourde dans l’autre.',
+        'Séries longues (15-25), un peu d’élan accepté sur la fin, mais dos toujours plat.']),
+    ('x_machine_row', 'Rowing assis (machine)', 'Seated Machine Row', 'muscu', 'Machine', W, {S: 1, D: 0.5, EP: 0.5, B: 0.5}, 'b', [
+        'Poitrine contre l’appui, poignées bras tendus.',
+        'Tire en serrant les omoplates, coudes près du corps ou écartés selon la poignée.']),
+    ('x_single_arm_pulldown', 'Tirage vertical à un bras (poulie)', 'Single-Arm Lat Pulldown', 'muscu', 'Poulie', W, {D: 1, B: 0.5}, 'i', [
+        'Assis ou à genoux, une poignée à la poulie haute.',
+        'Tire le coude vers la hanche en gardant le buste stable, étire bien en haut.']),
+    ('x_lat_prayer', 'Pull-over à la poulie (bras tendus)', 'Cable Lat Prayer', 'muscu', 'Poulie', W, {D: 1}, 'b', [
+        'Face à la poulie haute, corde ou barre, bras presque tendus, buste penché.',
+        'Ramène les mains vers les cuisses en serrant les dorsaux, sans plier les coudes.']),
+    ('x_neutral_pullup', 'Traction prise neutre', 'Neutral-Grip Pull-Up', 'muscu', 'Poids du corps', BW, {D: 1, B: 0.5, S: 0.5}, 'i', [
+        'Paumes face à face sur les poignées parallèles.',
+        'Monte la poitrine vers les poignées, descends bras tendus.']),
+    ('x_muscle_up_bar', 'Muscle-up à la barre', 'Bar Muscle-Up', 'crossfit', 'Poids du corps', BW, {D: 1, T: 1, P: 0.5}, 'e', [
+        'Traction explosive jusqu’à la poitrine, en ramenant les hanches vers la barre.',
+        'Bascule les poignets par-dessus la barre et pousse jusqu’à bras tendus.']),
+    # ---- Pectoraux ----
+    ('x_pec_deck', 'Pec deck (butterfly machine)', 'Pec Deck', 'muscu', 'Machine', W, {P: 1, EA: 0.5}, 'b', [
+        'Assis, dos plaqué, avant-bras ou mains sur les poignées à hauteur de poitrine.',
+        'Ramène les bras devant toi, serre 1 s, ouvre lentement jusqu’à l’étirement.']),
+    ('x_cable_fly_low_high', 'Écarté poulie bas vers haut', 'Low-to-High Cable Fly', 'muscu', 'Poulie', W, {P: 1, EA: 0.5}, 'b', [
+        'Poulies basses, un pas en avant, bras légèrement fléchis.',
+        'Monte les mains vers le haut et le centre, à hauteur du menton : cible le haut des pectoraux.']),
+    ('x_cable_fly_high_low', 'Écarté poulie haut vers bas', 'High-to-Low Cable Fly', 'muscu', 'Poulie', W, {P: 1}, 'b', [
+        'Poulies hautes, buste légèrement penché.',
+        'Ramène les mains vers le bas devant les hanches : cible le bas des pectoraux.']),
+    ('x_larsen_press', 'Développé couché Larsen', 'Larsen Press', 'muscu', 'Barre', W, {P: 1, T: 0.5, EA: 0.5}, 'i', [
+        'Développé couché jambes tendues ou décollées, sans appui des pieds.',
+        'Charge plus légère : la stabilité doit venir du haut du corps.']),
+    ('x_spoto_press', 'Développé Spoto', 'Spoto Press', 'muscu', 'Barre', W, {P: 1, T: 0.5, EA: 0.5}, 'e', [
+        'Développé couché : arrête la barre 2 à 3 cm au-dessus de la poitrine, pause 1 s.',
+        'Repousse sans toucher la poitrine.']),
+    ('x_close_grip_bench', 'Développé couché prise serrée', 'Close-Grip Bench Press', 'muscu', 'Barre', W, {T: 1, P: 0.5, EA: 0.5}, 'i', [
+        'Mains à largeur d’épaules (pas plus serré), coudes près du corps.',
+        'Descends la barre sur le bas des pectoraux, pousse en verrouillant les coudes.']),
+    ('x_machine_chest_press', 'Développé machine convergente', 'Converging Chest Press Machine', 'muscu', 'Machine', W, {P: 1, T: 0.5, EA: 0.5}, 'b', [
+        'Poignées à hauteur du milieu de la poitrine, omoplates serrées.',
+        'Pousse jusqu’à bras presque tendus, reviens lentement en étirement.']),
+    ('x_deficit_pushup', 'Pompes en déficit', 'Deficit Push-Up', 'muscu', 'Poids du corps', BW, {P: 1, T: 0.5, EA: 0.5}, 'i', [
+        'Mains sur deux supports (haltères, plaques) pour descendre plus bas que les mains.',
+        'Descends la poitrine sous le niveau des mains, remonte gainé.']),
+    # ---- Épaules ----
+    ('x_cable_lateral', 'Élévations latérales à la poulie', 'Cable Lateral Raise', 'muscu', 'Poulie', W, {EL: 1}, 'b', [
+        'Poulie basse, poignée dans la main opposée, câble devant ou derrière toi.',
+        'Monte le bras sur le côté jusqu’à l’horizontale, redescends lentement.']),
+    ('x_lean_away_lateral', 'Élévation latérale penché (haltère)', 'Lean-Away Lateral Raise', 'muscu', 'Haltères', W, {EL: 1}, 'b', [
+        'Tiens-toi d’une main à un poteau et penche-toi sur le côté.',
+        'Monte l’haltère sur le côté : la tension est plus forte en bas du mouvement.']),
+    ('x_machine_lateral', 'Élévations latérales (machine)', 'Machine Lateral Raise', 'muscu', 'Machine', W, {EL: 1}, 'b', [
+        'Coudes contre les coussins, épaules alignées avec l’axe de la machine.',
+        'Monte jusqu’à l’horizontale, pause, redescends lentement.']),
+    ('x_y_raise', 'Y-raise (banc incliné)', 'Incline Y-Raise', 'muscu', 'Haltères', W, {EL: 0.5, TR: 1, EP: 0.5}, 'b', [
+        'À plat ventre sur un banc incliné, petites haltères.',
+        'Monte les bras en Y, pouces vers le haut, sans hausser les épaules.']),
+    ('x_lu_raise', 'Lu raise', 'Lu Raise', 'muscu', 'Haltères', W, {EL: 1, EA: 0.5, TR: 0.5}, 'i', [
+        'Debout, bras tendus, très petites haltères.',
+        'Monte les bras sur les côtés jusqu’au-dessus de la tête, sans plier les coudes.']),
+    ('x_reverse_pec_deck', 'Pec deck inversé (arrière d’épaule)', 'Reverse Pec Deck', 'muscu', 'Machine', W, {EP: 1, S: 0.5}, 'b', [
+        'Face à la machine, poignées à hauteur des épaules.',
+        'Ouvre les bras vers l’arrière en gardant les coudes légèrement fléchis.']),
+    ('x_cable_rear_delt', 'Oiseau à la poulie (croisé)', 'Cable Rear Delt Fly', 'muscu', 'Poulie', W, {EP: 1}, 'b', [
+        'Poulies à hauteur d’épaules, câbles croisés (main droite tient le câble gauche).',
+        'Ouvre les bras vers l’arrière à hauteur d’épaules.']),
+    ('x_landmine_press', 'Développé landmine (un bras)', 'Landmine Press', 'muscu', 'Barre', W, {EA: 1, P: 0.5, T: 0.5}, 'b', [
+        'Bout de la barre en landmine à hauteur d’épaule, debout ou à genoux.',
+        'Pousse vers le haut et l’avant, gainage serré. Doux pour les épaules.']),
+    ('x_z_press', 'Z press (assis au sol)', 'Z Press', 'muscu', 'Barre', W, {EA: 1, T: 0.5, A: 0.5}, 'e', [
+        'Assis au sol, jambes tendues, barre ou haltères aux épaules.',
+        'Pousse au-dessus de la tête sans t’appuyer en arrière.']),
+    ('x_kelso_shrug', 'Kelso shrug', 'Kelso Shrug', 'muscu', 'Haltères', W, {TR: 1, S: 0.5}, 'i', [
+        'Buste appuyé sur un banc incliné, bras tendus.',
+        'Serre les omoplates vers l’arrière sans plier les coudes, tiens 1 s.']),
+    ('x_cuban_rotation', 'Rotation cubaine', 'Cuban Rotation', 'muscu', 'Haltères', W, {EP: 1, TR: 0.5}, 'b', [
+        'Très petites haltères, coudes montés à hauteur d’épaules à 90°.',
+        'Tourne les avant-bras vers le haut, puis pousse au-dessus de la tête.']),
+    # ---- Bras ----
+    ('x_bayesian_curl', 'Curl bayésien (poulie derrière)', 'Bayesian Cable Curl', 'muscu', 'Poulie', W, {B: 1}, 'b', [
+        'Dos à la poulie basse, un pas en avant, bras tendu légèrement derrière le corps.',
+        'Plie le coude sans avancer l’épaule : le biceps travaille en étirement.',
+        'Redescends lentement jusqu’à sentir l’étirement.']),
+    ('x_cable_curl_bar', 'Curl à la poulie basse (barre)', 'Cable Bar Curl', 'muscu', 'Poulie', W, {B: 1, AB: 0.5}, 'b', [
+        'Face à la poulie basse, barre droite ou EZ.',
+        'Plie les coudes sans les avancer, serre en haut, redescends lentement.']),
+    ('x_curl_21', 'Curl 21', '21s Curl', 'muscu', 'Barre', W, {B: 1}, 'i', [
+        '7 répétitions du bas jusqu’à mi-course, 7 de mi-course jusqu’en haut, 7 complètes.',
+        'Sans pause entre les trois parties. Charge légère.']),
+    ('x_preacher_db', 'Curl pupitre (haltère, un bras)', 'Single-Arm Dumbbell Preacher Curl', 'muscu', 'Haltères', W, {B: 1}, 'b', [
+        'Bras posé sur le pupitre, aisselle en haut du coussin.',
+        'Monte l’haltère, puis redescends lentement jusqu’à bras presque tendu.']),
+    ('x_rope_pushdown', 'Extension triceps à la corde (poulie haute)', 'Rope Triceps Pushdown', 'muscu', 'Poulie', W, {T: 1}, 'b', [
+        'Coudes collés au corps, corde à la poulie haute.',
+        'Pousse vers le bas et écarte les mains en fin de mouvement.']),
+    ('x_cable_oh_ext', 'Extension triceps au-dessus de la tête (poulie)', 'Overhead Cable Triceps Extension', 'muscu', 'Poulie', W, {T: 1}, 'b', [
+        'Dos à la poulie, corde derrière la tête, coudes vers le plafond.',
+        'Tends les bras vers l’avant et le haut, reviens en étirement : cible la longue portion.']),
+    ('x_katana_ext', 'Extension triceps katana (poulie, un bras)', 'Katana Triceps Extension', 'muscu', 'Poulie', W, {T: 1}, 'i', [
+        'Poulie basse, poignée tenue au niveau de l’épaule opposée, coude en l’air.',
+        'Tends le bras en diagonale vers le haut, comme dégainer un sabre.']),
+    ('x_jm_press_smith', 'JM press (Smith)', 'Smith Machine JM Press', 'muscu', 'Barre', W, {T: 1, P: 0.5}, 'e', [
+        'Allongé sous le Smith, prise serrée.',
+        'Descends la barre vers le menton en avançant les coudes, puis pousse.']),
+    ('x_french_press', 'Barre au front (barre EZ)', 'EZ-Bar French Press', 'muscu', 'Barre EZ', W, {T: 1}, 'i', [
+        'Allongé, barre EZ bras tendus au-dessus du front.',
+        'Plie les coudes pour amener la barre derrière le front, coudes fixes, puis tends.']),
+    ('x_reverse_curl_ez', 'Curl inversé (barre EZ)', 'Reverse EZ-Bar Curl', 'muscu', 'Barre EZ', W, {AB: 1, B: 0.5}, 'b', [
+        'Prise en pronation (paumes vers le bas).',
+        'Plie les coudes sans bouger les épaules, redescends lentement.']),
+    # ---- Gainage ----
+    ('x_ab_wheel', 'Roulette abdominale', 'Ab Wheel Rollout', 'muscu', 'Autre', BW, {A: 1, D: 0.5}, 'i', [
+        'À genoux, mains sur la roulette sous les épaules.',
+        'Roule vers l’avant en gardant le dos plat et les fesses serrées, aussi loin que tu restes gainé.',
+        'Reviens en contractant les abdominaux.']),
+    ('x_hollow_hold', 'Hollow hold', 'Hollow Body Hold', 'muscu', 'Poids du corps', BW, {A: 1}, 'b', [
+        'Sur le dos, bas du dos plaqué au sol.',
+        'Décolle épaules et jambes, bras tendus derrière la tête, et tiens.']),
+    ('x_dead_bug', 'Dead bug', 'Dead Bug', 'muscu', 'Poids du corps', BW, {A: 1}, 'b', [
+        'Sur le dos, bras vers le plafond, genoux à 90°.',
+        'Tends un bras et la jambe opposée sans décoller le bas du dos, reviens, change.']),
+    ('x_cable_crunch', 'Crunch à la poulie (à genoux)', 'Kneeling Cable Crunch', 'muscu', 'Poulie', W, {A: 1}, 'b', [
+        'À genoux face à la poulie haute, corde tenue près de la tête.',
+        'Enroule le buste vers les cuisses en arrondissant le dos, hanches fixes.']),
+    ('x_captain_chair', 'Relevés de jambes (chaise romaine)', 'Captain’s Chair Leg Raise', 'muscu', 'Machine', BW, {A: 1}, 'b', [
+        'Avant-bras sur les appuis, dos contre le dossier.',
+        'Monte les genoux vers la poitrine en enroulant le bassin, redescends sans balancer.']),
+    ('x_woodchop', 'Bûcheron à la poulie', 'Cable Woodchop', 'muscu', 'Poulie', W, {A: 1}, 'b', [
+        'De profil à la poulie haute, bras tendus.',
+        'Tire en diagonale vers la hanche opposée en tournant le buste, pieds stables.']),
+    ('x_suitcase_carry', 'Marche du valise (un bras)', 'Suitcase Carry', 'muscu', 'Haltères', W, {A: 1, AB: 1, TR: 0.5}, 'b', [
+        'Une haltère ou kettlebell lourde dans une seule main.',
+        'Marche en restant parfaitement droit, sans pencher du côté de la charge.']),
+    ('x_dragon_flag', 'Dragon flag', 'Dragon Flag', 'muscu', 'Poids du corps', BW, {A: 1}, 'e', [
+        'Allongé sur un banc, mains agrippées derrière la tête.',
+        'Monte le corps droit sur les épaules, puis redescends lentement sans plier les hanches.']),
+    ('x_l_sit', 'L-sit', 'L-Sit', 'crossfit', 'Poids du corps', BW, {A: 1, T: 0.5}, 'i', [
+        'Mains sur des parallettes ou le sol, bras tendus.',
+        'Décolle les fesses, jambes tendues à l’horizontale, et tiens.']),
+    # ---- Cardio / conditionnement ----
+    ('x_rower', 'Rameur', 'Rowing Machine', 'cardio', 'Machine', BW, {S: 0.5, Q: 0.5}, 'b', [
+        'Pousse d’abord avec les jambes, puis bascule le buste, puis tire les bras.',
+        'Au retour : bras, buste, puis jambes.']),
+    ('x_assault_bike', 'Vélo à air (assault bike)', 'Air Bike', 'cardio', 'Machine', BW, {Q: 0.5}, 'b', [
+        'Pousse et tire les poignées en pédalant : bras et jambes travaillent ensemble.',
+        'Idéal en intervalles courts (10 à 30 s).']),
+    ('x_ski_erg', 'Ski erg', 'SkiErg', 'cardio', 'Machine', BW, {D: 0.5, T: 0.5, A: 0.5}, 'b', [
+        'Bras en haut, tire les poignées vers le bas en fléchissant les hanches.',
+        'Remonte et recommence en rythme.']),
+    ('x_sled_push', 'Poussée de traîneau', 'Sled Push', 'crossfit', 'Autre', W, {Q: 1, F: 0.5, I: 0.5}, 'b', [
+        'Mains sur les montants, buste incliné, bras tendus.',
+        'Pousse à petits pas rapides et puissants. Aucune phase excentrique : peu de courbatures.']),
+    ('x_broad_jump', 'Saut en longueur sans élan', 'Broad Jump', 'crossfit', 'Poids du corps', BW, {Q: 1, F: 1}, 'i', [
+        'Pieds largeur de hanches, balance les bras.',
+        'Saute le plus loin possible et atterris en douceur, genoux fléchis.']),
+]
+
+# Schéma de mouvement corrigé quand la détection par le nom anglais se trompe
+PT = {'x_machine_row': 'horizontal_row', 'x_rower': 'lib', 'x_jm_press_smith': 'triceps_extension', 'x_cable_kickback': 'hip_extension',
+      'x_leg_press_calf': 'calf', 'x_cable_rear_delt': 'lib', 'x_reverse_pec_deck': 'lib', 'x_reverse_nordic': 'knee_extension', 'x_sissy_machine': 'knee_extension'}

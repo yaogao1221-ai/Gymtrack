@@ -115,6 +115,11 @@ test('ligue : bilan des périodes (totaux seulement), badges, semaines ISO', asy
   assert.deepEqual(Object.keys(w.stats).sort(), ['active_days', 'cardio_min', 'cardio_n', 'improved', 'km', 'prs', 'sets', 'target', 'trained', 'workouts'], 'que des totaux');
   assert.ok(body.badges.find((b) => b.id === 'first').got);
   assert.equal(body.periods[5].to, '2026-10-31');
+  // Totaux par jour pour les compétitions : 35 jours consécutifs, des nombres seulement
+  assert.equal(body.days.length, 35); assert.equal(body.days.at(-1).day, '2026-11-09'); assert.equal(body.days[0].day, '2026-10-06');
+  for (const d of body.days) assert.deepEqual(Object.keys(d).sort(), ['cardio_min', 'cardio_n', 'day', 'km', 'prs', 'sets', 'workouts'], 'que des totaux');
+  const today = body.days.at(-1); assert.ok(today.km >= 5.5); assert.equal(today.cardio_n >= 1, true);
+  assert.ok(body.days.every((d) => d.workouts <= d.sets), 'une séance compte seulement avec une série validée');
 });
 
 test('cardio dans le programme : bloc, lien avec la séance, progression validée', async () => {

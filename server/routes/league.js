@@ -63,12 +63,29 @@ export default function leagueRoutes(db) {
       B('km42', 'Marathon cumulé', '42,2 km de cardio au total', Math.round(all.cardio_km * 10) / 10, 42.2),
       B('km100', '100 km', '100 km de cardio au total', Math.round(all.cardio_km * 10) / 10, 100),
     ];
-    res.json({ periods, streak, badges, points: POINTS });
+    res.json({ periods, days: dailyTotals(db, req.today, records), streak, badges, points: POINTS });
   });
 
   // Programme complet + progression, partagé seulement si la personne l’active dans la ligue
   r.get('/league/share', (req, res) => res.json(sharePayload(db, req.today)));
   return r;
+}
+
+// Totaux par jour (35 derniers jours) pour les compétitions : uniquement des nombres, jamais le détail des séances.
+// Une séance compte seulement si au moins une série a été réellement validée.
+export function dailyTotals(db, today, records = allRecords(db), n = 35) {
+  const from = addDays(today, -(n - 1));
+  const by = new Map();
+  const row = (d) => { if (!by.has(d)) by.set(d, { day: d, workouts: 0, sets: 0, prs: 0, km: 0, cardio_min: 0, cardio_n: 0 }); return by.get(d); };
+  for (const x of db.all(`SELECT w.date d, COUNT(DISTINCT w.id) wk, COUNT(s.id) sets FROM workouts w JOIN workout_sets s ON s.workout_id = w.id AND s.completed = 1
+      WHERE w.user_id = ? AND w.date BETWEEN ? AND ? GROUP BY w.date`, USER_ID, from, today)) { const r = row(x.d); r.workouts = x.wk; r.sets = x.sets; }
+  for (const x of db.all(`SELECT date d, COUNT(*) n, COALESCE(SUM(duration_min),0) min, COALESCE(SUM(distance_km),0) km FROM cardio_sessions
+      WHERE user_id = ? AND date BETWEEN ? AND ? GROUP BY date`, USER_ID, from, today)) { const r = row(x.d); r.cardio_n = x.n; r.cardio_min = Math.round(x.min); r.km = Math.round(x.km * 10) / 10; }
+  for (const x of records) if (x.date >= from && x.date <= today) row(x.date).prs++;
+  // Les jours sans rien sont envoyés aussi : une séance supprimée ou corrigée remet bien le total du jour à zéro
+  const out = [];
+  for (let d = from; d <= today; d = addDays(d, 1)) out.push(by.get(d) || { day: d, workouts: 0, sets: 0, prs: 0, km: 0, cardio_min: 0, cardio_n: 0 });
+  return out;
 }
 
 export function sharePayload(db, today) {

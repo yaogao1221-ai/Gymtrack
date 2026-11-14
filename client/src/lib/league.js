@@ -63,6 +63,8 @@ export async function syncBoard() {
   const m = getMembership(); if (!m) return null;
   const summary = await get('/league/summary');
   await rpc('ligue_push', { p_member: m.member_id, p_token: m.token, p_periods: summary.periods.map(({ key, kind, from, to, stats }) => ({ key, kind, from, to, stats })) });
+  // Totaux par jour pour les compétitions (remplacés à chaque synchro, jamais additionnés)
+  if (summary.days?.length) await rpc('ligue_days', { p_member: m.member_id, p_token: m.token, p_days: summary.days }).catch(() => {});
   const board = await rpc('ligue_board', { p_member: m.member_id, p_token: m.token, p_periods: summary.periods.map(({ key, from, to }) => ({ key, from, to })) });
   for (const p of summary.periods) PERIOD_BY_KEY[p.key] = p;
   return { summary, board };
@@ -254,3 +256,49 @@ export async function disablePush() {
     if (sub) { await rpc('ligue_push_off', { ...auth(), p_endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
   } finally { store.del(PUSH); }
 }
+
+// ---------- Compétitions (v9) : toute la logique (scores, classements, fin, résultats) est calculée par la base ----------
+export const getComps = () => rpc('ligue_comps', auth());
+export const getComp = (id) => rpc('ligue_comp', { ...auth(), p_id: id });
+export const createComp = (c) => rpc('ligue_comp_create', { ...auth(), p_c: c });
+export const respondComp = (id, action) => rpc('ligue_comp_respond', { ...auth(), p_id: id, p_action: action });
+export const inviteComp = (id, members) => rpc('ligue_comp_invite', { ...auth(), p_id: id, p_members: members });
+export const cancelComp = (id) => rpc('ligue_comp_cancel', { ...auth(), p_id: id });
+export const getEvents = (limit = 40) => rpc('ligue_events', { ...auth(), p_limit: limit });
+export const renameLeague = (name) => rpc('ligue_settings', { ...auth(), p_name: name });
+
+const nf = (v, d = 0) => Number(v || 0).toLocaleString('fr-FR', { maximumFractionDigits: d });
+// Types de compétition réellement calculables avec les données disponibles (pas Apple Santé, séances validées, cardio, records)
+export const COMP_TYPES = [
+  { id: 'steps', label: 'Pas', icon: 'heart', tone: 'steps', unit: 'pas', team: true, fmt: (v) => nf(v), rule: 'Total de pas envoyés par l’app Santé (raccourci) ou saisis. Un seul total par jour, remplacé à chaque envoi : jamais compté deux fois.', teamGoal: 300000 },
+  { id: 'goal_days', label: 'Objectif quotidien', icon: 'target', tone: 'goal', unit: 'jours', fmt: (v) => nf(v), rule: 'Un point par jour où tu atteins l’objectif de pas fixé.', needsGoal: true },
+  { id: 'workouts', label: 'Séances', icon: 'dumbbell', tone: 'iron', unit: 'séances', team: true, fmt: (v) => nf(v), rule: 'Séances de muscu avec au moins une série validée. Une par jour au maximum, et 6 jours sur 7 au plus : le repos ne coûte rien.', teamGoal: 30 },
+  { id: 'active_days', label: 'Régularité', icon: 'calendar', tone: 'reg', unit: 'jours', team: true, fmt: (v) => nf(v), rule: 'Jours avec une séance de muscu ou de cardio. 6 jours sur 7 suffisent pour le maximum.', teamGoal: 40 },
+  { id: 'sets', label: 'Volume', icon: 'chart', tone: 'vol', unit: 'séries', fmt: (v) => nf(v), rule: 'Séries validées, 30 par jour au maximum pour ne pas pousser au surentraînement.' },
+  { id: 'prs', label: 'Progression', icon: 'trend', tone: 'prog', unit: 'records', fmt: (v) => nf(v), rule: 'Records personnels battus (ta meilleure charge sur un exercice). 5 par jour au maximum. Chacun se bat contre lui-même.' },
+  { id: 'km', label: 'Cardio km', icon: 'bolt', tone: 'run', unit: 'km', team: true, fmt: (v) => nf(v, 1), rule: 'Kilomètres de cardio enregistrés, 42,2 km par jour au maximum.', teamGoal: 150 },
+  { id: 'cardio_min', label: 'Cardio minutes', icon: 'clock', tone: 'run', unit: 'min', team: true, fmt: (v) => nf(v), rule: 'Minutes de cardio enregistrées, 3 h par jour au maximum.', teamGoal: 1200 },
+];
+export const COMP_BY_ID = Object.fromEntries(COMP_TYPES.map((t) => [t.id, t]));
+export const DURATIONS = [[1, '24 h'], [3, '3 jours'], [7, '7 jours'], [14, '14 jours'], [30, '30 jours']];
+export const STATUS_LABEL = { upcoming: 'À venir', active: 'En cours', closing: 'Résultats provisoires', finished: 'Terminée' };
+
+const DAYMS = 86400000;
+export const dayDiff = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / DAYMS);
+export function timeLeft(c) {
+  if (c.status === 'upcoming') { const d = dayDiff(c.today, c.start); return d <= 1 ? 'Commence demain' : `Commence dans ${d} jours`; }
+  if (c.status === 'active') {
+    const d = dayDiff(c.today, c.end);
+    if (d === 0) { const now = new Date(); const h = 23 - now.getHours(); return h <= 0 ? 'Dernière heure' : `Finit dans ${h} h`; }
+    return d === 1 ? 'Finit demain soir' : `Encore ${d + 1} jours`;
+  }
+  if (c.status === 'closing') return 'Résultats figés demain (synchros en retard comptées)';
+  return `Terminée le ${new Date(c.end + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`;
+}
+export function progressOf(c) {
+  const total = dayDiff(c.start, c.end) + 1;
+  if (c.status === 'upcoming') return 0;
+  if (c.status !== 'active') return 1;
+  return Math.min(1, (dayDiff(c.start, c.today) + 1) / total);
+}
+export const durationLabel = (c) => { const n = dayDiff(c.start, c.end) + 1; return n === 1 ? '24 h' : `${n} jours`; };
