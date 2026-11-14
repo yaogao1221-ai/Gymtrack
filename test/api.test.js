@@ -184,3 +184,14 @@ test('corps & nutrition : IMC, % de gras US Navy, maintien, cure de sèche et co
   const a = await call('POST', `/nutrition/plan/${p.body.plan.id}/adjust`, { delta: -150 });
   assert.equal(a.body.plan.kcal, p.body.plan.kcal - 150);
 });
+
+test('équilibre musculaire : paires force et volume, verdicts déterministes', async () => {
+  const { status, body } = await call('GET', '/bodymap/balance');
+  assert.equal(status, 200);
+  assert.deepEqual(body.strength.map((x) => x.id), ['cuisses', 'chaine', 'torse', 'bras', 'hanches']);
+  for (const x of [...body.strength, ...body.volume]) {
+    assert.ok(['ok', 'low', 'high', 'unknown'].includes(x.verdict));
+    if (x.verdict !== 'unknown' && x.ratio != null) assert.equal(x.verdict, x.ratio < x.target[0] ? 'low' : x.ratio > x.target[1] ? 'high' : 'ok');
+  }
+  assert.equal((await call('GET', '/bodymap/balance')).body.issues, body.issues, 'même résultat à chaque appel');
+});

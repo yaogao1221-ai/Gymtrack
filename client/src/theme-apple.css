@@ -383,3 +383,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .home-week .ring-legend li { grid-template-columns: 12px 1fr auto; }
 .home-week .ring-legend i { border-radius: 50%; }
 .home-week .ring-legend li.ring-total { grid-template-columns: 1fr auto; }
+
+/* ---------- v8.3 : équilibre musculaire ---------- */
+.bal-card .card-head h2 { display: flex; align-items: center; gap: 8px; }
+.bal-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bal-row { background: var(--surface2); border-radius: var(--r-m); padding: 12px 14px; }
+.bal-row p { margin: 6px 0 0; line-height: 1.45; }
+.bal-row.v-low, .bal-row.v-high { box-shadow: inset 3px 0 0 var(--orange); }
+.bal-bar { position: relative; height: 8px; margin-top: 10px; border-radius: var(--pill); background: var(--surface3); }
+.bal-zone { position: absolute; top: 0; bottom: 0; border-radius: var(--pill); background: color-mix(in srgb, var(--green) 45%, transparent); }
+.bal-one { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--faint); }
+.bal-dot { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--surface); border: 3px solid var(--text); box-shadow: var(--shadow-s); transition: left .6s var(--spring); }
+.v-low .bal-dot, .v-high .bal-dot { border-color: var(--orange); }
+.v-ok .bal-dot { border-color: var(--green); }
+.bal-sides { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.bal-sides span { display: flex; align-items: center; gap: 6px; }
+.bm-panel .bal-row { background: var(--surface); }

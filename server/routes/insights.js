@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { USER_ID, getProfile, allRecords, activeProgram, getProgram, nextSession, periodStats } from '../services.js';
 import { toJSON } from '../schema.js';
 import { MUSCLES } from '../seed.js';
+import { muscleBalance } from '../coach/balance.js';
 import { RANGES, PAIN_AREAS, analyse, recoveryScore } from '../analysis.js';
 import { e1rm, toLbs, r1 } from '../formulas.js';
 import { nutritionState } from '../nutrition.js';
@@ -318,6 +319,9 @@ export default function insightsRoutes(db) {
     const pains = db.all('SELECT * FROM pain_reports WHERE user_id = ? AND resolved = 0 ORDER BY date DESC', USER_ID).map((p) => ({ ...p, label: PAIN_AREAS[p.area]?.label || p.area }));
     res.json({ muscles, pains, range });
   });
+
+  // Équilibre musculaire : force et volume entre muscles opposés
+  r.get('/bodymap/balance', (req, res) => res.json(muscleBalance(db, req.today)));
 
   // Coach du jour : une consigne claire (séance, repos actif, séance faite), avec ce qui compte pour aujourd'hui
   r.get('/coach/today', (req, res) => {

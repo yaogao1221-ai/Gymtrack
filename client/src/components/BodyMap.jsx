@@ -1,3 +1,4 @@
+import { BalanceRow } from './Balance.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Segmented, Icon } from './ui.jsx';
@@ -92,13 +93,16 @@ export function MuscleFigures({ muscles }) {
 const MUSCLES_KEYS = { ...Object.fromEntries(Object.keys({ ...FRONT, ...BACK }).map((k) => [k, 1])) };
 
 // Carte du corps : séries de la semaine ou récupération, muscle sélectionné avec exercices et étirements illustrés
-export default function BodyMap({ data }) {
+export default function BodyMap({ data, balance }) {
   const [mode, setMode] = useState('rec'); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
   const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState('');
   useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); }, []);
   useEffect(() => { setAll(false); setEq(''); }, [sel, role]);
-  const m = data.muscles;
-  const color = (x) => (!x ? 'var(--map-0)' : mode === 'rec' ? COLORS_REC[x.status] : x.sets <= 0 ? COLORS_LOAD[0] : COLORS_LOAD[x.zone]);
+  const m = useMemo(() => Object.fromEntries(Object.entries(data.muscles).map(([k, v]) => [k, { ...v, key: k }])), [data.muscles]);
+  // Mode Équilibre : muscle en retard (orange), équilibré (vert), sans données (gris)
+  const balOf = (k) => { const l = balance?.by_muscle?.[k]; if (!l) return null; if (l.some((x) => x.weak === k || (x.weak === 'Dos' && k.startsWith('dos')))) return 'weak'; if (l.some((x) => x.verdict === 'ok')) return 'ok'; return 'none'; };
+  const COLORS_BAL = { weak: 'var(--orange)', ok: 'var(--green)', none: 'var(--map-0)' };
+  const color = (x) => (!x ? 'var(--map-0)' : mode === 'bal' ? COLORS_BAL[balOf(x.key)] || 'var(--map-0)' : mode === 'rec' ? COLORS_REC[x.status] : x.sets <= 0 ? COLORS_LOAD[0] : COLORS_LOAD[x.zone]);
   const cur = sel ? m[sel] : null;
   const picks = useMemo(() => {
     if (!sel || !lib) return null;
@@ -119,19 +123,21 @@ export default function BodyMap({ data }) {
   const area = sel ? Object.entries(AREAS).find(([, a]) => a.muscles.includes(sel)) : null;
   return (
     <div className="bodymap">
-      <Segmented value={mode} onChange={setMode} options={[['rec', 'Récupération'], ['load', 'Séries (7 j)']]} />
+      <Segmented value={mode} onChange={setMode} options={[['rec', 'Récupération'], ['load', 'Séries (7 j)'], ...(balance ? [['bal', 'Équilibre']] : [])]} />
       <div className="bm-figs">
         <Figure map={FRONT} data={m} color={color} sel={sel} onSel={setSel} label="Face" />
         <Figure map={BACK} back data={m} color={color} sel={sel} onSel={setSel} label="Dos" />
       </div>
       <div className="bm-legend small">
-        {mode === 'rec' ? Object.entries(REC_LABEL).map(([k, l]) => <span key={k}><i style={{ background: COLORS_REC[k] }} />{l}</span>)
+        {mode === 'bal' ? [['weak', 'En retard'], ['ok', 'Équilibré'], ['none', 'Pas de données']].map(([k, l]) => <span key={k}><i style={{ background: COLORS_BAL[k] }} />{l}</span>)
+          : mode === 'rec' ? Object.entries(REC_LABEL).map(([k, l]) => <span key={k}><i style={{ background: COLORS_REC[k] }} />{l}</span>)
           : [['bas', 'Peu'], ['correct', 'Entretien'], ['optimal', 'Idéal'], ['haut', 'Beaucoup']].map(([k, l]) => <span key={k}><i style={{ background: COLORS_LOAD[k] }} />{l}</span>)}
       </div>
       {!cur ? <p className="muted small center">Touche un muscle pour voir sa charge, ses exercices et ses étirements.</p> : (
         <div className="bm-panel">
           <div className="row-between"><b>{cur.label}</b><span className="bm-pill" style={{ background: COLORS_REC[cur.status] }}>{REC_LABEL[cur.status]}</span></div>
           <button className={`btn sm ${cur.sore ? 'primary' : ''} mt-s`} onClick={() => post('/soreness', { muscle: sel, on: !cur.sore }).catch(() => {})}>{cur.sore ? 'Courbatures signalées (toucher pour retirer)' : 'J’ai des courbatures ici'}</button>
+          {balance?.by_muscle?.[sel]?.length > 0 && <><h4 className="h-sub">Équilibre avec le muscle opposé</h4><ul className="bal-list">{balance.by_muscle[sel].map((x, i) => <BalanceRow key={i} x={x} compact={x.kind === 'volume'} />)}</ul></>}
           <p className="small">{n1(cur.sets)} série{cur.sets > 1 ? 's' : ''} sur 7 jours · {cur.last ? `dernière fois ${cur.days === 0 ? 'aujourd’hui' : cur.days === 1 ? 'hier' : `le ${fmtDate(cur.last, { day: 'numeric', month: 'short' })}`}` : 'pas travaillé récemment'}</p>
           {picks && (<>
             {picks.stretch.length > 0 && <><h4 className="h-sub">Étirements et mobilité</h4><Thumbs list={picks.stretch} onOpen={setInfo} /></>}
