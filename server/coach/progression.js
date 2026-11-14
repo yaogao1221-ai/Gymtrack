@@ -1,3 +1,4 @@
+import LADDERS from '../../client/src/data/ladders.json' with { type: 'json' };
 // Moteur de progression unique (serveur, déterministe). Tous les écrans l'utilisent :
 // accueil, briefing, séance, débrief, espace Coach. Il ne modifie jamais rien : il décide, l'utilisateur valide.
 //
@@ -74,6 +75,8 @@ export function decide(db, pe, ctx = {}) {
       const proposed = Math.min(15, target + (L.plus2 ? 2 : 1));
       return out({ key: `prog:${pe.id}:reps:${proposed}`, type: 'increase', state, title: `${pe.name} : viser ${proposed} répétitions`, current: `${target} reps`, proposed_label: `${pe.sets} × ${proposed}`, patch: { reps: proposed }, reason: `${why} Au poids du corps, on progresse d'abord en répétitions.`, evidence, today: { reps: proposed, text: `${proposed} répétitions par série`, why } });
     }
+    const next = LADDERS[pe.lib_id]?.nxn;
+    if (next) return out({ key: `prog:${pe.id}:next`, type: 'info', state: 'suggeree', title: `${pe.name} : passe à ${next}`, reason: `${why} 15 répétitions atteintes : au poids du corps, l’étape suivante est la variante plus dure (${next}), à 3 × 6-8 pour commencer. Change l’exercice dans ton programme quand tu le sens.`, evidence });
     return out({ key: `prog:${pe.id}:max`, type: 'keep', state: 'insuffisant', title: `${pe.name} : 15 répétitions atteintes`, reason: 'Ajoute du lest ou passe à une variante plus difficile.', evidence, silent: true });
   }
   // Objectif manqué : échecs nets deux fois de suite → baisse proposée (à valider)

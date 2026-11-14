@@ -8,6 +8,7 @@ import { loadLib, thumb } from '../lib/exlib.js';
 import { post, get } from '../lib/api.js';
 import { fmtDate, n1 } from '../lib/format.js';
 import { AREAS } from '../data/rehab.js';
+import { MuscleStats, JointPanel, VOL_COLORS, VOL_LABEL, PROG_COLORS, PROG_LABEL, JOINT_COLORS, JOINT_LABEL } from './MuscleBrain.jsx';
 
 // Silhouettes vectorielles de face et de dos (viewBox 100 × 186). Muscles du côté gauche, la droite est dessinée en miroir ; c = au centre.
 const P = (d, c) => ({ d, c });
@@ -47,7 +48,12 @@ function Shape({ s, fill, onClick, mirror, active }) {
   return <path d={s.d} fill={fill} onClick={onClick} className={`bm-m ${active ? 'on' : ''}`} transform={mirror ? MIRROR : undefined} />;
 }
 
-function Figure({ map, data, color, sel, onSel, label }) {
+// Articulations (mode Articulations) : x, y dans le repère de la silhouette ; c = au centre (pas de miroir)
+const JOINT_POS = {
+  front: [['epaule', 27.5, 35], ['coude', 25, 67], ['poignet', 19.6, 93], ['pectoral', 41, 41], ['hanche', 36.5, 92], ['genou', 40.5, 138], ['cheville', 41, 170]],
+  back: [['nuque', 50, 25, 1], ['epaule', 27.5, 35], ['coude', 25, 67], ['bas_du_dos', 50, 74, 1], ['hanche', 37, 96], ['genou', 40.5, 138], ['cheville', 41, 170]],
+};
+function Figure({ map, data, color, sel, onSel, label, joints, side, selJ, onJoint }) {
   return (
     <figure className="bm-fig">
       <svg viewBox="8 0 84 186" role="img" aria-label={label}>
@@ -64,6 +70,8 @@ function Figure({ map, data, color, sel, onSel, label }) {
             {!s.c && <Shape s={s} fill={color(data[k])} onClick={() => onSel(k)} active={sel === k} mirror />}
           </g>
         )))}
+        {joints && JOINT_POS[side].map(([k, x, y, c]) => joints[k] && [x, ...(c ? [] : [100 - x])].map((xx) => (
+          <circle key={`${k}${xx}`} cx={xx} cy={y} r={selJ === k ? 4.6 : 3.6} className={`bm-joint ${selJ === k ? 'on' : ''}`} style={{ fill: JOINT_COLORS[joints[k].status] }} onClick={() => onJoint(k)} />)))}
       </svg>
       <figcaption className="muted xs">{label}</figcaption>
     </figure>
@@ -94,8 +102,8 @@ export function MuscleFigures({ muscles }) {
 const MUSCLES_KEYS = { ...Object.fromEntries(Object.keys({ ...FRONT, ...BACK }).map((k) => [k, 1])) };
 
 // Carte du corps : séries de la semaine ou récupération, muscle sélectionné avec exercices et étirements illustrés
-export default function BodyMap({ data, balance }) {
-  const [mode, setMode] = useState('rec'); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
+export default function BodyMap({ data, balance, state, onChange }) {
+  const [mode, setMode] = useState('rec'); const [selJ, setSelJ] = useState(null); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
   const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState('');
   useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); }, []);
   useEffect(() => { setAll(false); setEq(''); }, [sel, role]);
@@ -103,8 +111,20 @@ export default function BodyMap({ data, balance }) {
   // Mode Équilibre : muscle en retard (orange), équilibré (vert), sans données (gris)
   const balOf = (k) => { const l = balance?.by_muscle?.[k]; if (!l) return null; if (l.some((x) => x.weak === k || (x.weak === 'Dos' && k.startsWith('dos')))) return 'weak'; if (l.some((x) => x.verdict === 'ok')) return 'ok'; return 'none'; };
   const COLORS_BAL = { weak: 'var(--orange)', ok: 'var(--green)', none: 'var(--map-0)' };
-  const color = (x) => (!x ? 'var(--map-0)' : mode === 'bal' ? COLORS_BAL[balOf(x.key)] || 'var(--map-0)' : mode === 'rec' ? COLORS_REC[x.status] : x.sets <= 0 ? COLORS_LOAD[0] : COLORS_LOAD[x.zone]);
-  const cur = sel ? m[sel] : null;
+  const S = state?.muscles;
+  const color = (x) => {
+    if (!x) return 'var(--map-0)';
+    if (mode === 'joint') return 'var(--map-0)';
+    if (mode === 'bal') return COLORS_BAL[balOf(x.key)] || 'var(--map-0)';
+    if (mode === 'rec') return COLORS_REC[x.status];
+    if (mode === 'vol') return S ? VOL_COLORS[S[x.key]?.volume.verdict] || 'var(--map-0)' : x.sets <= 0 ? COLORS_LOAD[0] : COLORS_LOAD[x.zone];
+    if (mode === 'prog') return PROG_COLORS[S?.[x.key]?.progression.verdict] || 'var(--map-0)';
+    return 'var(--map-0)';
+  };
+  const cur = sel ? m[sel] : null; const brainCur = sel && S ? S[sel] : null;
+  const pickMuscle = (k) => { setSel(k); setSelJ(null); }; const pickJoint = (k) => { setSelJ(k); setSel(null); };
+  const modes = S ? [['rec', 'Récup.'], ['vol', 'Volume'], ['prog', 'Force'], ['bal', 'Équilibre'], ['joint', 'Articul.']]
+    : [['rec', 'Récupération'], ['vol', 'Séries (7 j)'], ...(balance ? [['bal', 'Équilibre']] : [])];
   const picks = useMemo(() => {
     if (!sel || !lib) return null;
     const strength = lib.filter((x) => x.c !== 'mobilite' && (x.m[sel] || 0) >= 1 && x.img).sort((a, b) => (a.l === 'b' ? -1 : 0) - (b.l === 'b' ? -1 : 0)).slice(0, 4);
@@ -124,22 +144,29 @@ export default function BodyMap({ data, balance }) {
   const area = sel ? Object.entries(AREAS).find(([, a]) => a.muscles.includes(sel)) : null;
   return (
     <div className="bodymap">
-      <Segmented value={mode} onChange={setMode} options={[['rec', 'Récupération'], ['load', 'Séries (7 j)'], ...(balance ? [['bal', 'Équilibre']] : [])]} />
+      <Segmented value={mode} onChange={(v) => { setMode(v); if (v === 'joint') setSel(null); else setSelJ(null); }} options={modes} />
+      {mode === 'bal' && state?.global && <div className="bm-score"><b>{state.global.value}</b><span className="small"><b>{state.global.label}</b>{state.global.causes[0] ? <><br /><span className="muted xs">{state.global.causes[0]}</span></> : <><br /><span className="muted xs">Aucun écart marqué entre muscles opposés.</span></>}</span></div>}
       <div className="bm-figs">
-        <Figure map={FRONT} data={m} color={color} sel={sel} onSel={setSel} label="Face" />
-        <Figure map={BACK} back data={m} color={color} sel={sel} onSel={setSel} label="Dos" />
+        <Figure map={FRONT} side="front" data={m} color={color} sel={sel} onSel={mode === 'joint' ? () => {} : pickMuscle} label="Face" joints={mode === 'joint' ? state?.joints : null} selJ={selJ} onJoint={pickJoint} />
+        <Figure map={BACK} side="back" back data={m} color={color} sel={sel} onSel={mode === 'joint' ? () => {} : pickMuscle} label="Dos" joints={mode === 'joint' ? state?.joints : null} selJ={selJ} onJoint={pickJoint} />
       </div>
       <div className="bm-legend small">
-        {mode === 'bal' ? [['weak', 'En retard'], ['ok', 'Équilibré'], ['none', 'Pas de données']].map(([k, l]) => <span key={k}><i style={{ background: COLORS_BAL[k] }} />{l}</span>)
+        {mode === 'joint' ? Object.entries(JOINT_LABEL).map(([k, l]) => <span key={k}><i style={{ background: JOINT_COLORS[k] }} />{l}</span>)
+          : mode === 'prog' ? Object.entries(PROG_LABEL).map(([k, l]) => <span key={k}><i style={{ background: PROG_COLORS[k] }} />{l}</span>)
+          : mode === 'vol' && S ? Object.entries(VOL_LABEL).map(([k, l]) => <span key={k}><i style={{ background: VOL_COLORS[k] }} />{l}</span>)
+          : mode === 'bal' ? [['weak', 'En retard'], ['ok', 'Équilibré'], ['none', 'Pas de données']].map(([k, l]) => <span key={k}><i style={{ background: COLORS_BAL[k] }} />{l}</span>)
           : mode === 'rec' ? Object.entries(REC_LABEL).map(([k, l]) => <span key={k}><i style={{ background: COLORS_REC[k] }} />{l}</span>)
           : [['bas', 'Peu'], ['correct', 'Entretien'], ['optimal', 'Idéal'], ['haut', 'Beaucoup']].map(([k, l]) => <span key={k}><i style={{ background: COLORS_LOAD[k] }} />{l}</span>)}
       </div>
-      {!cur ? <p className="muted small center">Touche un muscle pour voir sa charge, ses exercices et ses étirements.</p> : (
+      {mode === 'joint' && !selJ && <p className="muted small center">Touche une articulation pour voir sa charge, ta mobilité et les exercices de soin.</p>}
+      {selJ && state?.joints?.[selJ] && <JointPanel j={state.joints[selJ]} onOpen={setInfo} onChange={onChange} />}
+      {mode === 'joint' ? null : !cur ? <p className="muted small center">Touche un muscle pour voir son volume, sa force, ce qui lui manque et ses exercices.</p> : (
         <div className="bm-panel">
           <div className="row-between"><b>{cur.label}</b><span className="bm-pill" style={{ background: COLORS_REC[cur.status] }}>{REC_LABEL[cur.status]}</span></div>
+          {brainCur && <MuscleStats m={brainCur} state={state} onChange={onChange} />}
           <button className={`btn sm ${cur.sore ? 'primary' : ''} mt-s`} onClick={() => post('/soreness', { muscle: sel, on: !cur.sore }).catch(() => {})}>{cur.sore ? 'Courbatures signalées (toucher pour retirer)' : 'J’ai des courbatures ici'}</button>
           {balance?.by_muscle?.[sel]?.length > 0 && <><h4 className="h-sub">Équilibre avec le muscle opposé</h4><ul className="bal-list">{balance.by_muscle[sel].map((x, i) => <BalanceRow key={i} x={x} compact={x.kind === 'volume'} />)}</ul></>}
-          <p className="small">{n1(cur.sets)} série{cur.sets > 1 ? 's' : ''} sur 7 jours · {cur.last ? `dernière fois ${cur.days === 0 ? 'aujourd’hui' : cur.days === 1 ? 'hier' : `le ${fmtDate(cur.last, { day: 'numeric', month: 'short' })}`}` : 'pas travaillé récemment'}</p>
+          {!brainCur && <p className="small">{n1(cur.sets)} série{cur.sets > 1 ? 's' : ''} sur 7 jours · {cur.last ? `dernière fois ${cur.days === 0 ? 'aujourd’hui' : cur.days === 1 ? 'hier' : `le ${fmtDate(cur.last, { day: 'numeric', month: 'short' })}`}` : 'pas travaillé récemment'}</p>}
           {picks && (<>
             {picks.stretch.length > 0 && <><h4 className="h-sub">Étirements et mobilité</h4><Thumbs list={picks.stretch} onOpen={setInfo} /></>}
             <h4 className="h-sub">Dans ton programme</h4>

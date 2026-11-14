@@ -5,6 +5,7 @@ import { SectionTabs } from '../components/SectionTabs.jsx';
 import { ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { Thumbs } from '../components/BodyMap.jsx';
 import CoachCard from '../components/CoachCard.jsx';
+import { MobilityDone } from '../components/MuscleBrain.jsx';
 import { loadLib } from '../lib/exlib.js';
 import { post, patch, today } from '../lib/api.js';
 import { AREAS, PRINCIPLES, RED_FLAGS_ALL, ROUTINES } from '../data/rehab.js';
@@ -16,7 +17,9 @@ const PH = ['Calmer', 'Recharger', 'Reprendre'];
 export default function Care() {
   const [params, setParams] = useSearchParams(); const zone = params.get('zone') || '';
   const [lib, setLib] = useState(null); const [info, setInfo] = useState(null); const [report, setReport] = useState(null);
-  const brief = useApi('/coach/brief'); const toast = useToast();
+  const brief = useApi('/coach/brief'); const mob = useApi('/mobility'); const toast = useToast();
+  const doneToday = (routine) => (mob.data || []).some((x) => x.routine === routine && x.date === today());
+  const week = (mob.data || []).filter((x) => x.date >= new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10)).length;
   useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); }, []);
   const byId = useMemo(() => new Map((lib || []).map((x) => [x.id, x])), [lib]);
   const list = (ex) => ex.map(([id]) => byId.get(id)).filter(Boolean);
@@ -57,11 +60,13 @@ export default function Care() {
       </div>
 
       {!lib ? <Loading /> : !a ? (<>
+        <p className="muted small">{week ? `${week} séance${week > 1 ? 's' : ''} de mobilité ou de soin notée${week > 1 ? 's' : ''} ces 7 derniers jours.` : 'Note tes routines faites : la carte du corps (mode Articulations) suit tes articulations et te dit quoi faire.'}</p>
         {[...ROUTINES].sort((x, y) => (y.key === rec) - (x.key === rec)).map((r) => (
           <Card key={r.key} title={r.t} icon="body" className={r.key === rec ? 'rec' : ''}>
             {r.key === rec && <span className="tag good">Conseillée avant ta prochaine séance</span>}
             <p className="muted small">{r.d} · 5 à 8 min. Touche un exercice pour voir la démo.</p>
             <Thumbs list={list(r.ex)} doses={doses(r.ex)} onOpen={setInfo} />
+            <div className="mt-s"><MobilityDone routine={r.key} done={doneToday(r.key)} onDone={mob.reload} /></div>
           </Card>
         ))}
         <Fold title="Les principes qui font guérir plus vite">
@@ -81,7 +86,7 @@ export default function Care() {
         {a.phases.map((ph, i) => {
           const cur = pz ? pz.phase === i : i === 0;
           const body = <><p className="small">{ph.d}</p>{ph.ex.length > 0 && <Thumbs list={list(ph.ex)} doses={doses(ph.ex)} onOpen={setInfo} />}</>;
-          return cur ? <Card key={ph.t} title={ph.t} className="phase-cur">{pz && <span className="tag good">Tu es ici · jour {pz.days}</span>}{body}</Card>
+          return cur ? <Card key={ph.t} title={ph.t} className="phase-cur">{pz && <span className="tag good">Tu es ici · jour {pz.days}</span>}{body}<div className="mt-s"><MobilityDone routine={`soin:${zone}`} area={zone} done={doneToday(`soin:${zone}`)} onDone={mob.reload} label="Soin fait aujourd’hui" /></div></Card>
             : <Fold key={ph.t} title={ph.t} hint={pz && i < pz.phase ? 'faite' : 'plus tard'}>{body}</Fold>;
         })}
         <Card title="Consulte un médecin ou un kiné si" icon="alert">

@@ -9,6 +9,7 @@ import { e1rm, toLbs } from '../formulas.js';
 import { addDays, weekStart, diffDays } from '../util.js';
 import { toJSON } from '../schema.js';
 import { coachContext } from './context.js';
+import { muscleState, sundayReview } from './muscleState.js';
 import { decide, history } from './progression.js';
 
 const pct = (x) => `${x > 0 ? '+' : ''}${Math.round(x * 10) / 10} %`.replace('.', ',');
@@ -173,6 +174,9 @@ export function inbox(db, today) {
   }
   for (const s of a.suggestions.slice(0, 4)) items.push({ key: s.key, kind: 'exercice', state: 'suggeree', state_label: 'Suggestion', title: `Ajouter ${s.exercise}`, reason: `${s.reason} Proposé dans ${s.day_name}, ${s.sets} × ${s.reps}.`, evidence: [], accept: { type: 'analysis', key: s.key } });
   for (const g of [...(gaps.gaps || []), ...(gaps.low || [])]) if (g.bump) items.push({ key: `bump:${g.bump.pe_id}:${g.bump.to}`, kind: 'serie', state: 'suggeree', state_label: 'Suggestion', title: `${g.bump.name} : ${g.bump.from} → ${g.bump.to} séries`, reason: `${g.label} ${g.forgotten ? 'oublié' : 'peu travaillé'} (${fmt(g.planned)} série${g.planned > 1 ? 's' : ''} prévue${g.planned > 1 ? 's' : ''} par semaine) : des séries en plus sur un exercice déjà dans ${g.bump.day.name}, plutôt qu’un doublon.`, evidence: [], accept: { type: 'bump', pe_id: g.bump.pe_id, sets: g.bump.to } });
+  // Propositions du cerveau musculaire (volume sous la zone, muscles prioritaires), sans doublon avec les séries déjà proposées
+  const bumped = new Set(items.filter((it) => it.accept.type === 'bump').map((it) => it.accept.pe_id));
+  for (const p of muscleState(db, today).proposals) if (!bumped.has(p.pe_id)) items.push({ key: p.key, kind: 'serie', state: 'suggeree', state_label: 'Suggestion', title: p.title, reason: `${p.reason} Validé, l’appli vérifiera dans 4 semaines si ça te fait progresser.`, evidence: [], accept: { type: 'muscle', pe_id: p.pe_id, sets: p.to, muscle: p.muscle, key: p.key } });
   const dl = a.deload;
   if (dl?.due) items.push({ key: `deload:${today.slice(0, 7)}`, kind: 'programme', state: 'a_valider', state_label: 'À valider', title: 'Planifier une semaine allégée', reason: `${dl.why || 'Plusieurs semaines d’entraînement soutenu.'} Une semaine à volume réduit aide à repartir.`, evidence: [], accept: { type: 'link', to: '/progres?v=bilan' } });
   if (a.schedule.proposed) items.push({ key: 'schedule', kind: 'programme', state: 'a_valider', state_label: 'À valider', title: 'Réorganiser les jours de séance', reason: a.schedule.issues.join(' '), evidence: [], accept: { type: 'link', to: '/progres?v=analyse' } });
@@ -345,5 +349,5 @@ export function ask(db, today, id, opts = {}) {
 export function coachHub(db, today) {
   const box = inbox(db, today); const wk = weeklyReview(db, today); const r = recoveryView(db, today);
   const stag = stagnationReport(db, today).filter((x) => x.status === 'stagne' || x.status === 'regresse');
-  return { inbox: box, week: wk, recovery: { estimated: r.estimated, observed: r.observed, verdict: r.verdict, note: r.note }, stagnation: stag.slice(0, 5), questions: QUESTIONS };
+  return { inbox: box, week: wk, sunday: sundayReview(db, today), recovery: { estimated: r.estimated, observed: r.observed, verdict: r.verdict, note: r.note }, stagnation: stag.slice(0, 5), questions: QUESTIONS };
 }

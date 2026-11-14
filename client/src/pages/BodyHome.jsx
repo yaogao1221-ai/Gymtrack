@@ -5,6 +5,7 @@ import { SectionTabs } from '../components/SectionTabs.jsx';
 import BodyMap from '../components/BodyMap.jsx';
 import BalanceCard from '../components/Balance.jsx';
 import MissingMuscles from '../components/MissingMuscles.jsx';
+import { TodayCard } from '../components/MuscleBrain.jsx';
 import CoachCard from '../components/CoachCard.jsx';
 import { BodyCard } from './Dashboard.jsx';
 import { post, patch, today } from '../lib/api.js';
@@ -12,7 +13,7 @@ import { fmtDate, n0 } from '../lib/format.js';
 
 // Mon corps : la carte du corps en premier, puis récupération, douleurs, poids et repas du jour
 export default function BodyHome() {
-  const map = useApi('/bodymap'); const bal = useApi('/bodymap/balance'); const d = useApi('/dashboard'); const pains = useApi('/pains');
+  const map = useApi('/bodymap'); const bal = useApi('/bodymap/balance'); const brain = useApi('/muscles/state'); const d = useApi('/dashboard'); const pains = useApi('/pains');
   const [pain, setPain] = useState(null); const toast = useToast();
   const act = async (fn, msg) => { try { await fn(); toast(msg); map.reload(); pains.reload(); d.reload(); } catch (e) { toast(e.message, 'err'); } };
   const r = d.data?.recovery; const day = d.data?.day;
@@ -20,7 +21,8 @@ export default function BodyHome() {
   return (
     <Page tabs={<SectionTabs group="body" />} title="Mon corps">
       <CoachCard section="body" />
-      <section className="card bm-hero">{map.data ? <BodyMap data={map.data} balance={bal.data} /> : <Loading />}</section>
+      <section className="card bm-hero">{map.data ? <BodyMap data={map.data} balance={bal.data} state={brain.data} onChange={() => { brain.reload(); map.reload(); }} /> : <Loading />}</section>
+      <TodayCard state={brain.data} onChange={brain.reload} />
       <BalanceCard data={bal.data} />
       <div id="oublies"><MissingMuscles onAdded={() => map.reload()} /></div>
 

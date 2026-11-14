@@ -4,7 +4,9 @@ export const loadLib = () => (cache ||= import('../data/exlib.json').then((m) =>
 const IMG = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 export const imgs = (x) => (x?.img ? Array.from({ length: x.img }, (_, i) => `${IMG}${x.id}/${i}.jpg`) : []);
 export const thumb = (libId) => (libId && !libId.startsWith('x_') ? `${IMG}${libId}/0.jpg` : null);
-export const CATS = { muscu: 'Muscu', crossfit: 'Crossfit', mobilite: 'Mobilité', cardio: 'Cardio' };
+export const CATS = { muscu: 'Muscu', calisthenics: 'Calisthenics', crossfit: 'Crossfit', mobilite: 'Mobilité', cardio: 'Cardio' };
+// Un exercice au poids du corps peut appartenir aussi au calisthenics (tractions, dips…)
+export const inCat = (x, cat) => !cat || x.c === cat || (cat === 'calisthenics' && !!x.cal);
 export const LEVELS = { b: 'Débutant', i: 'Intermédiaire', e: 'Avancé' };
 export const MUSCLE_FR = {
   abdominals: 'Abdominaux', abductors: 'Abducteurs', adductors: 'Adducteurs', biceps: 'Biceps', calves: 'Mollets', chest: 'Pectoraux', forearms: 'Avant-bras',

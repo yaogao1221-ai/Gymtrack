@@ -235,7 +235,7 @@ for i, n, en, c, q, k, m in EXTRA:
 
 # Exercices modernes ajoutés en v9 (sissy squat, curl bayésien, rowing Pendlay…)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from exlib_extra import EXTRA2, PT  # noqa: E402
+from exlib_extra import EXTRA2, PT, tag_lib  # noqa: E402
 for i, n, en, c, q, k, m, l, steps in EXTRA2:
     lib.append({'id': i, 'n': n, 'en': en, 'c': c, 'q': q, 'l': l, 'k': k, 'pt': PT.get(i) or pattern({'name': en, 'category': c}), 'm': m, 'p': [], 'img': 0, 'i': steps, 'fr': 1})
 
@@ -244,6 +244,7 @@ for x in lib:
     if x['c'] == 'mobilite':
         x['t'] = list(x['m'].keys()) or x['p']; x['m'] = {}
 
+tag_lib(lib)
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps(lib, ensure_ascii=False, separators=(',', ':')))
 print(len(lib), 'exercices ->', OUT, OUT.stat().st_size // 1024, 'Ko')

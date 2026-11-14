@@ -93,8 +93,8 @@ export default function Workout() {
   const [error, setError] = useState(null); const [conflict, setConflict] = useState(null);
   const [finishing, setFinishing] = useState(false); const [cancel, setCancel] = useState(false); const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(Date.now()); const [tips, setTips] = useState({}); const [warm, setWarm] = useState({}); const [picker, setPicker] = useState(null); const [rmIt, setRmIt] = useState(null); const [demo, setDemo] = useState(null);
-  const blockRefs = useRef([]); const [bm, setBm] = useState(null); const [brief, setBrief] = useState(null);
-  useEffect(() => { get('/bodymap').then(setBm).catch(() => {}); get('/coach/brief').then(setBrief).catch(() => {}); }, []);
+  const blockRefs = useRef([]); const [bm, setBm] = useState(null); const [brain, setBrain] = useState(null); const [brief, setBrief] = useState(null);
+  useEffect(() => { get('/bodymap').then(setBm).catch(() => {}); get('/muscles/state').then(setBrain).catch(() => {}); get('/coach/brief').then(setBrief).catch(() => {}); }, []);
   const painOf = (it) => Object.values(brief?.pain_patterns || {}).find((p) => p.patterns.includes(it.pattern))?.label;
 
   useEffect(() => {
@@ -274,7 +274,7 @@ export default function Workout() {
           <span className="ws-n">{d === t ? <Icon name="check" size={13} stroke={3} /> : String(bi + 1).padStart(2, '0')}</span><span className="ws-name">{its.map((i) => s.items[i].name).join(' + ')}</span><span className="ws-c">{d}/{t}</span></button>;
       })}</nav>}
       <p className="muted small center">{total ? `${done} / ${total} séries validées` : ''}{cardio.length ? `${total ? ' · ' : ''}cardio ${cardioDone}/${cardio.length}` : ''}</p>
-      {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} painOf={painOf} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
+      {!s.briefed && done === 0 ? <Briefing s={s} bm={bm} brain={brain} painOf={painOf} onApply={(list) => update((y) => { list.forEach((ii) => { const it = y.items[ii]; it.sets.forEach((x) => { if (it.sugg.weight != null) x.weight = it.sugg.weight; if (it.sugg.reps != null) x.reps = it.sugg.reps; }); it.applied = true; }); })} onGo={() => update((y) => { y.briefed = true; })} />
         : done === 0 && <button className="link small brief-reopen" onClick={() => update((y) => { y.briefed = false; })}>Revoir le briefing</button>}
       {s.deload && <div className="deload-banner"><Icon name="moon" size={16} /><span><b>Semaine de deload</b> : moitié des séries et charges −10 % déjà appliquées. Arrête chaque série à 3 ou 4 répétitions de l’échec, cardio facile.</span></div>}
       {cardio.map((c, ci) => (c.placement === 'debut' ? cardioCard(c, ci) : null))}
@@ -396,13 +396,18 @@ export default function Workout() {
 }
 
 // Briefing avant la séance : durée, échauffement, charges du jour (hausses à valider), muscles encore fatigués
-function Briefing({ s, bm, painOf, onApply, onGo }) {
+function Briefing({ s, bm, brain, painOf, onApply, onGo }) {
   const items = s.items.filter((it) => !it.removed);
   const cardioMin = (s.cardio || []).reduce((a, c) => a + (Number(c.duration_min) || 0), 0);
   const est = Math.round(items.reduce((a, it) => a + it.sets.length * (40 + it.rest), 0) / 60 + cardioMin);
   const ups = items.map((it) => s.items.indexOf(it)).filter((ii) => { const it = s.items[ii]; return it.sugg && (it.sugg.up || it.sugg.down) && !painOf(it) && !it.applied && it.sets.some((x) => (it.sugg.weight != null && Number(x.weight) !== it.sugg.weight) || (it.sugg.reps != null && Number(x.reps) !== it.sugg.reps)); });
   const mus = new Set(items.flatMap((it) => Object.entries(it.muscles || {}).filter(([, c]) => c >= 1).map(([k]) => k)));
   const tired = bm ? [...mus].filter((k) => bm.muscles[k]?.status === 'fatigue').map((k) => bm.muscles[k].label) : [];
+  // Cerveau musculaire : muscles prioritaires et manques travaillés aujourd'hui, articulations surchargées, mobilité du jour
+  const prio = brain ? [...mus].filter((k) => brain.muscles[k]?.priority).map((k) => brain.muscles[k].label.toLowerCase()) : [];
+  const gaps = brain ? [...mus].filter((k) => brain.muscles[k]?.need_score >= 3 && !brain.muscles[k].pain).map((k) => brain.muscles[k].label.toLowerCase()) : [];
+  const joints = brain ? Object.values(brain.joints || {}).filter((j) => j.status === 'surcharge') : [];
+  const mob = brain?.today_plan?.mobility;
   const first = items.find((it) => it.kind === 'weighted' && it.sets.some((x) => Number(x.weight) > 0));
   const top = first ? Math.max(...first.sets.map((x) => Number(x.weight) || 0)) : 0;
   const wu = first ? warmupFor(top, first.unit, first.kind) : [];
@@ -416,8 +421,11 @@ function Briefing({ s, bm, painOf, onApply, onGo }) {
       <div className="brief-kpi"><span><b>≈ {est}</b> min</span><span><b>{items.length}</b> exercices</span><span><b>{items.reduce((a, it) => a + it.sets.length, 0)}</b> séries</span>{cardioMin > 0 && <span><b>{Math.round(cardioMin)}</b> min cardio</span>}</div>
       {items.some((it) => painOf(it)) && <p className="brief-warn"><Icon name="heal" size={15} />Douleur {painOf(items.find((it) => painOf(it))).toLowerCase()} suivie : les exercices marqués « à adapter » restent à ta charge actuelle ou plus légers. Touche « Remplacer » pendant la séance si ça tire.</p>}
       {tired.length > 0 && <p className="brief-warn"><Icon name="alert" size={15} />{tired.join(', ')} encore fatigué{tired.length > 1 ? 's' : ''} : échauffe-toi plus longtemps et arrête chaque série à 2 reps de l’échec.</p>}
+      {(prio.length > 0 || gaps.length > 0) && <p className="brief-tip"><Icon name="target" size={15} />{prio.length ? `Muscle${prio.length > 1 ? 's' : ''} prioritaire${prio.length > 1 ? 's' : ''} aujourd’hui : ${prio.join(', ')}. Commence par ${prio.length > 1 ? 'eux' : 'lui'}, quand tu es frais.` : `Aujourd’hui tu travailles ${gaps.join(', ')}, qui en ${gaps.length > 1 ? 'ont' : 'a'} besoin : ne saute pas ces séries.`}</p>}
+      {joints.length > 0 && <p className="brief-warn"><Icon name="alert" size={15} />{joints.map((j) => j.label).join(', ')} très sollicité{joints.length > 1 ? 's' : ''} cette semaine : pas de hausse brutale sur ces mouvements.</p>}
       <h3>1. Échauffement</h3>
       <ul className="brief-list">
+        {mob && <li>{mob.title} : 5 à 8 min (Soins et mobilité)</li>}
         <li>{debut ? `${debut.label} ${debut.duration_min} min (prévu dans ta séance)` : '5 min de cardio léger pour monter en température'}</li>
         {first && wu.length > 0 && <li>Montée en charge sur {first.name} : {wu.map((x) => `${x.w.toLocaleString('fr-FR')} × ${x.reps}`).join(' · ')} ({first.unit})</li>}
       </ul>

@@ -1,3 +1,4 @@
+import { SundayCard } from '../components/MuscleBrain.jsx';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi, Icon, Loading, ErrorBox, useToast } from '../components/ui.jsx';
@@ -38,6 +39,7 @@ export default function CoachSpace() {
       <Inbox box={h.inbox} reload={() => { hub.reload(); today.reload(); }} />
       <Recovery r={h.recovery} />
       {h.stagnation.length > 0 && <Stagnation list={h.stagnation} onAsk={() => setQ('stagnate')} />}
+      <SundayCard data={h.sunday} onChange={() => { hub.reload(); today.reload(); }} />
       <Week w={h.week} />
     </div>
   );
@@ -89,6 +91,7 @@ function Inbox({ box, reload }) {
     setBusy(it.key);
     try {
       if (it.accept.type === 'analysis') await post('/analysis/apply', { key: it.accept.key });
+      else if (it.accept.type === 'muscle') await post('/muscles/adjust', { pe_id: it.accept.pe_id, sets: it.accept.sets, muscle: it.accept.muscle, key: it.accept.key });
       else if (it.accept.type === 'bump') { await patch(`/program/exercises/${it.accept.pe_id}`, { sets: it.accept.sets }); await post('/analysis/dismiss', { key: it.key }).catch(() => {}); }
       toast('Validé : ton programme est à jour'); reload();
     } catch (e) { toast(e.message, 'err'); } finally { setBusy(null); }

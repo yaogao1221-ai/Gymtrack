@@ -5,6 +5,7 @@ import { post, today } from '../lib/api.js';
 import { Spark, COLORS } from '../components/charts.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
 import { BodyFigures } from '../components/BodyMap.jsx';
+import { TodayCard } from '../components/MuscleBrain.jsx';
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 const CalendarView = lazy(() => import('./Calendar.jsx').then((m) => ({ default: m.CalendarView })));
@@ -36,6 +37,7 @@ export default function Dashboard() {
 
       {d.day && <MyDay day={d.day} onWeigh={() => setWeigh({ date: d.today, weight_kg: d.body?.last ?? null })} />}
       <MiniMap />
+      <BrainToday />
       {d.pending?.length > 0 && (
         <section className="pending">
           <p className="eyebrow">À valider</p>
@@ -169,6 +171,12 @@ function MyDay({ day, onWeigh }) {
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/programme/creer">choisis ton objectif</Link></p>}
     </section>
   );
+}
+
+// Séance du jour du cerveau musculaire (version courte)
+function BrainToday() {
+  const { data } = useApi('/muscles/state');
+  return <TodayCard state={data} compact />;
 }
 
 // Aperçu de la carte du corps sur l'accueil : un coup d'œil sur ce qui est prêt ou fatigué

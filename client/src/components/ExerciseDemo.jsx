@@ -18,6 +18,21 @@ export function DemoImages({ x, size = 'lg' }) {
   );
 }
 
+// Échelle de progression (calisthenics) : version plus facile / plus dure, pour avancer sans charge
+function Progression({ x, onGo }) {
+  const [pv, setPv] = useState(null); const [nx, setNx] = useState(null);
+  useEffect(() => { findLib(x.pv).then(setPv); findLib(x.nx).then(setNx); }, [x.pv, x.nx]);
+  return (
+    <div className="ex-prog">
+      <p className="xs muted">Progression au poids du corps : passe à l’étape suivante quand tu réussis 3 séries de 15 (ou 3 × 30 s en tenue) proprement.</p>
+      <div className="ex-prog-row">
+        {pv ? <button className="btn sm" onClick={() => onGo(pv)}><Icon name="left" size={14} /><span><span className="xs muted">Plus facile</span><br />{pv.n}</span></button> : <span />}
+        {nx && <button className="btn sm" onClick={() => onGo(nx)}><span><span className="xs muted">Plus dur</span><br />{nx.n}</span><Icon name="right" size={14} /></button>}
+      </div>
+    </div>
+  );
+}
+
 // Fiche d'un exercice de la bibliothèque : démo, muscles, consignes
 export function ExerciseInfo({ libId, x: given, open, onClose, footer }) {
   const [x, setX] = useState(given || null);
@@ -31,6 +46,7 @@ export function ExerciseInfo({ libId, x: given, open, onClose, footer }) {
         <div className="chips mt-s">
           <span className="chip on">{CATS[x.c] || x.c}</span><span className="chip">{x.q}</span><span className="chip">{LEVELS[x.l] || ''}</span>
         </div>
+        {(x.pv || x.nx) && <Progression x={x} onGo={setX} />}
         {x.m && Object.keys(x.m).length > 0 ? (<div className="ex-muscles">
           <MuscleFigures muscles={x.m} />
           <div className="grow">

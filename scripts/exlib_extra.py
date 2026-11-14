@@ -297,5 +297,169 @@ EXTRA2 = [
 ]
 
 # Schéma de mouvement corrigé quand la détection par le nom anglais se trompe
+# ---- Calisthenics (v10) : poids du corps, avec des échelles de progression (pv / nx) ----
+CAL = [
+    ('x_incline_pushup', 'Pompes inclinées (mains surélevées)', 'Incline Push-Up', 'calisthenics', 'Poids du corps', BW, {P: 1, T: 0.5, EA: 0.5}, 'b', [
+        'Mains sur un banc ou une barre, corps gainé de la tête aux talons.',
+        'Descends la poitrine vers l’appui, coudes à 45° du corps, puis pousse. Plus l’appui est bas, plus c’est dur.']),
+    ('x_knee_pushup', 'Pompes sur les genoux', 'Knee Push-Up', 'calisthenics', 'Poids du corps', BW, {P: 1, T: 0.5, EA: 0.5}, 'b', [
+        'Genoux au sol, hanches dans l’alignement du buste.',
+        'Descends jusqu’à frôler le sol avec la poitrine, remonte sans casser les hanches.']),
+    ('x_decline_pushup', 'Pompes déclinées (pieds surélevés)', 'Decline Push-Up', 'calisthenics', 'Poids du corps', BW, {P: 1, EA: 1, T: 0.5}, 'i', [
+        'Pieds sur un banc, mains au sol un peu plus larges que les épaules.',
+        'Descends le haut de la poitrine vers le sol en gardant le gainage, puis pousse.']),
+    ('x_diamond_pushup', 'Pompes diamant', 'Diamond Push-Up', 'calisthenics', 'Poids du corps', BW, {T: 1, P: 0.5, EA: 0.5}, 'i', [
+        'Mains rapprochées sous la poitrine, pouces et index qui forment un losange.',
+        'Coudes le long du corps, descends jusqu’aux mains, pousse en contractant les triceps.']),
+    ('x_archer_pushup', 'Pompes archer', 'Archer Push-Up', 'calisthenics', 'Poids du corps', BW, {P: 1, T: 0.5, EA: 0.5}, 'e', [
+        'Mains très écartées. Descends vers une main en gardant l’autre bras tendu sur le côté.',
+        'Remonte et alterne. Étape vers la pompe à un bras.']),
+    ('x_one_arm_pushup', 'Pompe à un bras', 'One-Arm Push-Up', 'calisthenics', 'Poids du corps', BW, {P: 1, T: 1, A: 0.5}, 'e', [
+        'Pieds écartés, une main sous l’épaule, l’autre dans le dos.',
+        'Descends en gardant les hanches face au sol, remonte sans tourner le buste.']),
+    ('x_pike_pushup', 'Pompes piquées (pike push-up)', 'Pike Push-Up', 'calisthenics', 'Poids du corps', BW, {EA: 1, T: 0.5, EL: 0.5}, 'i', [
+        'Hanches hautes, corps en V inversé, mains largeur d’épaules.',
+        'Descends le sommet de la tête vers le sol devant les mains, puis pousse. Prépare le handstand push-up.']),
+    ('x_elevated_pike_pushup', 'Pompes piquées pieds surélevés', 'Elevated Pike Push-Up', 'calisthenics', 'Poids du corps', BW, {EA: 1, T: 0.5, EL: 0.5}, 'e', [
+        'Pieds sur une box, hanches au-dessus des épaules, buste presque vertical.',
+        'Descends la tête vers le sol en contrôlant, pousse jusqu’aux bras tendus.']),
+    ('x_wall_handstand', 'Équilibre contre le mur (tenue)', 'Wall Handstand Hold', 'calisthenics', 'Poids du corps', BW, {EA: 1, T: 0.5, TR: 0.5, A: 0.5}, 'i', [
+        'Face au mur, monte en marchant avec les pieds, mains à 10-20 cm du mur.',
+        'Bras tendus, épaules poussées vers les oreilles, corps gainé. Tiens 20 à 60 s.']),
+    ('x_pseudo_planche_pushup', 'Pompes pseudo-planche', 'Pseudo Planche Push-Up', 'calisthenics', 'Poids du corps', BW, {EA: 1, P: 1, T: 0.5}, 'e', [
+        'Mains au niveau des hanches, doigts tournés vers l’extérieur, épaules penchées en avant des mains.',
+        'Garde cette inclinaison pendant toute la pompe. Prépare la planche.']),
+    ('x_planche_lean', 'Planche lean', 'Planche Lean', 'calisthenics', 'Poids du corps', BW, {EA: 1, P: 0.5, A: 0.5}, 'i', [
+        'Position de pompe, bras tendus, penche les épaules en avant des mains.',
+        'Omoplates écartées, bassin rentré, tiens 15 à 30 s.']),
+    ('x_tuck_planche', 'Planche groupée (tuck planche)', 'Tuck Planche', 'calisthenics', 'Poids du corps', BW, {EA: 1, P: 0.5, A: 1, T: 0.5}, 'e', [
+        'Mains au sol ou sur parallettes, genoux rentrés contre la poitrine.',
+        'Penche-toi en avant jusqu’à décoller les pieds, bras tendus, dos arrondi. Tiens 5 à 15 s.']),
+    ('x_parallel_dips', 'Dips aux barres parallèles', 'Parallel Bar Dips', 'calisthenics', 'Poids du corps', BW, {P: 1, T: 1, EA: 0.5}, 'i', [
+        'En appui bras tendus, épaules basses.',
+        'Descends jusqu’à ce que les épaules passent légèrement sous les coudes, buste un peu penché, puis pousse.']),
+    ('x_support_hold', 'Tenue en appui aux barres', 'Parallel Bar Support Hold', 'calisthenics', 'Poids du corps', BW, {T: 0.5, P: 0.5, TR: 0.5, A: 0.5}, 'b', [
+        'Bras tendus sur les barres, épaules poussées vers le bas, corps gainé.',
+        'Tiens 20 à 45 s. Première étape avant les dips.']),
+    ('x_ring_dips', 'Dips aux anneaux', 'Ring Dips', 'calisthenics', 'Anneaux', BW, {P: 1, T: 1, EA: 0.5}, 'e', [
+        'En appui sur les anneaux, anneaux serrés contre le corps.',
+        'Descends sous les coudes en contrôlant le tremblement, pousse jusqu’aux bras tendus en tournant les anneaux vers l’extérieur.']),
+    ('x_ring_pushup', 'Pompes aux anneaux', 'Ring Push-Up', 'calisthenics', 'Anneaux', BW, {P: 1, T: 0.5, EA: 0.5}, 'i', [
+        'Anneaux bas, corps gainé, comme une pompe classique.',
+        'Garde les anneaux près du corps en descendant, pousse et écarte légèrement les mains en haut.']),
+    ('x_negative_pullup', 'Traction négative', 'Negative Pull-Up', 'calisthenics', 'Poids du corps', BW, {D: 1, B: 0.5, S: 0.5}, 'b', [
+        'Monte en haut de la barre avec un saut ou une box, menton au-dessus.',
+        'Descends en 3 à 5 s jusqu’aux bras tendus. Première étape vers la traction.']),
+    ('x_archer_pullup', 'Traction archer', 'Archer Pull-Up', 'calisthenics', 'Poids du corps', BW, {D: 1, B: 1, S: 0.5}, 'e', [
+        'Prise très large. Tire vers une main en gardant l’autre bras presque tendu.',
+        'Alterne les côtés. Étape vers la traction à un bras.']),
+    ('x_typewriter_pullup', 'Traction typewriter', 'Typewriter Pull-Up', 'calisthenics', 'Poids du corps', BW, {D: 1, B: 1, S: 0.5}, 'e', [
+        'Monte en traction prise large, puis déplace-toi d’une main à l’autre en restant en haut.',
+        'Redescends en contrôlant.']),
+    ('x_chin_hold', 'Tenue menton au-dessus de la barre', 'Flexed-Arm Hang', 'calisthenics', 'Poids du corps', BW, {D: 0.5, B: 1, AB: 0.5}, 'b', [
+        'Menton au-dessus de la barre, coudes serrés, épaules basses.',
+        'Tiens 10 à 30 s. Renforce le haut de la traction.']),
+    ('x_active_hang', 'Suspension active', 'Active Hang', 'calisthenics', 'Poids du corps', BW, {D: 0.5, TR: 0.5, AB: 1}, 'b', [
+        'Suspendu bras tendus, tire les épaules vers le bas sans plier les coudes.',
+        'Tiens 20 à 45 s. Protège les épaules et renforce la prise.']),
+    ('x_tuck_front_lever', 'Front lever groupé', 'Tuck Front Lever', 'calisthenics', 'Poids du corps', BW, {D: 1, A: 1, S: 0.5}, 'e', [
+        'Suspendu, genoux rentrés, monte le bassin jusqu’à avoir le dos horizontal, bras tendus.',
+        'Pousse la barre vers les hanches. Tiens 5 à 15 s.']),
+    ('x_adv_tuck_front_lever', 'Front lever groupé avancé', 'Advanced Tuck Front Lever', 'calisthenics', 'Poids du corps', BW, {D: 1, A: 1, S: 0.5}, 'e', [
+        'Comme le front lever groupé, mais dos plat et cuisses à 90° du buste.',
+        'Tiens 5 à 10 s, bras tendus.']),
+    ('x_front_lever', 'Front lever', 'Front Lever', 'calisthenics', 'Poids du corps', BW, {D: 1, A: 1, S: 1, LO: 0.5}, 'e', [
+        'Suspendu, corps tendu à l’horizontale, face vers le haut, bras tendus.',
+        'Tiens 3 à 10 s en serrant fessiers et abdos.']),
+    ('x_skin_the_cat', 'Skin the cat', 'Skin the Cat', 'calisthenics', 'Anneaux', BW, {D: 0.5, EA: 0.5, A: 1}, 'i', [
+        'Suspendu, passe les jambes entre les bras et tourne vers l’arrière jusqu’à étirer les épaules.',
+        'Reviens lentement. Doux pour la mobilité des épaules, à faire sans douleur.']),
+    ('x_tuck_back_lever', 'Back lever groupé', 'Tuck Back Lever', 'calisthenics', 'Anneaux', BW, {EA: 0.5, B: 0.5, A: 1, P: 0.5}, 'e', [
+        'Depuis le skin the cat, arrête-toi dos horizontal face au sol, genoux rentrés.',
+        'Tiens 5 à 10 s, bras tendus.']),
+    ('x_ring_muscle_up', 'Muscle-up aux anneaux', 'Ring Muscle-Up', 'calisthenics', 'Anneaux', BW, {D: 1, P: 0.5, T: 1, B: 0.5}, 'e', [
+        'Prise en faux (poignets au-dessus des anneaux), tire jusqu’à la poitrine.',
+        'Bascule le buste au-dessus des anneaux, puis pousse en dips jusqu’aux bras tendus.']),
+    ('x_shrimp_squat', 'Shrimp squat', 'Shrimp Squat', 'calisthenics', 'Poids du corps', BW, {Q: 1, F: 1}, 'e', [
+        'Sur une jambe, tiens l’autre pied derrière toi.',
+        'Descends jusqu’à poser le genou arrière au sol, remonte sans t’aider.']),
+    ('x_skater_squat', 'Squat patineur', 'Skater Squat', 'calisthenics', 'Poids du corps', BW, {Q: 1, F: 1, ABD: 0.5}, 'i', [
+        'Sur une jambe, l’autre pliée derrière, bras devant pour l’équilibre.',
+        'Descends le genou arrière vers le sol, remonte en poussant dans le talon.']),
+    ('x_assisted_pistol', 'Pistol squat assisté', 'Assisted Pistol Squat', 'calisthenics', 'Poids du corps', BW, {Q: 1, F: 1}, 'i', [
+        'Sur une jambe, tiens un poteau ou une sangle, l’autre jambe tendue devant.',
+        'Descends le plus bas possible en contrôlant, remonte en t’aidant le moins possible.']),
+    ('x_jump_squat', 'Squat sauté', 'Jump Squat', 'calisthenics', 'Poids du corps', BW, {Q: 1, F: 1, I: 0.5}, 'b', [
+        'Descends en squat, puis saute le plus haut possible.',
+        'Réceptionne-toi en douceur, genoux dans l’axe des pieds.']),
+    ('x_wall_sit', 'Chaise contre le mur', 'Wall Sit', 'calisthenics', 'Poids du corps', BW, {Q: 1}, 'b', [
+        'Dos au mur, cuisses parallèles au sol, genoux à 90°.',
+        'Tiens 30 à 90 s. Doux pour les genoux douloureux (isométrique).']),
+    ('x_single_leg_bridge', 'Pont fessier sur une jambe', 'Single-Leg Glute Bridge', 'calisthenics', 'Poids du corps', BW, {F: 1, I: 0.5}, 'b', [
+        'Sur le dos, un pied au sol, l’autre jambe tendue.',
+        'Monte le bassin en poussant dans le talon, serre le fessier 1 s en haut.']),
+    ('x_single_leg_calf', 'Mollets sur une jambe', 'Single-Leg Calf Raise', 'calisthenics', 'Poids du corps', BW, {I: 1}, 'b', [
+        'Sur une marche, une seule jambe, talon dans le vide.',
+        'Monte sur la pointe, descends lentement sous la marche.']),
+    ('x_tuck_l_sit', 'L-sit groupé', 'Tuck L-Sit', 'calisthenics', 'Poids du corps', BW, {A: 1, T: 0.5}, 'b', [
+        'Mains au sol ou sur les barres, bras tendus, épaules basses.',
+        'Décolle les fesses et monte les genoux contre la poitrine. Tiens 10 à 20 s.']),
+    ('x_v_sit', 'V-sit', 'V-Sit', 'calisthenics', 'Poids du corps', BW, {A: 1, T: 0.5, EA: 0.5}, 'e', [
+        'Depuis le L-sit, monte les jambes tendues au-dessus de l’horizontale.',
+        'Pousse fort dans les mains, épaules en arrière. Tiens 3 à 10 s.']),
+    ('x_hanging_knee_raise', 'Relevé de genoux suspendu', 'Hanging Knee Raise', 'calisthenics', 'Poids du corps', BW, {A: 1}, 'b', [
+        'Suspendu, épaules actives.',
+        'Monte les genoux vers la poitrine en enroulant le bassin, redescends sans balancer.']),
+    ('x_toes_to_bar', 'Pieds à la barre', 'Toes to Bar', 'calisthenics', 'Poids du corps', BW, {A: 1, D: 0.5}, 'e', [
+        'Suspendu, jambes tendues.',
+        'Monte les pieds jusqu’à toucher la barre, redescends en contrôlant.']),
+    ('x_windshield_wipers', 'Essuie-glaces suspendu', 'Hanging Windshield Wipers', 'calisthenics', 'Poids du corps', BW, {A: 1}, 'e', [
+        'Suspendu, jambes montées à la verticale.',
+        'Fais tourner les jambes d’un côté à l’autre en contrôlant, sans balancer.']),
+    ('x_arch_hold', 'Arch hold (superman tenu)', 'Arch Body Hold', 'calisthenics', 'Poids du corps', BW, {LO: 1, F: 0.5, EP: 0.5}, 'b', [
+        'Sur le ventre, bras tendus devant, décolle bras et jambes.',
+        'Fessiers serrés, regard vers le sol. Tiens 20 à 40 s. Complément du hollow hold.']),
+    ('x_tuck_human_flag', 'Drapeau humain groupé', 'Tuck Human Flag', 'calisthenics', 'Poids du corps', BW, {A: 1, D: 1, EL: 0.5}, 'e', [
+        'Mains sur un poteau, bras du bas tendu qui pousse, bras du haut qui tire.',
+        'Monte les genoux et décolle le corps sur le côté. Tiens 3 à 10 s.']),
+    ('x_crow_pose', 'Corbeau (crow pose)', 'Crow Pose', 'calisthenics', 'Poids du corps', BW, {EA: 0.5, T: 0.5, A: 1, AB: 0.5}, 'b', [
+        'Accroupi, mains au sol, genoux posés sur l’arrière des bras.',
+        'Penche-toi en avant jusqu’à décoller les pieds. Tiens 10 à 30 s. Base de l’équilibre sur les mains.']),
+]
+EXTRA2 += CAL
+# Exercices au poids du corps déjà présents, classés aussi en calisthenics
+CAL_TAG = ['Pullups', 'Chin-Up', 'Dips_-_Triceps_Version', 'Bench_Dips', 'Inverted_Row', 'Handstand_Push-Ups', 'Hanging_Leg_Raise', 'Scapular_Pull-Up', 'Pushups', 'Band_Assisted_Pull-Up',
+    'x_hspu', 'x_pistol', 'x_nordic', 'x_sissy_squat', 'x_reverse_nordic', 'x_neutral_pullup', 'x_muscle_up_bar', 'x_hollow_hold', 'x_dragon_flag', 'x_l_sit', 'x_dead_hang', 'x_cossack']
+# Échelles de progression : chaque exercice connaît le précédent (plus facile) et le suivant (plus dur)
+LADDERS = [
+    ['x_incline_pushup', 'x_knee_pushup', 'Pushups', 'x_decline_pushup', 'x_archer_pushup', 'x_one_arm_pushup'],
+    ['x_pike_pushup', 'x_elevated_pike_pushup', 'x_wall_handstand', 'x_hspu'],
+    ['x_planche_lean', 'x_pseudo_planche_pushup', 'x_tuck_planche'],
+    ['x_support_hold', 'Bench_Dips', 'x_parallel_dips', 'x_ring_dips'],
+    ['x_active_hang', 'Scapular_Pull-Up', 'Inverted_Row', 'x_negative_pullup', 'Band_Assisted_Pull-Up', 'Pullups', 'x_archer_pullup', 'x_typewriter_pullup'],
+    ['Pullups', 'x_muscle_up_bar', 'x_ring_muscle_up'],
+    ['x_tuck_front_lever', 'x_adv_tuck_front_lever', 'x_front_lever'],
+    ['x_skin_the_cat', 'x_tuck_back_lever'],
+    ['x_wall_sit', 'x_jump_squat', 'x_assisted_pistol', 'x_pistol'],
+    ['x_skater_squat', 'x_shrimp_squat'],
+    ['x_hollow_hold', 'x_tuck_l_sit', 'x_l_sit', 'x_v_sit'],
+    ['x_hanging_knee_raise', 'Hanging_Leg_Raise', 'x_toes_to_bar', 'x_windshield_wipers'],
+    ['x_crow_pose', 'x_tuck_planche'],
+]
+
 PT = {'x_machine_row': 'horizontal_row', 'x_machine_row_1arm': 'horizontal_row', 'x_machine_row_wide': 'horizontal_row', 'x_machine_row_neutral': 'horizontal_row', 'x_tbar_machine': 'horizontal_row', 'x_low_row_machine': 'horizontal_row', 'x_high_row_machine': 'horizontal_row', 'x_rower': 'lib', 'x_jm_press_smith': 'triceps_extension', 'x_cable_kickback': 'hip_extension',
       'x_leg_press_calf': 'calf', 'x_cable_rear_delt': 'lib', 'x_reverse_pec_deck': 'lib', 'x_reverse_nordic': 'knee_extension', 'x_sissy_machine': 'knee_extension'}
+
+
+def tag_lib(lib):
+    """Calisthenics (cal) et échelles de progression (pv = plus facile, nx = plus dur). Renvoie les ids absents."""
+    byid = {x['id']: x for x in lib}
+    for x in lib:
+        x.pop('pv', None); x.pop('nx', None); x.pop('cal', None)
+    for i in CAL_TAG:
+        if i in byid: byid[i]['cal'] = 1
+    for lad in LADDERS:
+        for a, b in zip(lad, lad[1:]):
+            if a in byid and b in byid:
+                byid[a].setdefault('nx', b); byid[b].setdefault('pv', a)
+    return [i for lad in LADDERS for i in lad if i not in byid] + [i for i in CAL_TAG if i not in byid]

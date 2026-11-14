@@ -1,7 +1,7 @@
 import { ExThumb } from './MoveFigure.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { get, post } from '../lib/api.js';
-import { Sheet, Loading, Icon, useToast } from './ui.jsx';
+import { Sheet, Loading, Icon, useToast, useApi } from './ui.jsx';
 import { loadLib, thumb, toExercise, norm, CATS, MUSCLES_APP } from '../lib/exlib.js';
 import { ExerciseInfo } from './ExerciseDemo.jsx';
 
@@ -10,6 +10,8 @@ export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
   const [mine, setMine] = useState(mineGiven || null); const [lib, setLib] = useState(null);
   const [q, setQ] = useState(''); const [cat, setCat] = useState(''); const [mus, setMus] = useState(''); const [more, setMore] = useState(1);
   const [info, setInfo] = useState(null); const [busy, setBusy] = useState(null); const toast = useToast();
+  // En séance (remplacement) : l'état musculaire classe d'abord ce qui comble un manque, et écarte les muscles douloureux
+  const brain = useApi(like ? '/muscles/state' : null).data?.muscles;
   useEffect(() => { if (!mineGiven) get('/exercises').then((r) => setMine(r.exercises)).catch(() => setMine([])); loadLib().then(setLib).catch(() => setLib([])); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (mineGiven) setMine(mineGiven); }, [mineGiven]);
   useEffect(() => setMore(1), [q, cat, mus]);
@@ -25,14 +27,18 @@ export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
       if (it.e && it.e.id === like.exercise_id) return -1;
       let sc = it.pattern && it.pattern === like.pattern ? 10 : 0;
       for (const [m, w] of Object.entries(it.muscles || {})) sc += (like.muscles?.[m] || 0) * w * 3;
+      if (brain) for (const [m, w] of Object.entries(it.muscles || {})) {
+        if (w < 1 || !brain[m]) continue;
+        if (brain[m].pain) sc -= 6; else if (brain[m].need_score > 0 && (like.muscles?.[m] || 0) > 0) sc += 4;
+      }
       return sc + (it.mine ? 2 : 0);
     };
     return [...own, ...fromLib]
-      .filter((it) => (!cat || it.c === cat) && (!mus || (it.muscles?.[mus] || 0) >= 0.5))
+      .filter((it) => (!cat || it.c === cat || (cat === 'calisthenics' && it.x?.cal)) && (!mus || (it.muscles?.[mus] || 0) >= 0.5))
       .filter((it) => !words.length || words.every((w) => norm(`${it.name} ${it.sub} ${it.en || ''}`).includes(w)))
       .map((it) => ({ it, s: score(it) })).filter((y) => y.s >= 0)
       .sort((a, b) => b.s - a.s || a.it.name.localeCompare(b.it.name)).map((y) => y.it);
-  }, [mine, lib, q, cat, mus, like]);
+  }, [mine, lib, q, cat, mus, like, brain]);
   const choose = async (it) => {
     if (it.e) return onPick(it.e);
     setBusy(it.key);
@@ -57,7 +63,7 @@ export function ExerciseBrowser({ like, onPick, mine: mineGiven }) {
                 {it.x?.img > 0 && <span className="pick-play"><Icon name="play" size={12} /></span>}
               </button>
               <button className="pick-main" onClick={() => choose(it)} disabled={busy === it.key}>
-                <span className="grow"><b className="small">{it.name}</b><span className="muted small">{[it.sub, CATS[it.c]].filter(Boolean).join(' · ')}{it.mine ? ' · dans tes exercices' : ''}{like && i < 5 && !q ? ' · mêmes muscles' : ''}</span></span>
+                <span className="grow"><b className="small">{it.name}</b><span className="muted small">{[it.sub, CATS[it.c]].filter(Boolean).join(' · ')}{it.mine ? ' · dans tes exercices' : ''}{like && i < 5 && !q ? (brain && Object.entries(it.muscles || {}).some(([m, w]) => w >= 1 && brain[m]?.need_score > 0 && !brain[m]?.pain && (like.muscles?.[m] || 0) > 0) ? ' · comble un manque' : ' · mêmes muscles') : ''}</span></span>
                 <Icon name="plus" size={18} />
               </button>
             </li>

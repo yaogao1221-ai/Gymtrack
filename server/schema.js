@@ -240,6 +240,29 @@ CREATE TABLE IF NOT EXISTS food_logs (
 CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(user_id, date);
 
 -- Courbatures signalées (muscle par muscle) : comptent dans la récupération de la carte du corps
+-- Ajustements musculaires validés (séries en plus, muscle prioritaire) : point de départ gardé pour vérifier l'effet 4 semaines plus tard
+CREATE TABLE IF NOT EXISTS muscle_adjustments (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  muscle TEXT NOT NULL,
+  kind TEXT NOT NULL,           -- series | priorite
+  date TEXT NOT NULL,
+  details TEXT,
+  baseline TEXT,
+  result TEXT,
+  checked_at TEXT
+);
+
+-- Routines de mobilité et de soin faites (articulations)
+CREATE TABLE IF NOT EXISTS mobility_logs (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  routine TEXT NOT NULL,        -- haut | bas | apres | dos | soin:<zone>
+  area TEXT,
+  minutes INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS muscle_soreness (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -283,6 +306,7 @@ export function setupDb(db) {
   if (!cols('pain_reports').has('log')) db.exec('ALTER TABLE pain_reports ADD COLUMN log TEXT');
   if (!cols('goals').has('nutrition_plan_id')) db.exec('ALTER TABLE goals ADD COLUMN nutrition_plan_id INTEGER REFERENCES nutrition_plans(id) ON DELETE SET NULL');
   if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
+  if (!cols('profiles').has('priority_muscles')) db.exec('ALTER TABLE profiles ADD COLUMN priority_muscles TEXT');
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   if (!cols('exercises').has('lib_id')) db.exec('ALTER TABLE exercises ADD COLUMN lib_id TEXT');
