@@ -25,6 +25,7 @@ const Recap = lazy(() => import('./pages/Recap.jsx'));
 const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
 const Builder = lazy(() => import('./pages/Builder.jsx'));
+const ImportProgram = lazy(() => import('./pages/ImportProgram.jsx'));
 const Care = lazy(() => import('./pages/Care.jsx'));
 const CoachSpace = lazy(() => import('./pages/CoachSpace.jsx'));
 const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
@@ -178,6 +179,7 @@ export default function App() {
           <Route path="/outils" element={<Tools />} />
           <Route path="/plan" element={<Navigate to="/programme/creer" replace />} />
           <Route path="/programme/creer" element={<Builder />} />
+          <Route path="/programme/importer" element={<ImportProgram />} />
           <Route path="/soins" element={<Care />} />
           <Route path="/repas" element={<Navigate to="/nutrition" replace />} />
           <Route path="/demarrer" element={<StartSession />} />

@@ -5,6 +5,8 @@ import { USER_ID, getProgram, activeProgram, exerciseRow, CARDIO_TYPES, getProfi
 import { num, str, oneOf, bad, notFound, patchRow } from '../util.js';
 import { MUSCLES } from '../seed.js';
 import { templateList, applyTemplate, activateProgram } from '../templates.js';
+import { replanFuture } from '../planning.js';
+import { spreadSchedule } from '../strategy.js';
 
 const units = ['lbs', 'kg'];
 const peFields = {
@@ -85,6 +87,54 @@ export default function programRoutes(db) {
     }
     db.tx(() => { db.run('DELETE FROM calendar_events WHERE program_day_id IN (SELECT id FROM program_days WHERE program_id = ?)', p.id); db.run('DELETE FROM programs WHERE id = ?', p.id); });
     res.json({ ok: true });
+  });
+  // Import d'un programme écrit à la main (lien d'import) : nouveau programme actif, ancien gardé, historique intact.
+  // Exercices existants réutilisés (pas de doublon) et charges actuelles reprises du programme en cours.
+  r.post('/programs/import', (req, res) => {
+    const b = req.body || {}; const name = str(b.name, 'nom', { required: true, max: 60 });
+    const days = Array.isArray(b.days) ? b.days.slice(0, 7) : []; if (!days.length) throw bad('Programme vide');
+    const same = db.one('SELECT id FROM programs WHERE user_id = ? AND name = ?', USER_ID, name);
+    if (same) { activateProgram(db, req.today, same.id); return res.json({ id: same.id, existing: true }); }
+    const WEEKD = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const findEx = (it) => {
+      if (it.slug) { const e = db.one('SELECT * FROM exercises WHERE slug = ?', String(it.slug)); if (e) return e; }
+      const x = it.exercise || {};
+      if (x.lib_id) { const e = db.one('SELECT * FROM exercises WHERE lib_id = ? ORDER BY id LIMIT 1', String(x.lib_id)); if (e) return e; }
+      const nm = str(x.name || it.name, 'exercice', { required: true, max: 80 });
+      const e = db.one('SELECT * FROM exercises WHERE name = ? ORDER BY id LIMIT 1', nm); if (e) return e;
+      const muscles = x.muscles && typeof x.muscles === 'object' ? Object.fromEntries(Object.entries(x.muscles).filter(([k, v]) => MUSCLES[k] && Number(v) > 0).map(([k, v]) => [k, Math.min(1, Number(v))])) : {};
+      const id = db.run('INSERT INTO exercises (name, pattern, muscles, equipment, kind, default_unit, lib_id) VALUES (?,?,?,?,?,?,?)', nm, str(x.pattern, 'schéma', { max: 40 }) || 'custom',
+        JSON.stringify(muscles), str(x.equipment, 'matériel', { max: 60 }), oneOf(x.kind, 'type', ['weighted', 'bodyweight', 'assisted']) || 'weighted', oneOf(x.default_unit, 'unité', units) || 'lbs', str(x.lib_id, 'bibliothèque', { max: 80 }) || null).lastInsertRowid;
+      return db.one('SELECT * FROM exercises WHERE id = ?', id);
+    };
+    // Charge actuelle : celle du programme actif d'abord, sinon du programme le plus récent qui contient l'exercice
+    const loadOf = (exId) => db.one(`SELECT pe.target_weight, pe.target_weight_max, pe.weight_unit, pe.weight_note FROM program_exercises pe JOIN program_days d ON d.id = pe.day_id JOIN programs p ON p.id = d.program_id
+      WHERE pe.exercise_id = ? AND p.user_id = ? AND d.archived = 0 ORDER BY p.active DESC, p.id DESC, pe.target_weight IS NULL, pe.id LIMIT 1`, exId, USER_ID);
+    const id = db.tx(() => {
+      db.run('UPDATE programs SET active = 0 WHERE user_id = ?', USER_ID);
+      const pid = Number(db.run('INSERT INTO programs (user_id, name, active) VALUES (?,?,1)', USER_ID, name).lastInsertRowid);
+      const schedule = Object.fromEntries(WEEKD.map((d) => [d, 'rest']));
+      days.forEach((d, i) => {
+        const code = `D${i + 1}`;
+        const did = Number(db.run('INSERT INTO program_days (program_id, code, position, name, focus) VALUES (?,?,?,?,?)', pid, code, i + 1, str(d.name, 'jour', { required: true, max: 60 }), str(d.focus, 'muscles', { max: 120 })).lastInsertRowid);
+        (Array.isArray(d.items) ? d.items : []).slice(0, 20).forEach((it, j) => {
+          const ex = findEx(it); const l = loadOf(ex.id) || {};
+          db.run(`INSERT INTO program_exercises (day_id, exercise_id, position, sets, reps, reps_note, target_weight, target_weight_max, weight_unit, weight_note, rest_seconds) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+            did, ex.id, j + 1, peFields.sets(it.sets), peFields.reps(it.reps), peFields.reps_note(it.reps_note), l.target_weight ?? null, l.target_weight_max ?? null, l.weight_unit || ex.default_unit || 'lbs', l.weight_note ?? null, peFields.rest_seconds(it.rest));
+        });
+        for (const c of (Array.isArray(d.cardio) ? d.cardio : []).slice(0, 3)) {
+          db.run('INSERT INTO program_cardio (day_id, activity, custom_name, duration_min, speed_kmh, incline_pct, placement, notes) VALUES (?,?,?,?,?,?,?,?)', did,
+            pcFields.activity(c.activity), pcFields.custom_name(c.custom_name), pcFields.duration_min(c.duration_min), pcFields.speed_kmh(c.speed_kmh), pcFields.incline_pct(c.incline_pct), pcFields.placement(c.placement || 'fin'), pcFields.notes(c.notes));
+        }
+        for (const wd of (Array.isArray(d.weekdays) ? d.weekdays : [])) if (WEEKD.includes(wd)) schedule[wd] = code;
+      });
+      const n = days.length; const codes = days.map((_, i) => `D${i + 1}`);
+      const sched = Object.values(schedule).some((v) => v !== 'rest') ? schedule : spreadSchedule(Math.min(7, n), codes, getProfile(db).available_days);
+      db.run('UPDATE profiles SET schedule = ?, sessions_per_week = ? WHERE user_id = ?', JSON.stringify(sched), n, USER_ID);
+      replanFuture(db, req.today);
+      return pid;
+    });
+    res.status(201).json({ id });
   });
   r.post('/programs/:id/activate', (req, res) => { activateProgram(db, req.today, Number(req.params.id)); res.json({ ok: true }); });
 
