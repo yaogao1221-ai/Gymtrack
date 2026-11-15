@@ -5,6 +5,7 @@ import { BarChart, COLORS } from '../components/charts.jsx';
 import { post, patch, del, today } from '../lib/api.js';
 import { addDays, fmtDate, n0 } from '../lib/format.js';
 import { norm } from '../lib/exlib.js';
+import QuickMeal from '../components/QuickMeal.jsx';
 
 const MEALS = [['petit_dej', 'Petit-déjeuner'], ['dejeuner', 'Déjeuner'], ['collation', 'Collation'], ['diner', 'Dîner']];
 let foodsCache = null;
@@ -17,7 +18,7 @@ const defaultMeal = () => { const h = new Date().getHours(); return h < 10 ? 'pe
 export default function Meals() {
   const [day, setDay] = useState(today());
   const { data, reload } = useApi(`/food?date=${day}`);
-  const [add, setAdd] = useState(null); const [edit, setEdit] = useState(null); const toast = useToast();
+  const [add, setAdd] = useState(null); const [edit, setEdit] = useState(null); const [quick, setQuick] = useState(null); const toast = useToast();
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, 'err'); } };
   if (!data) return <Loading />;
   const t = data.totals; const tg = data.target;
@@ -29,6 +30,12 @@ export default function Meals() {
         <b>{isToday ? 'Aujourd’hui' : fmtDate(day, { weekday: 'long', day: 'numeric', month: 'short' })}</b>
         <button className="icon-btn" aria-label="Jour suivant" disabled={isToday} onClick={() => setDay(addDays(day, 1))}><Icon name="right" size={18} /></button>
       </div>
+
+      <button className="card qm-cta" onClick={() => setQuick({})}>
+        <span className="qm-mic"><Icon name="mic" size={22} /></span>
+        <span className="grow"><b>Dis ou écris ce que tu as mangé</b><span className="muted small" style={{ display: 'block' }}>« un verre de lait et 2 œufs » : calories et protéines calculées tout de suite</span></span>
+        <Icon name="right" size={16} />
+      </button>
 
       <Card>
         <div className="kcal-head">
@@ -48,7 +55,7 @@ export default function Meals() {
       {MEALS.map(([k, label]) => {
         const items = data.logs.filter((x) => x.meal === k); const kc = items.reduce((a, x) => a + x.kcal, 0);
         return (
-          <Card key={k} title={label} action={<button className="btn xs" onClick={() => setAdd({ meal: k })}><Icon name="plus" size={14} />Ajouter</button>}>
+          <Card key={k} title={label} action={<span className="row-gap"><button className="btn xs ghost" aria-label={`Dicter le ${label.toLowerCase()}`} onClick={() => setQuick({ meal: k })}><Icon name="mic" size={14} /></button><button className="btn xs" onClick={() => setAdd({ meal: k })}><Icon name="plus" size={14} />Ajouter</button></span>}>
             {items.length ? <ul className="food-list">{items.map((x) => (
               <li key={x.id}><button onClick={() => setEdit({ ...x })}>
                 <span className="grow"><b className="small">{x.name}</b><span className="muted xs">{n0(x.grams)} g · P {r1(x.protein_g)} · G {r1(x.carbs_g)} · L {r1(x.fat_g)}</span></span>
@@ -65,6 +72,7 @@ export default function Meals() {
       </Card>
       <p className="muted xs center">Valeurs nutritionnelles : table Ciqual 2025 (ANSES), pour 100 g d’aliment tel que décrit (cru, cuit…).</p>
 
+      <QuickMeal open={!!quick} meal={quick?.meal} day={day} onClose={() => setQuick(null)} onDone={reload} />
       <AddFood open={!!add} meal={add?.meal} recent={data.recent} onClose={() => setAdd(null)}
         onAdd={(body) => run(async () => { await post('/food', { ...body, date: day }); setAdd(null); }, 'Ajouté')} />
       <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.name}

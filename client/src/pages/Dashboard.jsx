@@ -7,6 +7,7 @@ import { IconStrength } from '../components/Art3D.jsx';
 import { BodyFigures } from '../components/BodyMap.jsx';
 import { MobilityDone } from '../components/MuscleBrain.jsx';
 import { Supplements, RamadanStrip } from '../components/DayHabits.jsx';
+const QuickMeal = lazy(() => import('../components/QuickMeal.jsx'));
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 const CalendarView = lazy(() => import('./Calendar.jsx').then((m) => ({ default: m.CalendarView })));
@@ -156,6 +157,7 @@ export function BodyCard({ body, nutrition }) {
 
 // Ma journée : ce qui est prévu aujourd'hui, coché automatiquement dès que c'est enregistré
 function MyDay({ day, onWeigh }) {
+  const [quick, setQuick] = useState(false);
   const items = [];
   if (day.workout?.done) items.push({ k: 'w', done: day.workout.done, icon: 'dumbbell', text: day.workout.extra ? 'Séance faite' : `${day.workout.name} — ${day.workout.focus}${day.workout.deload ? ' (deload)' : ''}`,
     to: day.workout.done ? (day.workout.workout_id ? `/historique/${day.workout.workout_id}` : null) : `/seance/${day.workout.program_day_id}`, cta: 'Go' });
@@ -178,6 +180,8 @@ function MyDay({ day, onWeigh }) {
       ))}</ul>
       {day.kcal ? <p className="day-targets small"><Link to="/repas"><b>{Number(day.eaten_kcal || 0).toLocaleString('fr-FR')} / {Number(day.kcal).toLocaleString('fr-FR')} kcal</b> mangées</Link> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/repas">noter un repas</Link></p>
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/programme/creer">choisis ton objectif</Link></p>}
+      <button className="btn block qm-home" onClick={() => setQuick(true)}><Icon name="mic" size={16} />Dis ce que tu as mangé</button>
+      {quick && <Suspense fallback={null}><QuickMeal open onClose={() => setQuick(false)} /></Suspense>}
       <Supplements />
     </section>
   );
