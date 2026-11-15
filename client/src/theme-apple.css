@@ -599,17 +599,19 @@ circle.mf-prop[fill="none"] { fill: none; stroke: color-mix(in srgb, var(--muted
 .ram-times { display: flex; gap: 18px; flex-wrap: wrap; }
 .ram-times b { font-family: var(--num); font-size: 26px; display: block; }
 
-/* v10.4 : planche d'anatomie (muscles détaillés, fibres, tendons) */
-:root, :root[data-theme="light"] { --bm-skin: #F1E7DF; --bm-skin-line: #B9A79B; --bm-tendon: #F8F4EE; --bm-deco: #DCD7D4; --bm-line: rgba(60, 30, 20, .42); --bm-fib: rgba(0, 0, 0, .16); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bm-skin: #3A3A3C; --bm-skin-line: #5A5A5E; --bm-tendon: #4A4A4E; --bm-deco: #343437; --bm-line: rgba(0, 0, 0, .6); --bm-fib: rgba(0, 0, 0, .3); } }
-:root[data-theme="dark"] { --bm-skin: #3A3A3C; --bm-skin-line: #5A5A5E; --bm-tendon: #4A4A4E; --bm-deco: #343437; --bm-line: rgba(0, 0, 0, .6); --bm-fib: rgba(0, 0, 0, .3); }
+/* v10.4 : planche d'anatomie (muscles détaillés, fibres, tendons, contour) */
+:root, :root[data-theme="light"] { --bm-skin: #F3E4D8; --bm-skin-line: #9C7A6A; --bm-outline: #8E6556; --bm-fascia: #F1DCCF; --bm-tendon: #FBF4EA; --bm-muscle: #D9988A; --bm-deco: #E2AFA2; --bm-line: rgba(90, 30, 20, .5); --bm-fib: rgba(80, 10, 0, .13); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bm-skin: #4A403C; --bm-skin-line: #6E5F58; --bm-outline: #8A766D; --bm-fascia: #3E3532; --bm-tendon: #6A5E58; --bm-muscle: #8C5248; --bm-deco: #7A4E46; --bm-line: rgba(0, 0, 0, .55); --bm-fib: rgba(0, 0, 0, .25); } }
+:root[data-theme="dark"] { --bm-skin: #4A403C; --bm-skin-line: #6E5F58; --bm-outline: #8A766D; --bm-fascia: #3E3532; --bm-tendon: #6A5E58; --bm-muscle: #8C5248; --bm-deco: #7A4E46; --bm-line: rgba(0, 0, 0, .55); --bm-fib: rgba(0, 0, 0, .25); }
 .bm-fig svg { overflow: visible; }
+.bm-ol path { fill: var(--bm-outline); stroke: var(--bm-outline); stroke-width: 2.7; stroke-linejoin: round; }
+.bm-fascia path { fill: var(--bm-fascia); stroke: var(--bm-fascia); stroke-width: 2.1; stroke-linejoin: round; }
 .bm-skin { fill: var(--bm-skin); stroke: var(--bm-skin-line); stroke-width: .35; stroke-linejoin: round; }
-.bm-under { fill: var(--bm-skin); stroke: var(--bm-skin); stroke-width: 1.1; stroke-linejoin: round; }
-.bm-m { fill: var(--bm-deco); stroke: var(--bm-line); stroke-width: .3; stroke-linejoin: round; transition: fill .25s; }
+.bm-m { fill: var(--bm-muscle); stroke: var(--bm-line); stroke-width: .28; stroke-linejoin: round; transition: fill .25s; }
+.bm-g.deco .bm-m { fill: var(--bm-deco); }
 .bm-tex { pointer-events: none; }
-.bm-fib { stroke: var(--bm-fib); stroke-width: .32; }
-.bm-tendon { fill: var(--bm-tendon); stroke: var(--bm-skin-line); stroke-width: .3; pointer-events: none; }
+.bm-fib { stroke: var(--bm-fib); stroke-width: .26; }
+.bm-tendon { fill: var(--bm-tendon); stroke: var(--bm-skin-line); stroke-width: .25; pointer-events: none; }
 .bm-g.tap { cursor: pointer; }
 .bm-g.tap:active .bm-m { filter: brightness(1.08); }
 .bm-sel { fill: none; stroke: var(--text); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }

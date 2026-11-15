@@ -161,12 +161,15 @@ def kind(e):
 
 
 data = json.load(open(SRC))
+# Consignes traduites (scripts/translate-exlib.py) : réutilisées à chaque reconstruction
+_fr_path = pathlib.Path(__file__).with_name('exlib_fr.json')
+FR_STEPS = json.load(open(_fr_path, encoding='utf-8')) if _fr_path.exists() else {}
 lib = []
 for e in data:
     lib.append({
         'id': e['id'], 'n': translate(e['name'], e['category']), 'en': e['name'], 'c': CAT.get(e['category'], 'muscu'), 'q': EQ.get(e['equipment'], 'Autre'),
         'l': e['level'][0], 'k': kind(e), 'pt': pattern(e), 'm': muscles(e), 'p': e['primaryMuscles'], 'img': len(e['images']),
-        'i': e['instructions'],
+        'i': FR_STEPS.get(e['id'], e['instructions']), **({'fr': 1} if e['id'] in FR_STEPS else {}),
     })
 
 # Compléments (sans photo) : classiques du crossfit et de la mobilité absents de la base
