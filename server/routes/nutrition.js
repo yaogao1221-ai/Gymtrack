@@ -6,6 +6,7 @@ import { replanFuture } from '../planning.js';
 import { buildPlan, applyPlan, OBJECTIVES, TYPES } from '../builder.js';
 import { num, oneOf, date, bad, notFound, addDays } from '../util.js';
 import { r1 } from '../formulas.js';
+import { supplementsState, toggleSupplement, saveSupplements, ramadanState, saveRamadan } from '../habits.js';
 
 export default function nutritionRoutes(db) {
   const r = Router();
@@ -15,6 +16,18 @@ export default function nutritionRoutes(db) {
     for (const g of goalsWithProgress(db, today).filter((x) => x.nutrition_plan_id === id && x.status === 'actif')) db.run('UPDATE goals SET status = ? WHERE id = ?', g.reached ? 'atteint' : 'abandonne', g.id);
   };
   r.get('/nutrition', (req, res) => res.json(nutritionState(db, req.today)));
+  // Compléments du jour
+  r.get('/supplements', (req, res) => res.json(supplementsState(db, req.today)));
+  r.post('/supplements/toggle', (req, res) => {
+    const d = req.body?.date ? date(req.body.date, 'date') : req.today; if (d > req.today) throw bad('Date dans le futur');
+    if (!toggleSupplement(db, req.today, String(req.body?.key || ''), !!req.body?.on, d)) throw notFound('Complément inconnu');
+    res.json(supplementsState(db, req.today));
+  });
+  r.put('/supplements', (req, res) => { saveSupplements(db, req.body?.items); res.json(supplementsState(db, req.today)); });
+  // Mode Ramadan : horaires, répartition des repas, séance allégée
+  const ramadan = (today) => { let k = null; let p = null; try { const ns = nutritionState(db, today); k = ns.plan ? (ns.plan.in_break ? ns.tdee : ns.plan.kcal) : ns.tdee ?? null; p = ns.plan?.protein_g ?? null; } catch { /* profil incomplet */ } return ramadanState(db, today, k, p); };
+  r.get('/ramadan', (req, res) => res.json(ramadan(req.today)));
+  r.put('/ramadan', (req, res) => { saveRamadan(db, req.body || {}); res.json(ramadan(req.today)); });
 
   r.put('/nutrition/activity', (req, res) => {
     const pal = num(req.body.activity_pal, 'activité', { min: 1.1, max: 2 });

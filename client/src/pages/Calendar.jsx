@@ -120,13 +120,14 @@ export function CalendarView({ home }) {
         {sel && (<>
           {sel.workouts.map((w) => <Link key={w.id} className="cal-row done" to={`/historique/${w.id}`}><Icon name="check" size={16} /><span><b>{w.name}</b> {w.focus}</span><span className="muted small">{mins(Math.round(w.duration_sec / 60))}</span></Link>)}
           {sel.cardio.map((c) => <Link key={c.id} className="cal-row done" to="/cardio"><i className="act">{CARDIO_ICON[c.activity]}</i><span><b>{c.custom_name || CARDIO[c.activity]}</b></span><span className="muted small">{mins(c.duration_min)}</span></Link>)}
-          {sel.events.filter((e) => e.status !== 'done').map((e) => (
-            <div key={e.id} className={`cal-row ${e.status}`}>
+          {sel.events.filter((e) => e.status !== 'done').map((e) => { const mid = /^missed:(\d+)/.exec(e.notes || '')?.[1]; const md = mid && program.data?.days.find((d) => String(d.id) === mid); return (
+            <div key={e.id} className={`cal-row ${e.status} ${mid ? 'missed' : ''}`}>
               <i className="act">{e.type === 'workout' ? 'MU' : e.type === 'cardio' ? CARDIO_ICON[e.cardio_activity] || 'CA' : 'RE'}</i>
-              <span className="grow"><b>{e.type === 'workout' ? `${e.day_name} — ${e.focus}` : e.type === 'cardio' ? `Cardio ${CARDIO[e.cardio_activity] || ''} ${e.planned_minutes ? `${e.planned_minutes} min` : ''}` : 'Repos'}</b>
-                {e.status === 'skipped' && <span className="muted small"> (sautée)</span>}{e.notes && <span className="muted small block">{e.notes}</span>}</span>
+              <span className="grow"><b>{e.type === 'workout' ? `${e.day_name} — ${e.focus}` : e.type === 'cardio' ? `Cardio ${CARDIO[e.cardio_activity] || ''} ${e.planned_minutes ? `${e.planned_minutes} min` : ''}` : mid ? `Séance non faite${md ? ` : ${md.name} — ${md.focus}` : ''}` : 'Repos'}</b>
+                {e.status === 'skipped' && <span className="muted small"> (sautée)</span>}{mid ? <span className="muted small block">Comptée comme repos, la suite du programme a été décalée.</span> : e.notes && <span className="muted small block">{e.notes}</span>}</span>
               <div className="cal-actions">
                 {e.type === 'workout' && e.status === 'planned' && e.date >= today() && <button className="btn xs primary" onClick={() => nav(`/seance/${e.program_day_id}`)}><Icon name="play" size={12} />Go</button>}
+                {md && <button className="btn xs primary" onClick={() => nav(`/noter-seance/${md.id}?date=${e.date}`)}><Icon name="check" size={12} />Je l’ai faite</button>}
                 {e.type === 'workout' && e.status !== 'done' && e.date <= today() && <button className={`btn xs ${e.date < today() ? 'primary' : 'ghost'}`} onClick={() => nav(`/noter-seance/${e.program_day_id}?date=${e.date}`)}><Icon name="check" size={12} />Je l’ai faite</button>}
                 <label className="btn xs ghost date-move" title="Déplacer"><Icon name="calendar" size={14} /><input type="date" value={e.date} onChange={(ev) => ev.target.value && run(() => patch(`/calendar/${e.id}`, { date: ev.target.value }).then(() => setSelected(ev.target.value)), 'Déplacé')} /></label>
                 {e.status === 'planned' && e.type !== 'rest' && <button className="btn xs ghost" onClick={() => run(() => patch(`/calendar/${e.id}`, { status: 'skipped' }), 'Marquée comme sautée')}>Sauter</button>}
@@ -134,7 +135,7 @@ export function CalendarView({ home }) {
                 <button className="icon-btn sm danger" aria-label="Supprimer" onClick={() => run(() => del(`/calendar/${e.id}`), 'Supprimé')}><Icon name="trash" size={14} /></button>
               </div>
             </div>
-          ))}
+          ); })}
           {sel.blocks.length > 0 && <p className="small cal-blocks"><Icon name="heart" size={14} />Avec la séance : {sel.blocks.map((b) => `${b.label} ${Math.round(b.duration_min)} min ${b.placement === 'debut' ? 'en début' : 'en fin'}`).join(' · ')}</p>}
           {sel.metrics.map((m) => <Link key={m.id} className="cal-row done body" to="/nutrition?v=poids"><Icon name="scale" size={16} /><span className="grow"><b>{[m.weight_kg != null && `${String(m.weight_kg).replace('.', ',')} kg`, m.waist_cm != null && `taille ${m.waist_cm} cm`, m.body_fat_pct != null && `${m.body_fat_pct} % de gras`].filter(Boolean).join(' · ')}</b></span><span className="muted small">pesée</span></Link>)}
           {sel.deadlines.map((g) => <Link key={g.id} className="cal-row" to="/objectifs"><Icon name="target" size={16} /><span className="grow"><b>Échéance : {g.title}</b></span></Link>)}

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { USER_ID, getProfile, getProgram, CARDIO_TYPES } from '../services.js';
 import { deloadStatus } from '../analysis.js';
-import { planDays } from '../planning.js';
+import { followProgram, planDays } from '../planning.js';
 import { num, str, date, oneOf, bad, notFound, patchRow, addDays, dayKey } from '../util.js';
 
 export default function calendarRoutes(db) {
@@ -10,6 +10,7 @@ export default function calendarRoutes(db) {
   const withDay = (id) => db.one('SELECT ce.*, pd.name day_name, pd.focus, pd.code FROM calendar_events ce LEFT JOIN program_days pd ON pd.id = ce.program_day_id WHERE ce.id = ?', id);
 
   r.get('/calendar', (req, res) => {
+    try { followProgram(db, req.today); } catch { /* pas de programme */ }
     const from = date(req.query.from, 'from'), to = date(req.query.to, 'to');
     res.json({
       events: db.all('SELECT ce.*, pd.name day_name, pd.focus, pd.code FROM calendar_events ce LEFT JOIN program_days pd ON pd.id = ce.program_day_id WHERE ce.user_id = ? AND ce.date BETWEEN ? AND ? ORDER BY ce.date, ce.id', USER_ID, from, to),
