@@ -136,6 +136,9 @@ export default function Workout() {
 
   const update = useCallback((fn) => setS((x) => { const y = structuredClone(x); fn(y); return y; }), []);
 
+  // Pas de charge propre à chaque exercice, gardé sur le téléphone (hook placé avant les retours anticipés)
+  const [steps, setSteps] = useState(() => { try { return JSON.parse(localStorage.getItem('gt_wstep') || '{}'); } catch { return {}; } });
+
   if (conflict) return (
     <div className="page"><div className="card"><h2>Une autre séance est en cours</h2><p className="muted">{conflict.name} — {conflict.focus}, commencée le {fmtDate(conflict.date)}.</p>
       <div className="row gap mt"><button className="btn primary" onClick={() => nav(`/seance/${conflict.dayId}`)}>Reprendre</button>
@@ -227,7 +230,6 @@ export default function Workout() {
   const setVal = (ii, si, k, v) => update((y) => { y.items[ii].sets[si][k] = v; y.items[ii].sets[si].t = true; });
   const bump = (ii, si, k, d) => update((y) => { const set = y.items[ii].sets[si]; const cur = Number(set[k]) || 0; set[k] = Math.max(0, Math.round((cur + d) * 100) / 100); set.t = true; });
   // Pas de charge propre à chaque exercice (micro-charges, haltères, pile de machine), gardé sur le téléphone
-  const [steps, setSteps] = useState(() => { try { return JSON.parse(localStorage.getItem('gt_wstep') || '{}'); } catch { return {}; } });
   const stepOf = (it) => steps[it.exercise_id] ?? (it.unit === 'kg' ? 2.5 : 5);
   const cycleStep = (it) => { const opts = it.unit === 'kg' ? [1.25, 2.5, 5] : [2.5, 5, 10]; const i = opts.indexOf(stepOf(it)); const n = { ...steps, [it.exercise_id]: opts[(i + 1) % opts.length] }; setSteps(n); try { localStorage.setItem('gt_wstep', JSON.stringify(n)); } catch { /* */ } };
   const addSet = (ii) => update((y) => { const l = y.items[ii].sets.at(-1); y.items[ii].sets.push({ weight: l?.weight ?? null, reps: l?.reps ?? y.items[ii].target.reps, done: false }); });
