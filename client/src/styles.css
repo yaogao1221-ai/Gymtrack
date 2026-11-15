@@ -767,3 +767,29 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; min-widt
 .fold > summary h2 { flex: 1 1 auto; min-width: 0; }
 .fold > summary .grow-text { flex: 0 1 auto; white-space: nowrap; }
 @media (max-width: 380px) { .fold > summary .grow-text { display: none; } }
+
+/* Saisie express des repas (voix ou texte) */
+.qm-input { position: relative; }
+.qm-input textarea { width: 100%; min-height: 84px; padding: 12px 58px 12px 12px; font-size: 16px; resize: vertical; box-sizing: border-box; }
+.qm-mic { position: absolute; right: 8px; top: 8px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.qm-mic.on { background: var(--danger); animation: qm-pulse 1.2s ease-in-out infinite; }
+@keyframes qm-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, .45); } 50% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); } }
+.qm-live { display: flex; align-items: center; gap: 8px; color: var(--danger); }
+.qm-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: qm-pulse 1.2s infinite; }
+.qm-list { list-style: none; margin: 12px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.qm-list li { border: 1px solid var(--line); border-radius: 12px; padding: 8px 6px 8px 10px; }
+.qm-list li.off { opacity: .45; }
+.qm-list li.off .qm-name b { text-decoration: line-through; }
+.qm-row { display: flex; align-items: center; gap: 6px; }
+.qm-name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: none; border: 0; padding: 0; color: inherit; font: inherit; min-width: 0; cursor: pointer; }
+.qm-name b { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.qm-g { display: flex; align-items: center; gap: 2px; }
+.qm-g input { width: 56px; text-align: right; padding: 6px; font-size: 16px; }
+.qm-k { min-width: 54px; text-align: right; white-space: nowrap; }
+.qm-alts { margin-top: 8px; }
+.qm-alts .pick-list { max-height: 220px; overflow: auto; }
+.qm-tot { margin: 6px 0 10px; }
+.qm-cta { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.qm-cta .qm-mic { position: static; flex: none; }
+.row-gap { display: inline-flex; gap: 6px; align-items: center; }
+.qm-home { margin-top: 10px; gap: 8px; }
