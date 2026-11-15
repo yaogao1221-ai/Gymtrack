@@ -51,3 +51,24 @@ test('compléments : cocher, série de jours, liste modifiable ; Ramadan : horai
   assert.equal(r.body.meals.length, 3);
   r = await call('GET', '/ramadan', null, '2027-03-20'); assert.equal(r.body.active, false); assert.equal(r.body.lighten, null);
 });
+
+test('morpho-anatomie : leviers, conflits articulaires, ordre, articulation deux jours de suite', async () => {
+  const { rateExercise, programConflicts } = await import('../server/morpho.js');
+  const squat = { name: 'Squat barre', pattern: 'squat', equipment: 'Barre' };
+  assert.equal(rateExercise(squat, { femurs: 'longs' }).verdict, 'attention');
+  assert.equal(rateExercise(squat, { femurs: 'courts' }).verdict, 'bon');
+  assert.equal(rateExercise({ name: 'Rowing menton', pattern: 'lib' }, {}).verdict, 'conflit');
+  assert.equal(rateExercise({ n: 'Développé militaire', pt: 'press_vertical', q: 'Haltères' }, {}, [{ area: 'epaule' }]).verdict, 'conflit');
+  const days = [
+    { id: 1, name: 'J1', exercises: [{ id: 11, name: 'Extension triceps', pattern: 'triceps_extension', muscles: { triceps: 1 }, sets: 3 }, { id: 12, name: 'Développé couché', pattern: 'press_horizontal', muscles: { pectoraux: 1 }, sets: 4 }, { id: 13, name: 'Développé militaire', pattern: 'press_vertical', muscles: { epaules_ant: 1 }, sets: 4 }, { id: 14, name: 'Écartés', pattern: 'chest_fly', muscles: { pectoraux: 1 }, sets: 3 }] },
+    { id: 2, name: 'J2', exercises: [{ id: 21, name: 'Élévations latérales', pattern: 'lateral_raise', muscles: { epaules_lat: 1 }, sets: 5 }, { id: 22, name: 'Dips', pattern: 'dip', muscles: { pectoraux: 1 }, sets: 4 }] },
+  ];
+  const c = programConflicts(days, { bras: 'longs' }, []);
+  assert.ok(c.some((x) => x.type === 'ordre' && x.pe_id === 11 && x.move_after === 12));
+  assert.ok(c.some((x) => x.type === 'articulation' && x.day === 'J2'));
+  assert.ok(c.some((x) => x.type === 'morpho' && x.pe_id === 22));
+  // Route : profil enregistré, valeurs contrôlées
+  let r = await call('PUT', '/morpho', { femurs: 'longs', bras: 'moyens' }, '2026-11-16');
+  assert.equal(r.status, 200); assert.equal(r.body.morpho.femurs, 'longs'); assert.ok(Array.isArray(r.body.conflicts));
+  assert.equal((await call('PUT', '/morpho', { femurs: 'enorme' }, '2026-11-16')).status, 400);
+});

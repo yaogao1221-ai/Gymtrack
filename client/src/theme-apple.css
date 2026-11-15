@@ -616,3 +616,21 @@ circle.mf-prop[fill="none"] { fill: none; stroke: color-mix(in srgb, var(--muted
 .bm-g.tap:active .bm-m { filter: brightness(1.08); }
 .bm-sel { fill: none; stroke: var(--text); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
 .minimap .bm-figs.small .bm-g, .ex-muscles .ex-figs .bm-g { pointer-events: none; }
+.bm-legend i[style*="map-0"] { background: var(--bm-muscle) !important; }
+
+/* v10.6 : morpho-anatomie */
+.mq { padding: 12px 0; border-top: 1px solid var(--line); }
+.mq:first-of-type { border-top: 0; }
+.mq-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.mq-test { background: var(--surface2); border-radius: 12px; padding: 10px 12px; margin-top: 8px; }
+.mconf { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.mconf:first-child { border-top: 0; }
+.mconf .tag { flex-shrink: 0; align-self: flex-start; }
+.mtone-conflit { color: var(--danger); } .mtone-attention { color: var(--warn); } .mtone-bon { color: var(--accent2); }
+.mnotes { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.mnotes li { display: flex; gap: 8px; font-size: 14px; line-height: 1.35; }
+.malts { display: grid; gap: 6px; margin-top: 8px; }
+.malts button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 12px; background: var(--surface2); color: var(--text); text-align: left; }
+.malts img, .malts .mf-box { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.morpho-link { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; }
+.morpho-link .badge-n { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--warn); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }

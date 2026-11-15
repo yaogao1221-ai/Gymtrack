@@ -11,7 +11,7 @@ export const SECTIONS = {
 };
 export const SPACE_OF = (path) => {
   if (/^\/(programme|calendrier|cardio|seance|historique)/.test(path)) return 'training';
-  if (/^\/(corps|nutrition|repas|coach|plan|soins|progres|objectifs|bilan)/.test(path)) return 'body';
+  if (/^\/(corps|morphologie|nutrition|repas|coach|plan|soins|progres|objectifs|bilan)/.test(path)) return 'body';
   return null;
 };
 

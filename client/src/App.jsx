@@ -32,6 +32,7 @@ const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
 const Meals = lazy(() => import('./pages/Meals.jsx'));
 const Photos = lazy(() => import('./pages/Photos.jsx'));
 const Ramadan = lazy(() => import('./pages/Ramadan.jsx'));
+const Morpho = lazy(() => import('./pages/Morpho.jsx'));
 // Écrans regroupés de l'espace Corps
 const PROGRESS_VIEWS = [['stats', 'Statistiques', Progress], ['objectifs', 'Objectifs', Goals], ['analyse', 'Analyse', Coach], ['photos', 'Photos', Photos], ['bilan', 'Bilan de la semaine', Recap]];
 const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition], ['ramadan', 'Ramadan', Ramadan]];
@@ -177,6 +178,7 @@ export default function App() {
           <Route path="/rappels" element={<Reminders />} />
           <Route path="/bilan" element={<Navigate to="/progres?v=bilan" replace />} />
           <Route path="/corps" element={<BodyHome />} />
+          <Route path="/morphologie" element={<Morpho />} />
           <Route path="/nutrition" element={<Hub title="Nutrition" views={NUTRITION_VIEWS} coach="nutrition" />} />
           <Route path="/outils" element={<Tools />} />
           <Route path="/plan" element={<Navigate to="/programme/creer" replace />} />
