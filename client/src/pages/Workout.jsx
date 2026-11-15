@@ -8,6 +8,16 @@ import { ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import { e1rm, toLbs } from '../../../server/formulas.js';
 import { suggestNext } from '../lib/progression.js';
 
+// Bouton +/− : un toucher = un pas, appui long = défile (de plus en plus vite)
+function HoldBtn({ onStep, label, children }) {
+  const t = useRef(null); const fn = useRef(onStep); fn.current = onStep;
+  const stop = () => { clearTimeout(t.current); t.current = null; };
+  const start = (e) => { e.preventDefault(); fn.current(); let d = 380; const loop = () => { t.current = setTimeout(() => { fn.current(); d = Math.max(70, d * 0.8); loop(); }, d); }; loop(); };
+  useEffect(() => stop, []);
+  return <button type="button" aria-label={label} onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onContextMenu={(e) => e.preventDefault()}
+    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn.current(); } }}>{children}</button>;
+}
+
 const isRecord = (it, set) => {
   const b = it.best; const w = Number(set.weight); if (!b || !w) return false;
   const v = toLbs(w, it.unit);
@@ -59,17 +69,18 @@ const beep = () => {
 };
 
 // Construit la séance à partir du jour de programme (dernière charge utilisée en priorité)
-function buildSession(day, profile, deload = false) {
+function buildSession(day, profile, deload = false, ram = null) {
+  const lt = ram?.lighten || null;
   const items = day.exercises.map((pe) => {
     const lastSets = pe.last?.sets || [];
     return {
       pe_id: pe.id, exercise_id: pe.exercise_id, name: pe.name, kind: pe.kind, unit: pe.weight_unit, technique: pe.technique, superset: pe.superset_group,
       pattern: pe.pattern, muscles: pe.muscles, equipment: pe.equipment, wnote: pe.weight_note, lib_id: pe.lib_id,
-      target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: pe.rest_seconds || profile.default_rest_seconds || 90,
+      target: { sets: pe.sets, reps: pe.reps, label: `${repsLabel(pe)} · ${weightLabel(pe)}` }, rest: (pe.rest_seconds || profile.default_rest_seconds || 90) + (lt?.extra_rest || 0),
       last: pe.last ? { date: pe.last.date, text: lastSets.map((s) => `${s.weight != null ? Math.round(s.weight * 10) / 10 : 'PDC'}×${s.reps ?? '?'}`).join(' · ') } : null,
-      best: pe.best || null, sugg: deload ? null : suggestNext(pe),
+      best: pe.best || null, sugg: deload ? null : (() => { const g = suggestNext(pe); return lt?.hold_loads && g?.up ? null : g; })(),
       // Deload : moitié des séries, charge ~-10 % (assistance +10 %), arrondie au pas de 5 lbs / 2,5 kg
-      sets: Array.from({ length: deload ? Math.max(1, Math.floor(pe.sets / 2)) : pe.sets }, (_, i) => {
+      sets: Array.from({ length: deload ? Math.max(1, Math.floor(pe.sets / 2)) : lt?.minus_set && pe.sets >= 3 ? pe.sets - 1 : pe.sets }, (_, i) => {
         const ls = lastSets[i] || lastSets.at(-1);
         let w = ls?.weight ?? pe.target_weight ?? null; if (w != null) w = Math.round(w * 10) / 10;
         if (deload && w != null && pe.kind !== 'bodyweight') { const step = pe.weight_unit === 'kg' ? 2.5 : 5; w = Math.round((pe.kind === 'assisted' ? w * 1.1 : w * 0.9) / step) * step; }
@@ -84,7 +95,7 @@ function buildSession(day, profile, deload = false) {
   });
   const cardio = (day.cardio || []).map((c) => ({ pc_id: c.id, activity: c.activity, custom_name: c.custom_name, label: c.label, placement: c.placement,
     duration_min: c.duration_min, speed_kmh: c.speed_kmh, incline_pct: c.incline_pct, last: c.last, done: false }));
-  return { briefed: false, dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, deload, current: 0, rest: null, notes: '', rpe: null };
+  return { briefed: false, dayId: day.id, name: day.name, focus: day.focus, startedAt: new Date().toISOString(), date: today(), clientId: uid(), items, blocks, cardio, deload, ramadan: lt ? { day: ram.day, minus_set: lt.minus_set } : null, current: 0, rest: null, notes: '', rpe: null };
 }
 
 export default function Workout() {
@@ -101,10 +112,10 @@ export default function Workout() {
     if (s) return;
     const other = store.get(KEY);
     if (other && String(other.dayId) !== String(dayId)) { setConflict(other); return; }
-    Promise.all([get('/program'), get('/profile'), get('/deload').catch(() => null)]).then(([prog, profile, dl]) => {
+    Promise.all([get('/program'), get('/profile'), get('/deload').catch(() => null), get('/ramadan').catch(() => null)]).then(([prog, profile, dl, ram]) => {
       const day = prog.days.find((d) => String(d.id) === String(dayId));
       if (!day) throw new Error('Séance introuvable dans le programme');
-      setS(buildSession(day, profile, !!dl?.active));
+      setS(buildSession(day, profile, !!dl?.active, ram));
     }).catch(setError);
   }, [dayId, s]);
   useEffect(() => { if (s) store.set(KEY, s); }, [s]);
@@ -185,6 +196,8 @@ export default function Workout() {
       set.done = !set.done;
       if (!set.done) { set.pr = false; if (y.cue?.ii === ii) y.cue = null; return; }
       if (set.reps == null && it.target.reps) set.reps = it.target.reps;
+      // Charge changée sur cette série : les séries suivantes pas encore touchées la reprennent
+      if (set.t && set.weight != null) for (const x of it.sets.slice(si + 1)) if (!x.done && !x.t) x.weight = set.weight;
       const prev = { ...it, best: it.best ? { ...it.best } : null };
       for (const x of it.sets) if (x !== set && x.done && x.pr && Number(x.weight) && prev.best) { const v = toLbs(Number(x.weight), it.unit); if (it.kind === 'assisted') prev.best.top_lbs = Math.min(prev.best.top_lbs, v); else { prev.best.top_lbs = Math.max(prev.best.top_lbs ?? 0, v); prev.best.e1rm_lbs = Math.max(prev.best.e1rm_lbs ?? 0, e1rm(v, Number(x.reps)) || 0); } }
       set.pr = isRecord(prev, set);
@@ -211,8 +224,12 @@ export default function Workout() {
     if (c.action.type === 'rest') { it.rest += 30; if (y.rest) { y.rest.endsAt += 30000; y.rest.duration += 30; } }
     y.cue = { ...c, action: null, text: c.action.type === 'rest' ? 'Repos allongé de 30 s pour cet exercice.' : `C’est noté : ${c.action.label.replace('Mettre ', '')} sur les séries restantes.` };
   });
-  const setVal = (ii, si, k, v) => update((y) => { y.items[ii].sets[si][k] = v; });
-  const bump = (ii, si, k, d) => update((y) => { const set = y.items[ii].sets[si]; const cur = Number(set[k]) || 0; set[k] = Math.max(0, Math.round((cur + d) * 10) / 10); });
+  const setVal = (ii, si, k, v) => update((y) => { y.items[ii].sets[si][k] = v; y.items[ii].sets[si].t = true; });
+  const bump = (ii, si, k, d) => update((y) => { const set = y.items[ii].sets[si]; const cur = Number(set[k]) || 0; set[k] = Math.max(0, Math.round((cur + d) * 100) / 100); set.t = true; });
+  // Pas de charge propre à chaque exercice (micro-charges, haltères, pile de machine), gardé sur le téléphone
+  const [steps, setSteps] = useState(() => { try { return JSON.parse(localStorage.getItem('gt_wstep') || '{}'); } catch { return {}; } });
+  const stepOf = (it) => steps[it.exercise_id] ?? (it.unit === 'kg' ? 2.5 : 5);
+  const cycleStep = (it) => { const opts = it.unit === 'kg' ? [1.25, 2.5, 5] : [2.5, 5, 10]; const i = opts.indexOf(stepOf(it)); const n = { ...steps, [it.exercise_id]: opts[(i + 1) % opts.length] }; setSteps(n); try { localStorage.setItem('gt_wstep', JSON.stringify(n)); } catch { /* */ } };
   const addSet = (ii) => update((y) => { const l = y.items[ii].sets.at(-1); y.items[ii].sets.push({ weight: l?.weight ?? null, reps: l?.reps ?? y.items[ii].target.reps, done: false }); });
   const removeSet = (ii) => update((y) => { if (y.items[ii].sets.length > 1) y.items[ii].sets.pop(); });
   // Exercice hors programme : machine prise, envie d'ajouter un exercice…
@@ -314,19 +331,19 @@ export default function Workout() {
                         <p className="muted small">Ces séries ne comptent pas dans la séance.</p>
                       </div></div>;
                     })()}
-                    <div className="set-head"><span>Série</span><span>{it.kind === 'assisted' ? `Assistance (${it.unit})` : `Charge (${it.unit})`}</span><span>Reps</span><span /></div>
+                    <div className="set-head"><span>Série</span><button className="link step-tog" onClick={() => cycleStep(it)} aria-label="Changer le pas de charge">{it.kind === 'assisted' ? `Assistance (${it.unit})` : `Charge (${it.unit})`} · pas {stepOf(it).toLocaleString('fr-FR')}</button><span>Reps</span><span /></div>
                     {it.sets.map((x, si) => (
                       <div key={si} className={`set-row ${x.done ? 'done' : ''} ${x.pr ? 'pr' : ''}`}>
                         <span className="set-idx" title={x.pr ? 'Record' : undefined}>{x.pr ? <Icon name="trophy" size={14} /> : si + 1}</span>
                         <div className="stepper">
-                          <button onClick={() => bump(ii, si, 'weight', -(it.unit === 'kg' ? 2.5 : 5))} aria-label="Moins">−</button>
+                          <HoldBtn onStep={() => bump(ii, si, 'weight', -stepOf(it))} label="Moins">−</HoldBtn>
                           <NumInput value={x.weight} onChange={(v) => setVal(ii, si, 'weight', v)} placeholder={it.kind === 'bodyweight' ? 'PDC' : '—'} aria-label="Charge" />
-                          <button onClick={() => bump(ii, si, 'weight', it.unit === 'kg' ? 2.5 : 5)} aria-label="Plus">+</button>
+                          <HoldBtn onStep={() => bump(ii, si, 'weight', stepOf(it))} label="Plus">+</HoldBtn>
                         </div>
                         <div className="stepper">
-                          <button onClick={() => bump(ii, si, 'reps', -1)} aria-label="Moins">−</button>
+                          <HoldBtn onStep={() => bump(ii, si, 'reps', -1)} label="Moins">−</HoldBtn>
                           <NumInput value={x.reps} onChange={(v) => setVal(ii, si, 'reps', v)} placeholder="?" aria-label="Répétitions" />
-                          <button onClick={() => bump(ii, si, 'reps', 1)} aria-label="Plus">+</button>
+                          <HoldBtn onStep={() => bump(ii, si, 'reps', 1)} label="Plus">+</HoldBtn>
                         </div>
                         <button className={`check-btn ${x.done ? 'on' : ''}`} onClick={() => toggleSet(bi, ii, si)} aria-label={x.done ? 'Annuler la série' : 'Valider la série'}><Icon name="check" size={20} stroke={3} /></button>
                       </div>
@@ -427,6 +444,7 @@ function Briefing({ s, bm, brain, painOf, onApply, onGo }) {
       <p className="eyebrow">Briefing</p>
       <h2>{s.name}{s.focus ? ` · ${s.focus}` : ''}</h2>
       <div className="brief-kpi"><span><b>≈ {est}</b> min</span><span><b>{items.length}</b> exercices</span><span><b>{items.reduce((a, it) => a + it.sets.length, 0)}</b> séries</span>{cardioMin > 0 && <span><b>{Math.round(cardioMin)}</b> min cardio</span>}</div>
+      {s.ramadan && <p className="brief-tip"><Icon name="moon" size={15} />Ramadan, jour {s.ramadan.day} : on garde tes charges{s.ramadan.minus_set ? ', une série de moins par exercice et 30 s de repos en plus. Tu es à jeun : arrête chaque série à 2 reps de l’échec.' : '. Bois un peu entre les séries.'}</p>}
       {items.some((it) => painOf(it)) && <p className="brief-warn"><Icon name="heal" size={15} />Douleur {painOf(items.find((it) => painOf(it))).toLowerCase()} suivie : les exercices marqués « à adapter » restent à ta charge actuelle ou plus légers. Touche « Remplacer » pendant la séance si ça tire.</p>}
       {tired.length > 0 && <p className="brief-warn"><Icon name="alert" size={15} />{tired.join(', ')} encore fatigué{tired.length > 1 ? 's' : ''} : échauffe-toi plus longtemps et arrête chaque série à 2 reps de l’échec.</p>}
       {(prio.length > 0 || gaps.length > 0) && <p className="brief-tip"><Icon name="target" size={15} />{prio.length ? `Muscle${prio.length > 1 ? 's' : ''} prioritaire${prio.length > 1 ? 's' : ''} aujourd’hui : ${prio.join(', ')}. Commence par ${prio.length > 1 ? 'eux' : 'lui'}, quand tu es frais.` : `Aujourd’hui tu travailles ${gaps.join(', ')}, qui en ${gaps.length > 1 ? 'ont' : 'a'} besoin : ne saute pas ces séries.`}</p>}

@@ -30,9 +30,11 @@ const Care = lazy(() => import('./pages/Care.jsx'));
 const CoachSpace = lazy(() => import('./pages/CoachSpace.jsx'));
 const BodyHome = lazy(() => import('./pages/BodyHome.jsx'));
 const Meals = lazy(() => import('./pages/Meals.jsx'));
+const Photos = lazy(() => import('./pages/Photos.jsx'));
+const Ramadan = lazy(() => import('./pages/Ramadan.jsx'));
 // Écrans regroupés de l'espace Corps
-const PROGRESS_VIEWS = [['stats', 'Statistiques', Progress], ['objectifs', 'Objectifs', Goals], ['analyse', 'Analyse', Coach], ['bilan', 'Bilan de la semaine', Recap]];
-const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition]];
+const PROGRESS_VIEWS = [['stats', 'Statistiques', Progress], ['objectifs', 'Objectifs', Goals], ['analyse', 'Analyse', Coach], ['photos', 'Photos', Photos], ['bilan', 'Bilan de la semaine', Recap]];
+const NUTRITION_VIEWS = [['repas', 'Repas du jour', Meals], ['poids', 'Poids et cure', Nutrition], ['ramadan', 'Ramadan', Ramadan]];
 
 // Barre du bas : 5 espaces. Chaque espace regroupe des écrans liés, reliés par des sous-onglets.
 const NAV = [

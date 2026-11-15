@@ -553,3 +553,48 @@ circle.mf-prop[fill="none"] { fill: none; stroke: color-mix(in srgb, var(--muted
 .imp-list li { font-size: 14px; }
 .imp-list li > span, .imp-list li > b { display: inline; }
 .imp-list li > b { float: right; font-weight: 600; color: var(--muted); font-size: 13px; }
+
+/* v10.3 : saisie rapide en séance */
+.stepper button { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.set-head .step-tog { font: inherit; color: var(--muted); text-align: left; padding: 0; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+/* v10.3 : photos de progression */
+.ba { position: relative; border-radius: 16px; overflow: hidden; background: var(--surface2); aspect-ratio: 3 / 4; }
+.ba img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ba-before { position: absolute; inset: 0; }
+.ba-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0,0,0,.4); transform: translateX(-1px); pointer-events: none; }
+.ba-tag { position: absolute; top: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; font-weight: 600; }
+.ba-tag.l { left: 10px; } .ba-tag.r { right: 10px; }
+.ba-range { width: 100%; margin: 12px 0 4px; accent-color: var(--accent); }
+.ba-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-top: 8px; }
+.ba-stats > div { display: flex; flex-direction: column; gap: 2px; }
+.ba-stats b { font-family: var(--num); font-size: 20px; }
+.ph-day + .ph-day { margin-top: 14px; }
+.ph-row { display: flex; gap: 8px; margin-top: 6px; overflow-x: auto; }
+.ph-thumb { position: relative; width: 84px; aspect-ratio: 3 / 4; border: 0; padding: 0; border-radius: 12px; overflow: hidden; background: var(--surface2); flex-shrink: 0; }
+.ph-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph-thumb span { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; background: rgba(0,0,0,.5); color: #fff; font-size: 11px; text-align: center; }
+.ph-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+.ph-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 3 / 4; border-radius: 14px; border: 1.5px dashed var(--line); color: var(--muted); overflow: hidden; position: relative; cursor: pointer; font-size: 13px; }
+.ph-slot.on { border-style: solid; border-color: var(--accent); }
+.ph-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ph-slot.on span { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.5); color: #fff; text-align: center; padding: 2px 0; }
+.ph-full { width: 100%; border-radius: 14px; display: block; }
+.tips-list { padding-left: 18px; margin: 8px 0; }
+
+/* v10.3 : compléments du jour et Ramadan */
+.supps { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.supps-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.supps-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.supp { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; border: 0; background: var(--surface2); color: var(--text); text-align: left; flex: 1 1 140px; min-height: 48px; }
+.supp .chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; flex-shrink: 0; }
+.supp.on .chk { background: var(--accent); border-color: var(--accent); color: #fff; }
+.supp-txt { display: flex; flex-direction: column; line-height: 1.15; flex: 1; }
+.supp-streak { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--red); }
+.supp-edit { align-items: flex-end; }
+.ramadan-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 4px 0 10px; border-radius: 14px; background: var(--surface2); color: var(--text); text-decoration: none; }
+.ram-meals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ram-meals > div { background: var(--surface2); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.ram-meals b { font-family: var(--num); font-size: 19px; }
+.ram-times { display: flex; gap: 18px; flex-wrap: wrap; }
+.ram-times b { font-family: var(--num); font-size: 26px; display: block; }

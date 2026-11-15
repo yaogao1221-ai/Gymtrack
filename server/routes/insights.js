@@ -1,5 +1,6 @@
 // Progrès détaillés, carte du corps, trophées et journal alimentaire
 import { Router } from 'express';
+import { followProgram } from '../planning.js';
 import { USER_ID, getProfile, allRecords, activeProgram, getProgram, nextSession, periodStats } from '../services.js';
 import { toJSON } from '../schema.js';
 import { MUSCLES } from '../seed.js';
@@ -325,6 +326,7 @@ export default function insightsRoutes(db) {
 
   // Coach du jour : une consigne claire (séance, repos actif, séance faite), avec ce qui compte pour aujourd'hui
   r.get('/coach/today', (req, res) => {
+    try { followProgram(db, req.today); } catch { /* pas de programme */ }
     const today = req.today; const profile = getProfile(db);
     const prog = getProgram(db, { withLast: false });
     const rest = profile.default_rest_seconds || 90;

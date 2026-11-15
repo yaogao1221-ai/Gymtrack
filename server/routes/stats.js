@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { followProgram } from '../planning.js';
 import { USER_ID, getProgram, nextSession, workoutSummary, periodStats, weeklySeries, monthlySeries, exerciseSeries, exercisePeriodBest, recentRecords, goalsWithProgress, getProfile, allRecords, bodyWeightInfo } from '../services.js';
 import { smoothedWeight, r1 } from '../formulas.js';
 import { recoveryScore, deloadStatus } from '../analysis.js';
@@ -9,6 +10,7 @@ import { date, notFound, addDays, weekStart, diffDays, dayKey } from '../util.js
 export default function statsRoutes(db) {
   const r = Router();
   r.get('/dashboard', (req, res) => {
+    try { followProgram(db, req.today); } catch { /* pas de programme */ }
     const today = req.today; const ws = weekStart(today);
     const profile = getProfile(db);
     const last = db.one('SELECT w.*, pd.focus FROM workouts w LEFT JOIN program_days pd ON pd.id = w.program_day_id WHERE w.user_id = ? ORDER BY w.date DESC, w.id DESC LIMIT 1', USER_ID);

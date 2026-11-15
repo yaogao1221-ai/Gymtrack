@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { USER_ID, workoutSummary, exerciseBests } from '../services.js';
 import { e1rm, toLbs, r1 } from '../formulas.js';
 import { num, str, date, bad, notFound, patchRow } from '../util.js';
+import { followProgram } from '../planning.js';
 
 export default function workoutRoutes(db) {
   const r = Router();
@@ -41,9 +42,20 @@ export default function workoutRoutes(db) {
   };
 
   // Marque l'événement planifié du jour comme fait (de préférence celui du même jour de programme)
-  const linkEvent = (wid, d, dayId) => {
+  const linkEvent = (wid, d, dayId, today) => {
     const ev = db.one(`SELECT id FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'planned' AND date = ? ORDER BY (program_day_id = ?) DESC LIMIT 1`, USER_ID, d, dayId);
-    if (ev) db.run("UPDATE calendar_events SET status = 'done', workout_id = ? WHERE id = ?", wid, ev.id);
+    if (ev) { db.run("UPDATE calendar_events SET status = 'done', workout_id = ?, program_day_id = COALESCE(?, program_day_id) WHERE id = ?", wid, dayId ?? null, ev.id); }
+    else if (dayId) {
+      // Séance confirmée un jour de repos (ou un jour marqué « non faite ») : le jour devient cette séance
+      const rest = db.one("SELECT id FROM calendar_events WHERE user_id = ? AND type = 'rest' AND date = ? AND workout_id IS NULL LIMIT 1", USER_ID, d);
+      if (rest) db.run("UPDATE calendar_events SET type = 'workout', status = 'done', program_day_id = ?, workout_id = ?, title = NULL, notes = NULL WHERE id = ?", dayId, wid, rest.id);
+      else db.run("INSERT INTO calendar_events (user_id, date, type, program_day_id, status, workout_id) VALUES (?,?, 'workout', ?, 'done', ?)", USER_ID, d, dayId, wid);
+    }
+    // Les jours suivants reprennent dans l'ordre après cette séance (seulement si c'est la plus récente)
+    if (dayId) try {
+      const later = db.one("SELECT id FROM calendar_events WHERE user_id = ? AND type = 'workout' AND status = 'done' AND date > ? LIMIT 1", USER_ID, d);
+      followProgram(db, today || d, { after: later ? null : dayId });
+    } catch { /* programme absent */ }
   };
 
   r.get('/workouts', (req, res) => {
@@ -75,7 +87,7 @@ export default function workoutRoutes(db) {
           num(s.set_index, 'série', { int: true, min: 1, max: 50 }) || 1, num(s.weight, 'charge', { min: 0, max: 2000 }), s.weight_unit === 'kg' ? 'kg' : 'lbs',
           num(s.reps, 'répétitions', { int: true, min: 0, max: 500 }), num(s.target_reps, 'objectif', { int: true, min: 0, max: 500 }), s.completed === false ? 0 : 1);
       }
-      linkEvent(wid, d, dayId);
+      linkEvent(wid, d, dayId, req.today);
       return wid;
     });
     res.status(201).json(full(get(id)));
@@ -85,7 +97,7 @@ export default function workoutRoutes(db) {
     const w = get(req.params.id);
     if (req.body.date !== undefined && date(req.body.date) !== w.date) {
       // Séance déplacée : l'ancien jour du calendrier redevient « prévu », le nouveau est marqué fait
-      db.tx(() => { db.run("UPDATE calendar_events SET status = 'planned', workout_id = NULL WHERE workout_id = ?", w.id); db.run('UPDATE workouts SET date = ? WHERE id = ?', date(req.body.date), w.id); linkEvent(w.id, date(req.body.date), w.program_day_id); });
+      db.tx(() => { db.run("UPDATE calendar_events SET status = 'planned', workout_id = NULL WHERE workout_id = ?", w.id); db.run('UPDATE workouts SET date = ? WHERE id = ?', date(req.body.date), w.id); linkEvent(w.id, date(req.body.date), w.program_day_id, req.today); });
     }
     patchRow(db, 'workouts', w.id, req.body, { name: (v) => str(v, 'nom', { required: true, max: 80 }), notes: (v) => str(v, 'notes', { max: 2000 }), rpe: (v) => num(v, 'RPE', { min: 1, max: 10 }), date: (v) => date(v), duration_sec: (v) => num(v, 'durée', { min: 0, max: 86400, int: true }) || 0 });
     res.json(full(get(w.id)));

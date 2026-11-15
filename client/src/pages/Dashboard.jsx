@@ -6,6 +6,7 @@ import { Spark, COLORS } from '../components/spark.jsx';
 import { IconStrength } from '../components/Art3D.jsx';
 import { BodyFigures } from '../components/BodyMap.jsx';
 import { MobilityDone } from '../components/MuscleBrain.jsx';
+import { Supplements, RamadanStrip } from '../components/DayHabits.jsx';
 import { fmtDate, fmtDay, relDay, n0 } from '../lib/format.js';
 
 const CalendarView = lazy(() => import('./Calendar.jsx').then((m) => ({ default: m.CalendarView })));
@@ -165,6 +166,7 @@ function MyDay({ day, onWeigh }) {
   return (
     <section className="card my-day">
       <div className="card-head"><h2><Icon name="check" size={16} />Ma journée</h2><span className="mono small">{n}/{items.length}</span></div>
+      <RamadanStrip />
       <ul>{items.map((x) => (
         <li key={x.k} className={x.done ? 'done' : ''}>
           <span className="chk">{x.done ? <Icon name="check" size={14} /> : null}</span>
@@ -176,6 +178,7 @@ function MyDay({ day, onWeigh }) {
       ))}</ul>
       {day.kcal ? <p className="day-targets small"><Link to="/repas"><b>{Number(day.eaten_kcal || 0).toLocaleString('fr-FR')} / {Number(day.kcal).toLocaleString('fr-FR')} kcal</b> mangées</Link> · <b>{day.protein_g} g</b> de protéines · <b>{Number(day.steps).toLocaleString('fr-FR')}</b> pas <Link className="link" to="/repas">noter un repas</Link></p>
         : <p className="day-targets small muted">Pas encore de cibles de calories : <Link className="link" to="/programme/creer">choisis ton objectif</Link></p>}
+      <Supplements />
     </section>
   );
 }
