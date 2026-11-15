@@ -28,7 +28,7 @@ function muscleSets(db, from, to) {
 }
 
 // Charge par muscle et par jour : séries de muscu + cardio (marche inclinée, course… sollicitent mollets et jambes)
-const CARDIO_LOAD = { marche_inclinee: { mollets: 0.15, fessiers: 0.08, ischios: 0.05 }, course: { mollets: 0.15, quadriceps: 0.1, ischios: 0.05 }, marche: { mollets: 0.05 },
+export const CARDIO_LOAD = { marche_inclinee: { mollets: 0.15, fessiers: 0.08, ischios: 0.05 }, course: { mollets: 0.15, quadriceps: 0.1, ischios: 0.05 }, marche: { mollets: 0.05 },
   velo: { quadriceps: 0.12, fessiers: 0.04 }, elliptique: { quadriceps: 0.06, fessiers: 0.05, mollets: 0.04 }, rameur: { dos_largeur: 0.08, quadriceps: 0.06, dos_epaisseur: 0.05 } };
 export function dailyLoads(db, from, to) {
   const out = {}; const add = (d, m, v) => { (out[d] ||= {})[m] = (out[d][m] || 0) + v; };

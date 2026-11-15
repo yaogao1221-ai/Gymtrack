@@ -312,10 +312,13 @@ export function setupDb(db) {
   if (!cols('calendar_events').has('deload')) db.exec('ALTER TABLE calendar_events ADD COLUMN deload INTEGER NOT NULL DEFAULT 0');
   for (const c of ['neck_cm', 'hip_cm']) if (!cols('body_metrics').has(c)) db.exec(`ALTER TABLE body_metrics ADD COLUMN ${c} REAL`);
   if (!cols('pain_reports').has('log')) db.exec('ALTER TABLE pain_reports ADD COLUMN log TEXT');
+  // Volet Corps : côté, type de douleur, mouvements qui l'aggravent ; mensurations complètes
+  for (const c of ['side', 'kind', 'movements']) if (!cols('pain_reports').has(c)) db.exec(`ALTER TABLE pain_reports ADD COLUMN ${c} TEXT`);
+  for (const c of ['chest_cm', 'arm_cm', 'thigh_cm', 'calf_cm']) if (!cols('body_metrics').has(c)) db.exec(`ALTER TABLE body_metrics ADD COLUMN ${c} REAL`);
   if (!cols('goals').has('nutrition_plan_id')) db.exec('ALTER TABLE goals ADD COLUMN nutrition_plan_id INTEGER REFERENCES nutrition_plans(id) ON DELETE SET NULL');
   if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
   if (!cols('profiles').has('priority_muscles')) db.exec('ALTER TABLE profiles ADD COLUMN priority_muscles TEXT');
-  for (const c of ['supplements', 'ramadan', 'morpho']) if (!cols('profiles').has(c)) db.exec(`ALTER TABLE profiles ADD COLUMN ${c} TEXT`);
+  for (const c of ['supplements', 'ramadan', 'morpho', 'body_settings']) if (!cols('profiles').has(c)) db.exec(`ALTER TABLE profiles ADD COLUMN ${c} TEXT`);
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   if (!cols('exercises').has('lib_id')) db.exec('ALTER TABLE exercises ADD COLUMN lib_id TEXT');
