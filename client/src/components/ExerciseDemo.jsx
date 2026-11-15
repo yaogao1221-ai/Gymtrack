@@ -1,4 +1,6 @@
 import { MuscleFigures } from './BodyMap.jsx';
+import { loadMorpho } from '../lib/morpho.js';
+import { rateExercise } from '../../../server/morpho.js';
 import MoveFigure from './MoveFigure.jsx';
 import { useEffect, useState } from 'react';
 import { Sheet, Icon, Loading } from './ui.jsx';
@@ -38,6 +40,9 @@ export function ExerciseInfo({ libId, x: given, open, onClose, footer }) {
   const [x, setX] = useState(given || null);
   useEffect(() => { if (open && !given && libId) findLib(libId).then(setX); if (given) setX(given); }, [open, libId, given]);
   const steps = x?.i || [];
+  const [mo, setMo] = useState(null);
+  useEffect(() => { if (open) loadMorpho().then(setMo); }, [open]);
+  const fit = x && mo && (Object.keys(mo.morpho || {}).length || mo.pains?.length) ? rateExercise(x, mo.morpho, mo.pains) : null;
   const tr = `https://translate.google.com/?sl=en&tl=fr&op=translate&text=${encodeURIComponent(steps.join('\n'))}`;
   return (
     <Sheet open={open} onClose={onClose} title={x?.n || 'Exercice'} footer={footer}>
@@ -55,6 +60,10 @@ export function ExerciseInfo({ libId, x: given, open, onClose, footer }) {
             {Object.entries(x.m).filter(([, v]) => v > 0 && v < 1).length > 0 && <p className="small"><span className="mdot mdot-sec" /><b>Secondaire :</b> {Object.entries(x.m).filter(([, v]) => v > 0 && v < 1).map(([k]) => MUSCLES_APP[k] || k).join(', ')}</p>}
           </div>
         </div>) : (x.p?.length > 0 || x.t?.length > 0) && <p className="small mt-s"><b>Muscles :</b> {(x.p?.length ? x.p.map((m) => MUSCLE_FR[m] || m) : x.t.map((m) => MUSCLES_APP[m] || m)).join(', ')}</p>}
+        {fit?.notes.length > 0 && (<>
+          <h3 className="h-sub">Pour ta morphologie</h3>
+          <ul className="mnotes">{fit.notes.map((n, k) => <li key={k}><Icon name={n.tone === 'bon' ? 'check' : 'alert'} size={15} className={`mtone-${n.tone}`} /><span>{n.text}{n.alt ? <span className="muted"> Mieux : {n.alt}.</span> : null}</span></li>)}</ul>
+        </>)}
         {steps.length > 0 && (<>
           <h3 className="h-sub">Exécution {!x.fr && <span className="muted small">(en anglais)</span>}</h3>
           <ol className="demo-steps">{steps.map((s, k) => <li key={k}>{s}</li>)}</ol>

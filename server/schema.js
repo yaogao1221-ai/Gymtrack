@@ -315,7 +315,7 @@ export function setupDb(db) {
   if (!cols('goals').has('nutrition_plan_id')) db.exec('ALTER TABLE goals ADD COLUMN nutrition_plan_id INTEGER REFERENCES nutrition_plans(id) ON DELETE SET NULL');
   if (!cols('profiles').has('body_target')) db.exec('ALTER TABLE profiles ADD COLUMN body_target TEXT');
   if (!cols('profiles').has('priority_muscles')) db.exec('ALTER TABLE profiles ADD COLUMN priority_muscles TEXT');
-  for (const c of ['supplements', 'ramadan']) if (!cols('profiles').has(c)) db.exec(`ALTER TABLE profiles ADD COLUMN ${c} TEXT`);
+  for (const c of ['supplements', 'ramadan', 'morpho']) if (!cols('profiles').has(c)) db.exec(`ALTER TABLE profiles ADD COLUMN ${c} TEXT`);
   if (!cols('profiles').has('activity_pal')) db.exec('ALTER TABLE profiles ADD COLUMN activity_pal REAL');
   if (!cols('cardio_sessions').has('program_cardio_id')) db.exec('ALTER TABLE cardio_sessions ADD COLUMN program_cardio_id INTEGER REFERENCES program_cardio(id) ON DELETE SET NULL');
   if (!cols('exercises').has('lib_id')) db.exec('ALTER TABLE exercises ADD COLUMN lib_id TEXT');

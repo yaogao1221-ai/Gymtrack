@@ -23,6 +23,7 @@ export default function BodyHome() {
       <CoachCard section="body" />
       <section className="card bm-hero">{map.data ? <BodyMap data={map.data} balance={bal.data} state={brain.data} onChange={() => { brain.reload(); map.reload(); }} /> : <Loading />}</section>
       <TodayCard state={brain.data} onChange={brain.reload} />
+      <MorphoLink />
       {/* Détails rangés : l'essentiel est déjà sur la carte (modes Équilibre et Volume, fiche muscle) */}
       <Fold title="Équilibre musculaire en détail" icon="scale" hint={bal.data?.issues ? `${bal.data.issues} écart${bal.data.issues > 1 ? 's' : ''}` : 'équilibré'}><BalanceCard data={bal.data} /></Fold>
       <div id="oublies"><Fold title="Muscles oubliés" icon="target" hint="à ajouter au programme" open={typeof location !== 'undefined' && location.hash.includes('oublies')}><MissingMuscles onAdded={() => map.reload()} /></Fold></div>
@@ -57,5 +58,19 @@ export default function BodyHome() {
         </>}
       </Sheet>
     </Page>
+  );
+}
+
+// Raccourci vers la morpho-anatomie : nombre de conflits trouvés dans le programme
+function MorphoLink() {
+  const { data } = useApi('/morpho');
+  if (!data) return null;
+  const n = data.conflicts.length; const done = Object.keys(data.morpho || {}).length;
+  return (
+    <Link to="/morphologie" className="card morpho-link">
+      <Icon name="body" size={18} />
+      <span className="grow"><b>Ma morphologie</b><span className="muted small block">{!done ? 'Réponds à 7 questions : l’appli choisit les exercices adaptés à tes leviers' : n ? `${n} conflit${n > 1 ? 's' : ''} à regarder dans ton programme` : 'Ton programme respecte ta structure'}</span></span>
+      {n > 0 && <span className="badge-n">{n}</span>}<Icon name="right" size={16} />
+    </Link>
   );
 }

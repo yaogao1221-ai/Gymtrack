@@ -4,6 +4,9 @@ import { replanFuture } from '../planning.js';
 import { PAIN_AREAS } from '../analysis.js';
 import { num, str, date, oneOf, bad, notFound, patchRow } from '../util.js';
 import { DAY_KEYS } from '../util.js';
+import { getProgram } from '../services.js';
+import { toJSON } from '../schema.js';
+import { MORPHO_QUESTIONS, programConflicts } from '../morpho.js';
 
 export default function profileRoutes(db) {
   const r = Router();
@@ -75,6 +78,16 @@ export default function profileRoutes(db) {
   });
 
   // Douleurs
+  // Morpho-anatomie : profil (leviers, clavicules, mobilité) et conflits dans le programme actif
+  const morphoOf = () => toJSON(db.one('SELECT morpho FROM profiles WHERE user_id = ?', USER_ID)?.morpho, {}) || {};
+  const activePains = () => db.all('SELECT area FROM pain_reports WHERE user_id = ? AND resolved = 0', USER_ID);
+  const morphoState = () => { const m = morphoOf(); const pains = activePains(); return { questions: MORPHO_QUESTIONS, morpho: m, pains: pains.map((p) => p.area), conflicts: programConflicts(getProgram(db, { withLast: false }).days, m, pains) }; };
+  r.get('/morpho', (req, res) => res.json(morphoState()));
+  r.put('/morpho', (req, res) => {
+    const m = {}; for (const q of MORPHO_QUESTIONS) { const v = req.body?.[q.key]; if (v != null && v !== '') m[q.key] = oneOf(v, q.label, q.options.map(([k]) => k)); }
+    db.run('UPDATE profiles SET morpho = ? WHERE user_id = ?', JSON.stringify(m), USER_ID);
+    res.json(morphoState());
+  });
   r.get('/pains', (req, res) => res.json({ areas: Object.fromEntries(Object.entries(PAIN_AREAS).map(([k, v]) => [k, v.label])), reports: db.all('SELECT * FROM pain_reports WHERE user_id = ? ORDER BY resolved, date DESC', USER_ID) }));
   r.post('/pains', (req, res) => {
     const b = req.body;

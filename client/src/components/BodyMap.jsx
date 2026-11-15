@@ -9,6 +9,8 @@ import { post, get } from '../lib/api.js';
 import { fmtDate, n1 } from '../lib/format.js';
 import { AREAS } from '../data/rehab.js';
 import { FRONT as AFRONT, BACK as ABACK, TENDONS, SKIN } from './anatomy.js';
+import { loadMorpho } from '../lib/morpho.js';
+import { rateExercise } from '../../../server/morpho.js';
 import { MuscleStats, JointPanel, VOL_COLORS, VOL_LABEL, PROG_COLORS, PROG_LABEL, JOINT_COLORS, JOINT_LABEL } from './MuscleBrain.jsx';
 
 // Planche d'anatomie vectorielle (dessin original) : muscles détaillés avec fibres, tendons et peau, voir anatomy.js
@@ -99,7 +101,8 @@ const MUSCLES_KEYS = Object.fromEntries([...FRONT, ...BACK].filter((m) => m.k).m
 export default function BodyMap({ data, balance, state, onChange }) {
   const [mode, setMode] = useState('rec'); const [selJ, setSelJ] = useState(null); const [sel, setSel] = useState(null); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
   const [prog, setProg] = useState(null); const [role, setRole] = useState('main'); const [all, setAll] = useState(false); const [eq, setEq] = useState(''); const [more, setMore] = useState(false);
-  useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); }, []);
+  const [mo, setMo] = useState(null);
+  useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); get('/program').then(setProg).catch(() => setProg({ days: [] })); loadMorpho().then(setMo); }, []);
   useEffect(() => { setAll(false); setEq(''); }, [sel, role]);
   const m = useMemo(() => Object.fromEntries(Object.entries(data.muscles).map(([k, v]) => [k, { ...v, key: k }])), [data.muscles]);
   // Mode Équilibre : muscle en retard (orange), équilibré (vert), sans données (gris)
@@ -140,9 +143,11 @@ export default function BodyMap({ data, balance, state, onChange }) {
     if (!picks || !lib) return [];
     const inProg = new Set(mine.map((e) => e.lib_id));
     const myEq = new Set((prog?.days || []).flatMap((d) => d.exercises).map((e) => lib.find((l) => l.id === e.lib_id)?.q).filter(Boolean));
-    const score = (x) => (myEq.has(x.q) ? 4 : 0) + (x.img ? 2 : 0) + (x.l === 'b' ? 1 : x.l === 'i' ? 0.5 : 0);
-    return picks.main.filter((x) => !inProg.has(x.id)).map((x) => ({ x, s: score(x) })).sort((a, b) => b.s - a.s).slice(0, 3).map((o) => o.x);
-  }, [picks, lib, mine, prog]);
+    // Morphologie : les exercices adaptés à tes leviers passent devant, les conflits articulaires sont écartés
+    const fit = (x) => (mo ? rateExercise(x, mo.morpho, mo.pains) : { score: 0, verdict: 'neutre' });
+    const score = (x) => (myEq.has(x.q) ? 4 : 0) + (x.img ? 2 : 0) + (x.l === 'b' ? 1 : x.l === 'i' ? 0.5 : 0) + fit(x).score * 3;
+    return picks.main.filter((x) => !inProg.has(x.id) && fit(x).verdict !== 'conflit').map((x) => ({ x, s: score(x) })).sort((a, b) => b.s - a.s).slice(0, 3).map((o) => o.x);
+  }, [picks, lib, mine, prog, mo]);
   const area = sel ? Object.entries(AREAS).find(([, a]) => a.muscles.includes(sel)) : null;
   return (
     <div className="bodymap">
