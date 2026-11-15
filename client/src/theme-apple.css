@@ -634,3 +634,77 @@ circle.mf-prop[fill="none"] { fill: none; stroke: color-mix(in srgb, var(--muted
 .malts img, .malts .mf-box { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
 .morpho-link { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; }
 .morpho-link .badge-n { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--warn); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+
+/* ---------- Volet Corps v11 : onglets, planche anatomique, fiches muscle ---------- */
+:root, :root[data-theme="light"] { --bm-nodata: #B9B9C0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bm-nodata: #5C5C62; } }
+:root[data-theme="dark"] { --bm-nodata: #5C5C62; }
+.body-tabs { margin: 4px -16px 10px; padding: 2px 16px 6px; }
+.body-tabs .chip { white-space: nowrap; }
+.atlas .at-modes { margin-bottom: 6px; }
+.atlas .at-sub { margin-bottom: 6px; align-items: center; }
+.chip.sm { padding: 5px 11px; font-size: 13px; }
+.at-sep { width: 1px; height: 18px; background: var(--line); flex-shrink: 0; margin: 0 2px; }
+.at-controls { display: flex; gap: 8px; align-items: center; margin: 4px 0 8px; flex-wrap: wrap; }
+.at-controls select { width: auto; flex: 0 0 auto; padding: 7px 30px 7px 12px; font-size: 14px; border-radius: var(--pill); }
+.at-zoom { display: inline-flex; background: var(--surface3); border-radius: var(--pill); padding: 3px; gap: 2px; overflow-x: auto; max-width: 100%; }
+.at-zoom button { border: 0; background: transparent; color: var(--text); font-size: 13px; padding: 5px 10px; border-radius: var(--pill); white-space: nowrap; }
+.at-zoom button.on { background: var(--surface); box-shadow: 0 2px 6px rgba(0,0,0,.12); font-weight: 600; }
+.at-figs { max-width: 520px; align-items: end; }
+.at-figs.n1 { grid-template-columns: 1fr; max-width: 360px; }
+.at-figs.n1.z-all .at-fig svg { max-height: 520px; }
+.at-figs .at-fig svg { max-height: 420px; }
+.at-figs.n1:not(.z-all) .at-fig svg { max-height: 460px; }
+.at-fig.side svg { max-height: 420px; }
+.at-figs.n2 .at-fig svg { height: 380px; max-height: 60vh; width: 100%; }
+.at-figs.n2:not(.z-all) .at-fig svg { height: auto; }
+.bm-g.on .bm-m { filter: brightness(1.06) saturate(1.1); }
+.at-pick { margin-top: 10px; padding: 12px; border-radius: 14px; background: var(--surface2); }
+.at-pick p { margin: 6px 0 0; }
+.ov-sum .ov-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.ov-stats a { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 2px; border-radius: 12px; background: var(--surface2); color: var(--text); text-decoration: none; }
+.ov-stats b { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--blue, var(--accent)); }
+.ov-stats b.warn { color: #E5484D; }
+.ov-map { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 320px; margin: 0 auto; }
+.ov-map .at-fig svg { height: 230px; }
+.ov-map .bm-g { pointer-events: none; }
+.ov-recs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ov-recs li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--surface2); }
+.ov-recs li.warn .icon { color: #E5484D; }
+.ov-recs li.good .icon { color: var(--green, #2BB56B); }
+.ov-recs .icon { flex-shrink: 0; margin-top: 1px; }
+.mus-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+.mus-list > li > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 4px; border: 0; background: transparent; color: var(--text); text-align: left; border-bottom: .5px solid var(--line); }
+.mus-list > li:last-child > button { border-bottom: 0; }
+.mus-list .grow { min-width: 0; }
+.mus-list .warn, b.warn { color: #E5484D; }
+b.good { color: var(--green, #2BB56B); }
+.ms-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-right: 6px; vertical-align: middle; }
+.mus-list .ms-dot { margin: 0; }
+.rec-bar { width: 64px; height: 6px; border-radius: 3px; background: var(--surface3); overflow: hidden; flex-shrink: 0; }
+.rec-bar i { display: block; height: 100%; border-radius: 3px; }
+.ms-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.ms-fig { width: 92px; flex-shrink: 0; }
+.ms-fig .bm-g { pointer-events: none; }
+.ms-fig figcaption { display: none; }
+.ms-fig svg { max-height: 150px; }
+.ms-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ms-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 4px 10px; border-radius: var(--pill); background: var(--surface2); }
+.ms-pill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.ms-tabs { margin: 6px 0 10px; }
+.ms-body p { margin: 6px 0; }
+.ms-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 10px 0; font-size: 14px; }
+.ms-dl dt { color: var(--muted); }
+.ms-dl dd { margin: 0; }
+.ms-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ms-table th { font-weight: 500; color: var(--muted); font-size: 12px; text-align: right; padding: 4px; }
+.ms-table td { padding: 6px 4px; text-align: right; border-top: .5px solid var(--line); }
+.ms-table td:first-child { text-align: left; }
+.ms-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ms-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--surface2); }
+.pain-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pain-hist li { padding: 10px 12px; border-radius: 12px; background: var(--surface2); display: flex; flex-direction: column; gap: 2px; }
+.embed-more { margin-top: 8px; color: var(--text); text-decoration: none; }
+.at-fig svg, .ms-fig svg { overflow: hidden; }
+.bm-ol, .bm-fascia { pointer-events: none; }
+.at-armline path { fill: var(--bm-outline); stroke: var(--bm-outline); stroke-width: 1.5; stroke-linejoin: round; pointer-events: none; }

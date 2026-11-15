@@ -16,6 +16,7 @@ import analysisRoutes from '../../../server/routes/analysis.js';
 import nutritionRoutes from '../../../server/routes/nutrition.js';
 import insightsRoutes from '../../../server/routes/insights.js';
 import coachRoutes from '../../../server/routes/coach.js';
+import bodyRoutes from '../../../server/routes/body.js';
 import { addDataCoreRoutes } from '../../../server/routes/dataCore.js';
 import { Router } from './expressShim.js';
 
@@ -86,7 +87,7 @@ function boot() {
     raw.exec('PRAGMA foreign_keys = ON;');
     const db = setupDb(wrap(raw));
     const routes = [];
-    for (const f of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes, nutritionRoutes, insightsRoutes, coachRoutes]) routes.push(...f(db).routes);
+    for (const f of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes, nutritionRoutes, insightsRoutes, coachRoutes, bodyRoutes]) routes.push(...f(db).routes);
     const data = Router(); addDataCoreRoutes(data, db); routes.push(...data.routes);
     if (!bytes) { await save(raw.export()); raw.exec('PRAGMA foreign_keys = ON;'); }
     setTimeout(() => startSync(!!bytes && localUpdatedAt > 0), 0);

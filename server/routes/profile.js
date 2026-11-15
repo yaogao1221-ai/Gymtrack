@@ -6,6 +6,7 @@ import { num, str, date, oneOf, bad, notFound, patchRow } from '../util.js';
 import { DAY_KEYS } from '../util.js';
 import { getProgram } from '../services.js';
 import { toJSON } from '../schema.js';
+import { PAIN_KINDS } from '../body/muscles.js';
 import { MORPHO_QUESTIONS, programConflicts } from '../morpho.js';
 
 export default function profileRoutes(db) {
@@ -68,8 +69,9 @@ export default function profileRoutes(db) {
   r.post('/body-metrics', (req, res) => {
     const b = req.body;
     const w = num(b.weight_kg, 'poids', { min: 30, max: 300 }), bf = num(b.body_fat_pct, 'masse grasse', { min: 2, max: 70 }), wc = num(b.waist_cm, 'tour de taille', { min: 40, max: 250 }); const nk = num(b.neck_cm, 'tour de cou', { min: 20, max: 80 }), hp = num(b.hip_cm, 'tour de hanches', { min: 50, max: 250 });
-    if (w == null && bf == null && wc == null && nk == null && hp == null) throw bad('Renseigne au moins une mesure');
-    const info = db.run('INSERT INTO body_metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, neck_cm, hip_cm, notes) VALUES (?,?,?,?,?,?,?,?)', USER_ID, date(b.date), w, bf, wc, nk, hp, str(b.notes, 'notes', { max: 300 }));
+    const ch = num(b.chest_cm, 'tour de poitrine', { min: 50, max: 200 }), ar = num(b.arm_cm, 'tour de bras', { min: 15, max: 70 }), th = num(b.thigh_cm, 'tour de cuisse', { min: 30, max: 110 }), ca = num(b.calf_cm, 'tour de mollet', { min: 20, max: 70 });
+    if ([w, bf, wc, nk, hp, ch, ar, th, ca].every((v) => v == null)) throw bad('Renseigne au moins une mesure');
+    const info = db.run('INSERT INTO body_metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, neck_cm, hip_cm, chest_cm, arm_cm, thigh_cm, calf_cm, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', USER_ID, date(b.date), w, bf, wc, nk, hp, ch, ar, th, ca, str(b.notes, 'notes', { max: 300 }));
     syncProfileWeight(db);
     res.status(201).json(db.one('SELECT * FROM body_metrics WHERE id = ?', info.lastInsertRowid));
   });
@@ -88,11 +90,16 @@ export default function profileRoutes(db) {
     db.run('UPDATE profiles SET morpho = ? WHERE user_id = ?', JSON.stringify(m), USER_ID);
     res.json(morphoState());
   });
-  r.get('/pains', (req, res) => res.json({ areas: Object.fromEntries(Object.entries(PAIN_AREAS).map(([k, v]) => [k, v.label])), reports: db.all('SELECT * FROM pain_reports WHERE user_id = ? ORDER BY resolved, date DESC', USER_ID) }));
+  // Côté, type de douleur (ressenti, pas un diagnostic) et mouvements qui l'aggravent
+  const painSide = (v) => (v == null || v === '' ? null : oneOf(v, 'côté', ['gauche', 'droite', 'deux']));
+  const painKind = (v) => (v == null || v === '' ? null : oneOf(v, 'type', Object.keys(PAIN_KINDS)));
+  const painMoves = (v) => (Array.isArray(v) ? JSON.stringify(v.map((x) => String(x).slice(0, 40)).filter(Boolean).slice(0, 8)) : null);
+  r.get('/pains', (req, res) => res.json({ areas: Object.fromEntries(Object.entries(PAIN_AREAS).map(([k, v]) => [k, v.label])), kinds: PAIN_KINDS, reports: db.all('SELECT * FROM pain_reports WHERE user_id = ? ORDER BY resolved, date DESC', USER_ID) }));
   r.post('/pains', (req, res) => {
     const b = req.body;
-    const info = db.run('INSERT INTO pain_reports (user_id, date, area, intensity, notes) VALUES (?,?,?,?,?)', USER_ID, date(b.date), oneOf(b.area, 'zone', Object.keys(PAIN_AREAS), { required: true }),
-      num(b.intensity, 'intensité', { min: 1, max: 10, int: true }) ?? (() => { throw bad('Intensité requise'); })(), str(b.notes, 'notes', { max: 500 }));
+    const info = db.run('INSERT INTO pain_reports (user_id, date, area, intensity, notes, side, kind, movements) VALUES (?,?,?,?,?,?,?,?)', USER_ID, date(b.date), oneOf(b.area, 'zone', Object.keys(PAIN_AREAS), { required: true }),
+      num(b.intensity, 'intensité', { min: 1, max: 10, int: true }) ?? (() => { throw bad('Intensité requise'); })(), str(b.notes, 'notes', { max: 500 }),
+      painSide(b.side), painKind(b.kind), painMoves(b.movements));
     res.status(201).json(db.one('SELECT * FROM pain_reports WHERE id = ?', info.lastInsertRowid));
   });
   r.patch('/pains/:id', (req, res) => {
@@ -104,7 +111,7 @@ export default function profileRoutes(db) {
       log.push({ date: req.today, intensity: num(req.body.intensity, 'intensité', { min: 1, max: 10, int: true }) });
       db.run('UPDATE pain_reports SET log = ? WHERE id = ?', JSON.stringify(log.slice(-60)), p.id);
     }
-    patchRow(db, 'pain_reports', p.id, req.body, { resolved: (v) => (v ? 1 : 0), intensity: (v) => num(v, 'intensité', { min: 1, max: 10, int: true }), notes: (v) => str(v, 'notes', { max: 500 }) });
+    patchRow(db, 'pain_reports', p.id, req.body, { resolved: (v) => (v ? 1 : 0), intensity: (v) => num(v, 'intensité', { min: 1, max: 10, int: true }), notes: (v) => str(v, 'notes', { max: 500 }), side: painSide, kind: painKind, movements: painMoves });
     res.json(db.one('SELECT * FROM pain_reports WHERE id = ?', p.id));
   });
   r.delete('/pains/:id', (req, res) => { if (!db.run('DELETE FROM pain_reports WHERE id = ? AND user_id = ?', req.params.id, USER_ID).changes) throw notFound(); res.json({ ok: true }); });

@@ -16,6 +16,7 @@ import analysisRoutes from './routes/analysis.js';
 import dataRoutes from './routes/data.js';
 import insightsRoutes from './routes/insights.js';
 import coachRoutes from './routes/coach.js';
+import bodyRoutes from './routes/body.js';
 
 export function createApp({ dbFile, backupDir, password = '', staticDir } = {}) {
   const db = openDb(dbFile);
@@ -50,7 +51,7 @@ export function createApp({ dbFile, backupDir, password = '', staticDir } = {}) 
     next();
   });
   app.get('/api/health', (req, res) => res.json({ ok: true }));
-  for (const routes of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes, nutritionRoutes, insightsRoutes, coachRoutes]) app.use('/api', routes(db));
+  for (const routes of [programRoutes, workoutRoutes, cardioRoutes, calendarRoutes, profileRoutes, statsRoutes, analysisRoutes, leagueRoutes, nutritionRoutes, insightsRoutes, coachRoutes, bodyRoutes]) app.use('/api', routes(db));
   app.use('/api', dataRoutes(db, { backupDir }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Route inconnue' }));
 
