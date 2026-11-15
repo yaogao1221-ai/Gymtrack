@@ -61,3 +61,23 @@ test('état du corps : fatigue estimée, volume direct et indirect, douleur avec
   const bm = await call('POST', '/body-metrics', { date: '2026-11-15', arm_cm: 36.5, thigh_cm: 58 });
   assert.equal(bm.status, 201); assert.equal(bm.body.arm_cm, 36.5);
 });
+
+test('rapports semaine et mois, mensurations, routines de mobilité personnalisées, haut du dos', async () => {
+  const w = (await call('GET', '/body/report')).body;
+  assert.equal(w.period, 'week'); assert.equal(w.from, '2026-11-09'); assert.ok(w.cur.workouts >= 1);
+  assert.ok(Array.isArray(w.highlights) && w.highlights.length > 0);
+  const m = (await call('GET', '/body/report?period=month&offset=1')).body;
+  assert.equal(m.from, '2026-10-01'); assert.equal(m.to, '2026-10-31'); assert.equal(m.empty, true);
+  const ms = (await call('GET', '/body/measures')).body;
+  assert.equal(ms.find((x) => x.key === 'arm_cm').last.v, 36.5);
+  assert.equal(ms.find((x) => x.key === 'chest_cm').points.length, 0);
+  const n = (await call('GET', '/body/nutrition')).body; assert.deepEqual(n.days, []);
+  // Routine personnalisée : exercice retiré, exercice ajouté ; les autres réglages restent
+  const s = (await call('PUT', '/body/settings', { routines: { epaules: { hide: ['Band_Pull_Apart'], add: ['Shoulder_Circles'] } } })).body.settings;
+  assert.deepEqual(s.routines.epaules, { hide: ['Band_Pull_Apart'], add: ['Shoulder_Circles'] }); assert.equal(s.speed, 'lente');
+  assert.equal((await call('POST', '/mobility', { routine: 'epaules' })).status, 200);
+  assert.equal((await call('POST', '/mobility', { routine: 'n_importe' })).status, 400);
+  // Nouvelle zone : haut du dos (thoracique)
+  assert.equal((await call('POST', '/pains', { area: 'thoracique', intensity: 3, date: '2026-11-15' })).status, 201);
+  const st = (await call('GET', '/muscles/state')).body; assert.equal(st.joints.thoracique.status, 'douleur');
+});

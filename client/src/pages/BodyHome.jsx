@@ -1,22 +1,16 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Page, Card, Icon, Loading, EmbedCtx, useApi } from '../components/ui.jsx';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Page, Loading, useApi } from '../components/ui.jsx';
 import { SectionTabs } from '../components/SectionTabs.jsx';
 import AnatomyMap from '../components/AnatomyMap.jsx';
 import MuscleSheet from '../components/MuscleSheet.jsx';
 import PainSheet from '../components/PainSheet.jsx';
-import { MobilityDone } from '../components/MuscleBrain.jsx';
-import { Thumbs } from '../components/BodyMap.jsx';
-import { ExerciseInfo } from '../components/ExerciseDemo.jsx';
 import Overview from './body/Overview.jsx';
+import MobilityTab from './body/Mobility.jsx';
+import { MeasuresTab, NutritionTab, ReportTab } from './body/Tabs2.jsx';
 import { MusclesTab, RecoveryTab, JointsTab, ProgressTab } from './body/Tabs.jsx';
-import { loadLib } from '../lib/exlib.js';
-import { onDataChange, today } from '../lib/api.js';
-import { ROUTINES } from '../data/rehab.js';
+import { onDataChange } from '../lib/api.js';
 
-const Meals = lazy(() => import('./Meals.jsx'));
-const Photos = lazy(() => import('./Photos.jsx'));
-const Recap = lazy(() => import('./Recap.jsx'));
 
 // Mon corps : 10 sections en onglets, toutes nourries par le même état musculaire (GET /body/state)
 export const BODY_TABS = [['apercu', 'Vue générale'], ['anatomie', 'Anatomie'], ['muscles', 'Muscles'], ['recuperation', 'Récupération'], ['articulations', 'Articulations'],
@@ -44,9 +38,9 @@ export default function BodyHome() {
         {tab === 'articulations' && <JointsTab onPain={() => openPain()} />}
         {tab === 'mobilite' && <MobilityTab />}
         {tab === 'progression' && <ProgressTab st={st} onOpen={openMuscle} />}
-        {tab === 'nutrition' && <Embedded link="/nutrition" label="Poids, cure et Ramadan"><Meals /></Embedded>}
-        {tab === 'mensurations' && <Embedded link="/nutrition?v=poids" label="Pesées et tours de taille"><Photos /></Embedded>}
-        {tab === 'historique' && <Embedded link="/progres?v=bilan" label="Bilan de la semaine"><Recap /></Embedded>}
+        {tab === 'nutrition' && <NutritionTab />}
+        {tab === 'mensurations' && <MeasuresTab />}
+        {tab === 'historique' && <ReportTab />}
       </div>}
       <MuscleSheet id={open?.id} side={open?.side} open={!!open} onClose={() => setOpen(null)} onChange={reload} />
       <PainSheet open={!!pain} init={pain} onClose={() => setPain(null)} onSaved={reload} />
@@ -54,29 +48,3 @@ export default function BodyHome() {
   );
 }
 
-function Embedded({ children, link, label }) {
-  return (<>
-    <EmbedCtx.Provider value><Suspense fallback={<Loading />}>{children}</Suspense></EmbedCtx.Provider>
-    <Link to={link} className="card row gap embed-more"><span className="grow small">{label}</span><Icon name="right" size={16} /></Link>
-  </>);
-}
-
-// Mobilité et échauffements : la routine conseillée aujourd'hui puis toutes les routines, chacune cochable
-function MobilityTab() {
-  const brain = useApi('/muscles/state'); const mob = useApi('/mobility'); const [lib, setLib] = useState(null); const [info, setInfo] = useState(null);
-  useEffect(() => { loadLib().then(setLib).catch(() => setLib([])); }, []);
-  const byId = useMemo(() => new Map((lib || []).map((x) => [x.id, x])), [lib]);
-  const rec = brain.data?.today_plan?.mobility;
-  const done = (k) => (mob.data || []).some((x) => x.routine === k && x.date === today());
-  return (<>
-    {rec && <Card title="Conseillée aujourd’hui" icon="sparkles"><p><b>{rec.title}</b></p><p className="muted small">{rec.why}</p>
-      {rec.routine.startsWith('soin:') && <Link className="btn sm mt-s" to={`/soins?zone=${rec.area}`}>Ouvrir le soin</Link>}</Card>}
-    {ROUTINES.map((r) => (
-      <Card key={r.key} title={r.t} icon="heal" action={<MobilityDone routine={r.key} done={done(r.key)} onDone={mob.reload} />}>
-        <p className="muted small">{r.d} · 5 à 8 min</p>
-        {lib ? <Thumbs list={r.ex.map(([id]) => byId.get(id)).filter(Boolean)} doses={r.ex.filter(([id]) => byId.has(id)).map(([, d]) => d)} onOpen={setInfo} /> : <Loading />}
-      </Card>))}
-    <Link to="/soins" className="card row gap embed-more"><span className="grow small">Protocoles de soin par zone (épaule, genou, bas du dos…)</span><Icon name="right" size={16} /></Link>
-    <ExerciseInfo open={!!info} x={info} onClose={() => setInfo(null)} />
-  </>);
-}

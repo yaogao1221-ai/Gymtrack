@@ -14,7 +14,7 @@ export const MAJOR = ['pectoraux', 'dos_largeur', 'dos_epaisseur', 'epaules_lat'
 const SMALL = new Set(['avant_bras', 'trapezes', 'abducteurs', 'adducteurs', 'epaules_ant', 'lombaires']);
 // Zones douloureuses (Soins) → muscles concernés
 const PAIN_MUSCLES = { epaule: ['epaules_ant', 'epaules_lat', 'epaules_post'], coude: ['biceps', 'triceps', 'avant_bras'], poignet: ['avant_bras'], bas_du_dos: ['lombaires'],
-  genou: ['quadriceps', 'ischios'], hanche: ['fessiers', 'adducteurs', 'abducteurs'], cheville: ['mollets'], nuque: ['trapezes'], pectoral: ['pectoraux'] };
+  genou: ['quadriceps', 'ischios'], hanche: ['fessiers', 'adducteurs', 'abducteurs'], cheville: ['mollets'], nuque: ['trapezes'], pectoral: ['pectoraux'], thoracique: ['dos_epaisseur'] };
 const fr = (x) => String(r1(x)).replace('.', ',');
 const plural = (n, s, p = `${s}s`) => (n > 1 || n === 0 ? p : s);
 const lc = (k) => (MUSCLES[k] || k).replace(/ \(.*\)/, '').toLowerCase();
@@ -244,9 +244,9 @@ export function sundayReview(db, today) {
 }
 
 // ---------- Articulations : douleur, charge mécanique (hausse brutale = risque de tendinopathie), mobilité faite ----------
-export const JOINTS = { epaule: 'Épaule', coude: 'Coude', poignet: 'Poignet', bas_du_dos: 'Bas du dos', hanche: 'Hanche', genou: 'Genou', cheville: 'Cheville', nuque: 'Nuque', pectoral: 'Pectoral' };
+export const JOINTS = { epaule: 'Épaule', coude: 'Coude', poignet: 'Poignet', bas_du_dos: 'Bas du dos', hanche: 'Hanche', genou: 'Genou', cheville: 'Cheville', nuque: 'Nuque', pectoral: 'Pectoral', thoracique: 'Haut du dos' };
 // Routine de mobilité la plus utile pour chaque articulation (clés de Soins)
-const JOINT_ROUTINE = { epaule: 'haut', coude: 'haut', poignet: 'haut', pectoral: 'haut', nuque: 'dos', bas_du_dos: 'dos', hanche: 'bas', genou: 'bas', cheville: 'bas' };
+const JOINT_ROUTINE = { epaule: 'haut', coude: 'haut', poignet: 'haut', pectoral: 'haut', nuque: 'dos', bas_du_dos: 'dos', hanche: 'bas', genou: 'bas', cheville: 'bas', thoracique: 'dos' };
 function jointState(db, today, pains) {
   const from = addDays(today, -27); const wk = addDays(today, -6);
   const rows = db.all(`SELECT w.date, e.pattern, COUNT(*) n FROM workout_sets s JOIN workouts w ON w.id = s.workout_id JOIN exercises e ON e.id = s.exercise_id
