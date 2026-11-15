@@ -36,17 +36,27 @@ function Figure({ map, data, color, sel, onSel, label, joints, side: sd, back, s
     <figure className="bm-fig">
       <svg viewBox="12 0 76 186" role="img" aria-label={label}>
         <defs>
-          {ANGLES.map((a) => <pattern key={a} id={fid(a)} width="1.3" height="1.3" patternUnits="userSpaceOnUse" patternTransform={`rotate(${a})`}><line x1="0" y1="0" x2="0" y2="1.3" className="bm-fib" /></pattern>)}
-          <radialGradient id="bmsh" cx=".4" cy=".35" r=".75"><stop offset="0" stopColor="#fff" stopOpacity=".3" /><stop offset=".6" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#000" stopOpacity=".22" /></radialGradient>
+          {ANGLES.map((a) => <pattern key={a} id={fid(a)} width="1.1" height="1.1" patternUnits="userSpaceOnUse" patternTransform={`rotate(${a})`}><line x1="0" y1="0" x2="0" y2="1.1" className="bm-fib" /></pattern>)}
+          {ANGLES.map((a) => (
+            <linearGradient key={a} id={`${fid(a)}g`} gradientTransform={`rotate(${a + 90} .5 .5)`}>
+              <stop offset="0" stopColor="var(--bm-tendon)" stopOpacity=".55" /><stop offset=".16" stopColor="var(--bm-tendon)" stopOpacity="0" />
+              <stop offset=".5" stopColor="#fff" stopOpacity=".16" />
+              <stop offset=".84" stopColor="var(--bm-tendon)" stopOpacity="0" /><stop offset="1" stopColor="var(--bm-tendon)" stopOpacity=".55" />
+            </linearGradient>
+          ))}
+          <radialGradient id="bmsh" cx=".42" cy=".38" r=".72"><stop offset="0" stopColor="#fff" stopOpacity=".22" /><stop offset=".55" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#000" stopOpacity=".28" /></radialGradient>
         </defs>
-        {SKIN[side].under.map((t, i) => <Both key={`u${i}`} s={t} className="bm-skin" />)}
-        {map.map((m, i) => <Both key={`b${i}`} s={m} className="bm-under" />)}
+        {/* Contour du corps : union de toutes les pièces, épaissie (le trait extérieur dessine la silhouette) */}
+        <g className="bm-ol">{[...SKIN[side].under, ...map, ...SKIN[side].over].map((t, i) => <Both key={i} s={t} />)}</g>
+        <g className="bm-fascia">{[...SKIN[side].under, ...map, ...SKIN[side].over].map((t, i) => <Both key={i} s={t} />)}</g>
         {map.map((m, i) => {
           const on = m.k && sel === m.k; const pick = m.k ? () => onSel(m.k) : undefined;
+          const c = m.k ? color(data[m.k]) : null;
           return (
             <g key={i} className={`bm-g ${m.k ? 'tap' : 'deco'} ${on ? 'on' : ''}`} onClick={pick}>
-              <Both s={m} className="bm-m" style={{ fill: m.k ? color(data[m.k]) : undefined }} />
+              <Both s={m} className="bm-m" style={{ fill: c && c !== 'var(--map-0)' ? c : undefined }} />
               <Both s={m} className="bm-tex" fill={`url(#${fid(m.a)})`} />
+              <Both s={m} className="bm-tex" fill={`url(#${fid(m.a)}g)`} />
               <Both s={m} className="bm-tex" fill="url(#bmsh)" />
             </g>
           );
