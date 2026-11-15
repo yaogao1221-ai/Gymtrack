@@ -34,7 +34,7 @@ export function AtlasDefs() {
 }
 
 // Une silhouette : view = front | back | left | right ; colorOf(id, côté) → couleur ou null (couleur naturelle du muscle)
-export function AtlasFigure({ view, zoom = 'all', colorOf, sel, onPick, label }) {
+export function AtlasFigure({ view, zoom = 'all', colorOf, sel, onPick, label, children }) {
   const side = view === 'left' || view === 'right';
   const map = view === 'front' ? FRONT : view === 'back' ? BACK : SIDE;
   const art = view === 'front' ? 'front' : view === 'back' ? 'back' : 'side';
@@ -67,6 +67,7 @@ export function AtlasFigure({ view, zoom = 'all', colorOf, sel, onPick, label })
         const sd = m.c && !side ? 'centre' : sideOf(view, mir);
         return (!sel.side || sel.side === sd || sd === 'centre') ? <path key={`s${i}${mir}`} d={m.d} transform={tr} className="bm-sel" /> : null;
       }))}
+      {children}
     </>
   );
   return (

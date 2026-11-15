@@ -16,6 +16,7 @@ export const PAIN_AREAS = {
   cheville: { label: 'Cheville / mollet', patterns: ['calf', 'squat', 'lunge'] },
   nuque: { label: 'Nuque / cervicales', patterns: ['shrug', 'press_vertical', 'face_pull'] },
   pectoral: { label: 'Pectoral', patterns: ['press_incline', 'press_horizontal', 'dip', 'chest_fly'] },
+  thoracique: { label: 'Haut du dos (thoracique)', patterns: ['horizontal_row', 'vertical_pull', 'press_vertical', 'hinge'] },
 };
 
 const SMALL = new Set(['avant_bras', 'trapezes', 'abducteurs', 'adducteurs', 'epaules_ant', 'mollets']);

@@ -17,12 +17,24 @@ export const SPEEDS = { rapide: ['Rapide', 0.8], normale: ['Normale', 1], lente:
 export const LEVELS = { faible: 'Fatigue estimée faible', moderee: 'Fatigue estimée modérée', elevee: 'Fatigue estimée élevée', aucune: 'Pas de travail récent' };
 const HIGH = 6; const MID = 2.5;
 
+const cleanRoutines = (r) => {
+  const out = {}; if (!r || typeof r !== 'object') return out;
+  for (const [k, v] of Object.entries(r).slice(0, 20)) {
+    if (!/^[a-z_]{2,20}$/.test(k)) continue;
+    const ids = (a) => (Array.isArray(a) ? a.map(String).filter((x) => /^[\w-]{1,80}$/.test(x)).slice(0, 20) : []);
+    out[k] = { hide: ids(v?.hide), add: ids(v?.add) };
+  }
+  return out;
+};
 export function bodySettings(db) {
   const s = toJSON(db.one('SELECT body_settings s FROM profiles WHERE user_id = ?', USER_ID)?.s, {}) || {};
-  return { speed: SPEEDS[s.speed] ? s.speed : 'normale', cardio: s.cardio !== false, indirect: s.indirect !== false };
+  return { speed: SPEEDS[s.speed] ? s.speed : 'normale', cardio: s.cardio !== false, indirect: s.indirect !== false, routines: cleanRoutines(s.routines) };
 }
+// Réglages du calcul et routines de mobilité personnalisées (exercices retirés ou ajoutés)
 export function saveBodySettings(db, b = {}) {
-  const s = { speed: SPEEDS[b.speed] ? b.speed : 'normale', cardio: b.cardio !== false, indirect: b.indirect !== false };
+  const cur = bodySettings(db);
+  const s = { speed: SPEEDS[b.speed] ? b.speed : cur.speed, cardio: b.cardio == null ? cur.cardio : b.cardio !== false, indirect: b.indirect == null ? cur.indirect : b.indirect !== false,
+    routines: b.routines ? cleanRoutines({ ...cur.routines, ...b.routines }) : cur.routines };
   db.run('UPDATE profiles SET body_settings = ? WHERE user_id = ?', JSON.stringify(s), USER_ID);
   return s;
 }

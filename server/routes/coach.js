@@ -47,7 +47,7 @@ export default function coachRoutes(db) {
   });
   // Routine de mobilité ou de soin faite (une par jour et par routine)
   r.post('/mobility', (req, res) => {
-    const routine = String(req.body?.routine || ''); if (!/^(haut|bas|apres|dos|soin:[a-z_]+)$/.test(routine)) throw bad('Routine inconnue');
+    const routine = String(req.body?.routine || ''); if (!/^(haut|bas|apres|dos|corps|epaules|thoracique|hanches|chevilles|poignets|nuque|soin:[a-z_]+)$/.test(routine)) throw bad('Routine inconnue');
     const area = req.body?.area ? oneOf(req.body.area, 'zone', Object.keys(JOINTS)) : (routine.startsWith('soin:') ? oneOf(routine.slice(5), 'zone', Object.keys(JOINTS)) : null);
     const on = req.body?.on !== false;
     db.run('DELETE FROM mobility_logs WHERE user_id = ? AND date = ? AND routine = ?', USER_ID, req.today, routine);

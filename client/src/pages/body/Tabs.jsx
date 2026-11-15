@@ -6,9 +6,10 @@ import BalanceCard from '../../components/Balance.jsx';
 import MissingMuscles from '../../components/MissingMuscles.jsx';
 import { JointPanel, JOINT_COLORS, JOINT_LABEL } from '../../components/MuscleBrain.jsx';
 import { ExerciseInfo } from '../../components/ExerciseDemo.jsx';
-import { MODES, volVerdict } from '../../components/AnatomyMap.jsx';
+import { MODES, volVerdict, AtlasDefs, AtlasFigure } from '../../components/AnatomyMap.jsx';
 import { MUSCLE_LIST, REGIONS } from '../../../../server/body/muscles.js';
 import { put, patch } from '../../lib/api.js';
+import { CompareCard } from './Tabs2.jsx';
 import { fmtDate } from '../../lib/format.js';
 
 const fr = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
@@ -94,6 +95,22 @@ export function RecoveryTab({ st, onOpen, onChange }) {
 
 // ---------- Articulations et douleurs : charge par articulation, douleurs suivies avec leur évolution ----------
 const trendOf = (p) => { let log = []; try { log = JSON.parse(p.log || '[]'); } catch { /* ignoré */ } const first = log[0]?.intensity ?? p.intensity; return p.resolved ? 'resolue' : p.intensity < first ? 'amelioration' : 'active'; };
+// Position des articulations sur la planche (x, y ; c = au centre)
+const JPOS = {
+  front: [['nuque', 50, 25, 1], ['epaule', 27.5, 35], ['coude', 25, 67], ['poignet', 20.6, 93], ['pectoral', 41, 41], ['hanche', 36.5, 92], ['genou', 40.5, 138], ['cheville', 41, 170]],
+  back: [['nuque', 50, 23, 1], ['thoracique', 50, 46, 1], ['epaule', 27.5, 35], ['coude', 25, 67], ['bas_du_dos', 50, 76, 1], ['hanche', 37, 96], ['genou', 40.5, 138], ['cheville', 41, 170]],
+};
+function JointMap({ joints, pains, sel, onSel }) {
+  // Douleur du côté signalé seulement ; sinon couleur de charge
+  const col = (k, side) => { const p = pains.find((x) => x.area === k && !x.resolved && (!x.side || x.side === 'deux' || !side || x.side === side)); return p ? (p.intensity >= 7 ? '#E5484D' : p.intensity >= 4 ? '#F5A524' : '#F7D154') : JOINT_COLORS[joints[k]?.status === 'douleur' ? 'ok' : joints[k]?.status] || 'var(--bm-nodata)'; };
+  const dot = (view) => JPOS[view].flatMap(([k, x, y, c]) => (joints[k] ? (c ? [[x, null]] : [[x, view === 'front' ? 'droite' : 'gauche'], [100 - x, view === 'front' ? 'gauche' : 'droite']]).map(([xx, side]) => (
+    <circle key={`${k}${xx}`} cx={xx} cy={y} r={sel === k ? 4.4 : 3.4} className={`bm-joint ${sel === k ? 'on' : ''}`} style={{ fill: col(k, side) }} onClick={() => onSel(sel === k ? null : k)} />)) : []));
+  return (<>
+    <AtlasDefs />
+    <div className="bm-figs at-figs n2 jmap">{['front', 'back'].map((v) => <AtlasFigure key={v} view={v} colorOf={() => 'var(--bm-nodata)'} sel={null} onPick={() => {}}>{dot(v)}</AtlasFigure>)}</div>
+    <div className="bm-legend small"><span><i style={{ background: '#E5484D' }} />Douleur forte</span><span><i style={{ background: '#F5A524' }} />Douleur modérée ou charge en hausse rapide</span><span><i style={{ background: '#2BB56B' }} />Charge stable</span><span><i style={{ background: 'var(--bm-nodata)' }} />Peu sollicitée</span></div>
+  </>);
+}
 const STATUS = { active: ['Active', '#E5484D'], amelioration: ['En amélioration', '#F5A524'], resolue: ['Résolue', '#2BB56B'] };
 export function JointsTab({ onPain }) {
   const brain = useApi('/muscles/state'); const pains = useApi('/pains'); const toast = useToast();
@@ -115,12 +132,17 @@ export function JointsTab({ onPain }) {
       <p className="muted xs mt-s">Conseils de prudence seulement, pas de diagnostic. Si la douleur dure plus de deux semaines ou s’aggrave, consulte un professionnel de santé.</p>
     </section>
     <section className="card">
+      <div className="card-head"><h2><Icon name="target" size={16} />Carte des articulations</h2></div>
+      {brain.data && <JointMap joints={brain.data.joints} pains={reports} sel={sel} onSel={setSel} />}
+      {sel && brain.data?.joints?.[sel] && <JointPanel j={brain.data.joints[sel]} onOpen={setInfo} onChange={brain.reload} />}
+    </section>
+    <section className="card">
       <div className="card-head"><h2><Icon name="target" size={16} />Charge par articulation</h2></div>
       {!brain.data ? <Loading /> : <ul className="mus-list">{joints.map((j) => (
-        <li key={j.key}><button onClick={() => setSel(sel === j.key ? null : j.key)}>
+        <li key={j.key}><button onClick={() => { setSel(j.key); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
           <i className="ms-dot" style={{ background: JOINT_COLORS[j.status] }} />
-          <span className="grow"><b className="small">{j.label}</b><span className="muted xs block">{JOINT_LABEL[j.status]} · {j.load.week} séries cette semaine</span></span><Icon name={sel === j.key ? 'up' : 'down'} size={14} />
-        </button>{sel === j.key && <JointPanel j={j} onOpen={setInfo} onChange={brain.reload} />}</li>))}</ul>}
+          <span className="grow"><b className="small">{j.label}</b><span className="muted xs block">{JOINT_LABEL[j.status]} · {j.load.week} séries cette semaine</span></span><Icon name="right" size={14} />
+        </button></li>))}</ul>}
     </section>
     <ExerciseInfo open={!!info} x={info} onClose={() => setInfo(null)} />
   </>);
@@ -145,5 +167,6 @@ export function ProgressTab({ st, onOpen }) {
       {none > 0 && <p className="muted xs mt-s">{none} autres muscles travaillés n’ont pas encore assez de séances avec charge pour juger.</p>}
       <p className="muted xs">Variation du 1RM estimé entre tes 2 premières et tes 2 dernières séances de la période, sur les exercices qui ciblent le muscle en principal.</p>
     </section>
+    <CompareCard />
   </>);
 }

@@ -708,3 +708,21 @@ b.good { color: var(--green, #2BB56B); }
 .at-fig svg, .ms-fig svg { overflow: hidden; }
 .bm-ol, .bm-fascia { pointer-events: none; }
 .at-armline path { fill: var(--bm-outline); stroke: var(--bm-outline); stroke-width: 1.5; stroke-linejoin: round; pointer-events: none; }
+.jmap .bm-g { pointer-events: none; }
+.jmap .at-fig svg { height: 330px; }
+.mob-top { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--text); text-align: left; padding: 0; }
+.mob-top .tag { margin-bottom: 4px; display: inline-block; }
+.mob-why { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--surface2); }
+.mob-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.mob-list li { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; background: var(--surface2); }
+.mob-list li.off { opacity: .45; }
+.mob-list li { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.mob-ex { flex: 1 1 200px; display: flex; gap: 10px; align-items: center; border: 0; background: transparent; color: var(--text); text-align: left; padding: 0; min-width: 0; }
+.mob-ex img, .mob-ex .pick-thumb, .mob-ex .mf-box { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: #fff; }
+.mob-more { flex-basis: 100%; }
+.mob-more summary { color: var(--accent); cursor: pointer; }
+.mob-more p { margin: 4px 0; }
+.icon.good { color: var(--green, #2BB56B); }
+.meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.ov-stats.n3 { grid-template-columns: repeat(3, 1fr); }
+.ov-stats > div { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 2px; border-radius: 12px; background: var(--surface2); }

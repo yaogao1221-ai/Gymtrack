@@ -18,6 +18,17 @@ export const RED_FLAGS_ALL = [
 
 // zone de douleur (mêmes clés que l'Analyse) -> repères et protocole en 3 étapes
 export const AREAS = {
+  thoracique: {
+    label: 'Haut du dos', muscles: ['dos_epaisseur', 'trapezes'],
+    common: 'Le plus souvent : raideur ou tension musculaire entre les omoplates (posture assise, tirages lourds, sommeil). Rarement grave quand elle bouge avec les mouvements.',
+    flags: ['Douleur dans la poitrine, essoufflement, douleur qui ne change pas avec les mouvements ou fièvre : consulte un médecin sans attendre'],
+    adapt: 'Allège les tirages lourds et le développé militaire quelques jours, garde des tirages légers et lents dans l’amplitude confortable.',
+    phases: [
+      { t: '1. Calmer (jours 1 à 7)', d: 'Mobilité douce tous les jours, chaleur si ça soulage.', ex: [['Cat_Stretch', '2 × 10 lents'], ['x_thoracic', '8 par côté'], ['Childs_Pose', '45 s']] },
+      { t: '2. Recharger (semaines 2 à 4)', d: 'Renforcement léger du haut du dos, 3 fois par semaine.', ex: [['Band_Pull_Apart', '3 × 15'], ['x_wall_slide', '3 × 10'], ['x_foam_tspine', '1 min']] },
+      { t: '3. Reprendre', d: 'Reprends les tirages à 60 % de ta charge, +10 % par semaine si le lendemain va bien.', ex: [['Seated_Cable_Rows', 'Léger, 3 × 12']] },
+    ],
+  },
   epaule: {
     label: 'Épaule', muscles: ['epaules_ant', 'epaules_lat', 'epaules_post'],
     common: 'Le plus souvent : tendinopathie de la coiffe des rotateurs ou douleur en élévation (développés, dips, élévations latérales). Souvent liée à une hausse rapide du volume de poussée et à un dos (tirage, arrière d’épaule) trop faible.',
